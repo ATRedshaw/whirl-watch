@@ -11,6 +11,10 @@ const Lists = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingList, setDeletingList] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    owner: 'all'  // 'all', 'owned', 'shared'
+  });
 
   // Fetch lists on component mount
   useEffect(() => {
@@ -83,6 +87,20 @@ const Lists = () => {
     }
   };
 
+  // Add this function to filter the lists
+  const getFilteredLists = () => {
+    if (!lists) return [];
+    
+    return lists.filter(list => {
+      const matchesSearch = list.name.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesOwner = filters.owner === 'all' || 
+        (filters.owner === 'owned' && list.is_owner) || 
+        (filters.owner === 'shared' && !list.is_owner);
+      
+      return matchesSearch && matchesOwner;
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
@@ -127,10 +145,55 @@ const Lists = () => {
           </div>
         </div>
 
+        {/* Filtration Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Search Input */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Search</label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                placeholder="Search list names..."
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Owner Filter */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Owner</label>
+              <select
+                value={filters.owner}
+                onChange={(e) => setFilters(prev => ({ ...prev, owner: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Lists</option>
+                <option value="owned">My Lists</option>
+                <option value="shared">Shared With Me</option>
+              </select>
+            </div>
+
+            {/* Clear Filters Button */}
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters({ search: '', owner: 'all' })}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Lists Grid */}
-        {lists.length > 0 ? (
+        {getFilteredLists().length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {lists.map(list => (
+            {getFilteredLists().map(list => (
               <motion.div
                 key={list.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -196,21 +259,19 @@ const Lists = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <div className="mb-4 text-gray-400">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <div className="text-gray-400">
               <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <p className="text-lg font-semibold mb-2">No Lists Found</p>
-              <p className="text-sm mb-4">Create your first list to start tracking movies and TV shows!</p>
-              <button
-                onClick={() => navigate('/lists/create')}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-              >
-                Create a List
-              </button>
+              <h3 className="text-xl font-semibold mb-2">No matches found</h3>
+              <p className="text-gray-500">Try adjusting your filters</p>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
