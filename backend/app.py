@@ -60,7 +60,8 @@ class MediaInList(db.Model):
     list_id = db.Column(db.Integer, db.ForeignKey('media_list.id'), nullable=False)
     tmdb_id = db.Column(db.Integer, nullable=False)
     media_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
-    added_date = db.Column(db.DateTime, default=datetime.utcnow)
+    added_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
     rating = db.Column(db.Integer, nullable=True)
 
@@ -581,8 +582,12 @@ def update_media_status(list_id, media_id):
         if media_list.owner_id != current_user_id:
             raise Forbidden("Not authorized to update this media")
             
+        # Only update last_updated when watch_status changes
         if 'watch_status' in data:
             media.watch_status = data['watch_status']
+            media.last_updated = datetime.utcnow()
+            
+        # Rating changes don't affect last_updated
         if 'rating' in data:
             media.rating = data['rating']
                 
@@ -657,6 +662,8 @@ def get_list(list_id):
                     'media_type': item.media_type,
                     'watch_status': item.watch_status,
                     'rating': item.rating,
+                    'added_date': item.added_date.isoformat(),
+                    'last_updated': item.last_updated.isoformat(),
                     # TMDB data
                     'title': tmdb_data.get('title') or tmdb_data.get('name'),
                     'poster_path': tmdb_data.get('poster_path'),

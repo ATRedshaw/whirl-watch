@@ -124,12 +124,12 @@ const Lists = () => {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white p-4 sm:p-8">
       {/* Header Section */}
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+          <div className="text-center sm:text-left w-full sm:w-auto">
             <h1 className="text-3xl font-bold mb-2">Your Lists</h1>
             <p className="text-gray-400">Manage your movie and TV show collections</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full sm:w-auto justify-center sm:justify-end">
             <button
               onClick={() => navigate('/lists/join')}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200"

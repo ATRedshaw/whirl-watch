@@ -147,14 +147,22 @@ const ListDetails = () => {
             return a.title.localeCompare(b.title);
           case 'title_desc':
             return b.title.localeCompare(a.title);
-          case 'rating_desc':
+          case 'user_rating_desc':
             return (b.rating || 0) - (a.rating || 0);
-          case 'rating_asc':
+          case 'user_rating_asc':
             return (a.rating || 0) - (b.rating || 0);
+          case 'overall_rating_desc':
+            return (b.vote_average || 0) - (a.vote_average || 0);
+          case 'overall_rating_asc':
+            return (a.vote_average || 0) - (b.vote_average || 0);
           case 'added_date_desc':
-            return -1;
+            return new Date(b.added_date) - new Date(a.added_date);
           case 'added_date_asc':
-            return 1;
+            return new Date(a.added_date) - new Date(b.added_date);
+          case 'last_updated_desc':
+            return new Date(b.last_updated) - new Date(a.last_updated);
+          case 'last_updated_asc':
+            return new Date(a.last_updated) - new Date(b.last_updated);
           default:
             return 0;
         }
@@ -246,10 +254,14 @@ const ListDetails = () => {
               >
                 <option value="added_date_desc">Recently Added</option>
                 <option value="added_date_asc">Oldest Added</option>
+                <option value="last_updated_desc">Recently Updated</option>
+                <option value="last_updated_asc">Oldest Updated</option>
                 <option value="title_asc">Title (A-Z)</option>
                 <option value="title_desc">Title (Z-A)</option>
-                <option value="rating_desc">Rating (High-Low)</option>
-                <option value="rating_asc">Rating (Low-High)</option>
+                <option value="user_rating_desc">Your Rating (High-Low)</option>
+                <option value="user_rating_asc">Your Rating (Low-High)</option>
+                <option value="overall_rating_desc">Overall Rating (High-Low)</option>
+                <option value="overall_rating_asc">Overall Rating (Low-High)</option>
               </select>
             </div>
 
@@ -275,12 +287,21 @@ const ListDetails = () => {
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <div className="text-gray-400 mb-4">
+            <div className="text-gray-400 mb-6">
               <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
               </svg>
               <h3 className="text-xl font-semibold mb-2">This list is empty</h3>
-              <p className="text-gray-500">Start adding movies and TV shows to build your collection!</p>
+              <p className="text-gray-500 mb-6">Start adding movies and TV shows to build your collection!</p>
+              <button
+                onClick={() => navigate('/search')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors duration-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search for Media
+              </button>
             </div>
           </motion.div>
         ) : (

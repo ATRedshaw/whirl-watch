@@ -29,7 +29,6 @@ ChartJS.register(
 const Hub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [lists, setLists] = useState([]);
   const [mediaItems, setMediaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,7 +69,6 @@ const Hub = () => {
 
         const listsData = await listsResponse.json();
         const lists = Array.isArray(listsData) ? listsData : listsData.lists;
-        setLists(lists);
 
         // Fetch all media items from each list
         const allMedia = [];
@@ -174,10 +172,9 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      // Create update object with both status and rating
       const updates = {
         watch_status: newStatus,
-        rating: newStatus !== 'completed' ? null : undefined // Set rating to null if not completed
+        rating: newStatus !== 'completed' ? null : undefined
       };
       
       const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
@@ -197,9 +194,19 @@ const Hub = () => {
       setMediaItems(prev => {
         const updatedMedia = prev.map(item => 
           item.id === mediaId 
-            ? { ...item, watch_status: newStatus, rating: newStatus !== 'completed' ? null : item.rating }
+            ? { 
+                ...item, 
+                watch_status: newStatus, 
+                rating: newStatus !== 'completed' ? null : item.rating,
+                last_updated: new Date().toISOString()
+              }
             : item
         );
+
+        // Calculate stats
+        const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
+        const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
+        const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
 
         // Recalculate average rating
         let totalRating = 0;
@@ -211,12 +218,7 @@ const Hub = () => {
           }
         });
 
-        // Calculate other stats
-        const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
-        const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
-        const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
-
-        // Update all stats including average rating
+        // Update stats
         setStats(prev => ({
           ...prev,
           completed,
@@ -252,11 +254,14 @@ const Hub = () => {
         throw new Error('Failed to update rating');
       }
 
-      // Update local state
+      // Update local state without changing last_updated
       setMediaItems(prev => {
         const updatedItems = prev.map(item => 
           item.id === mediaId 
-            ? { ...item, rating: newRating ? Number(newRating) : null }
+            ? { 
+                ...item, 
+                rating: newRating ? Number(newRating) : null
+              }
             : item
         );
 
@@ -270,7 +275,7 @@ const Hub = () => {
           }
         });
 
-        // Update stats with new average
+        // Update stats
         setStats(prevStats => ({
           ...prevStats,
           averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
@@ -285,7 +290,9 @@ const Hub = () => {
     }
   };
 
-  const filteredMedia = mediaItems.filter(item => item.watch_status === selectedView);
+  const filteredMedia = mediaItems
+    .filter(item => item.watch_status === selectedView)
+    .sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -308,6 +315,19 @@ const Hub = () => {
       case 'not_watched': return 'Not Started';
       default: return 'In Progress';
     }
+  };
+
+  const getRecentlyUpdatedMedia = () => {
+    // Create a copy with added dates as Date objects for proper sorting
+    const mediaWithDates = mediaItems.map(item => ({
+      ...item,
+      lastUpdatedDate: new Date(item.last_updated)
+    }));
+
+    // Sort by last_updated date and take the first 5
+    return mediaWithDates
+      .sort((a, b) => b.lastUpdatedDate - a.lastUpdatedDate)
+      .slice(0, 3);
   };
 
   if (loading) return (
@@ -334,18 +354,153 @@ const Hub = () => {
         className="mb-8"
       >
         <h1 className="text-3xl font-bold mb-2">
-          Welcome back, <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">{user?.username}</span>
+          Welcome back <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">{user?.username}</span>
         </h1>
         <p className="text-gray-400">Your media tracking dashboard</p>
       </motion.div>
+
+      {/* Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+      >
+        <button
+          onClick={() => navigate('/search')}
+          className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
+          <p className="text-sm text-gray-400">Search and discover new titles</p>
+        </button>
+
+        <button
+          onClick={() => navigate('/lists')}
+          className="p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Manage Lists</h3>
+          <p className="text-sm text-gray-400">Create and organize your collections</p>
+        </button>
+
+        <button
+          onClick={() => navigate('/lists/join')}
+          className="p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Join Lists</h3>
+          <p className="text-sm text-gray-400">Connect with friends' collections</p>
+        </button>
+      </motion.div>
+
+      {/* Statistics Grid */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+      >
+        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+          <h3 className="text-gray-400 text-sm mb-1">Total Films & TV Shows</h3>
+          <p className="text-2xl font-bold">{stats.totalMedia}</p>
+        </div>
+        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+          <h3 className="text-gray-400 text-sm mb-1">Completed</h3>
+          <p className="text-2xl font-bold text-green-500">{stats.completed}</p>
+        </div>
+        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+          <h3 className="text-gray-400 text-sm mb-1">In Progress</h3>
+          <p className="text-2xl font-bold text-blue-500">{stats.inProgress}</p>
+        </div>
+        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+          <h3 className="text-gray-400 text-sm mb-1">Average Rating</h3>
+          <p className="text-2xl font-bold text-yellow-500">⭐ {stats.averageRating}</p>
+        </div>
+      </motion.div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
+          <div className="h-64">
+            <Doughnut
+              data={chartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      color: 'rgb(156, 163, 175)'
+                    }
+                  }
+                }
+              }}
+            />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Recently Updated</h3>
+          <div className="space-y-3">
+            {getRecentlyUpdatedMedia().map(media => (
+              <div
+                key={media.id}
+                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  {media.poster_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
+                      alt={media.title}
+                      className="w-8 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
+                      <span className="text-xs text-gray-400">No img</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium line-clamp-1">{media.title}</p>
+                    <p className="text-sm text-gray-400">From: {media.listName}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded text-sm ${
+                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {media.watch_status === 'completed' ? 'Completed' :
+                   media.watch_status === 'in_progress' ? 'In Progress' :
+                   'Not Started'}
+                </span>
+              </div>
+            ))}
+            {mediaItems.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                No media items found
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
 
       {/* Media Status Section */}
       <motion.div
         id="media-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 mb-8"
+        transition={{ delay: 0.3 }}
+        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
       >
         <div className="relative mb-6 status-dropdown">
           <div className="flex items-center gap-2">
@@ -361,7 +516,11 @@ const Hub = () => {
               }>
                 {getStatusDisplayText(selectedView)}
               </span>
-              <ChevronDownIcon className={`w-5 h-5 transition-transform duration-200 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDownIcon 
+                className={`w-5 h-5 transition-transform duration-200 ${
+                  isStatusDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
             </button>
           </div>
 
@@ -513,114 +672,6 @@ const Hub = () => {
           </div>
         )}
       </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
-      >
-        <button
-          onClick={() => navigate('/search')}
-          className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
-          <p className="text-sm text-gray-400">Search and discover new titles</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists')}
-          className="p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Manage Lists</h3>
-          <p className="text-sm text-gray-400">Create and organize your collections</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists/join')}
-          className="p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Join Lists</h3>
-          <p className="text-sm text-gray-400">Connect with friends' collections</p>
-        </button>
-      </motion.div>
-
-      {/* Statistics Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
-      >
-        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">Total Media</h3>
-          <p className="text-2xl font-bold">{stats.totalMedia}</p>
-        </div>
-        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">Completed</h3>
-          <p className="text-2xl font-bold text-green-500">{stats.completed}</p>
-        </div>
-        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">In Progress</h3>
-          <p className="text-2xl font-bold text-blue-500">{stats.inProgress}</p>
-        </div>
-        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">Average Rating</h3>
-          <p className="text-2xl font-bold text-yellow-500">⭐ {stats.averageRating}</p>
-        </div>
-      </motion.div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
-          <div className="h-64">
-            <Doughnut
-              data={chartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'bottom',
-                    labels: {
-                      color: 'rgb(156, 163, 175)'
-                    }
-                  }
-                }
-              }}
-            />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Recent Lists</h3>
-          <div className="space-y-3">
-            {lists.slice(0, 5).map(list => (
-              <div
-                key={list.id}
-                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
-              >
-                <span>{list.name}</span>
-                <span className="text-sm text-gray-400">
-                  {list.is_owner ? 'Owner' : 'Shared'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
     </div>
   );
 };
