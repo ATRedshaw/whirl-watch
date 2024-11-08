@@ -5,6 +5,8 @@ import CreateAccount from './components/CreateAccount';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
 import Hub from './components/Hub';
+import Lists from './components/Lists';
+import CreateList from './components/CreateList';
 import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
@@ -49,6 +51,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Search />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/lists" 
+                element={
+                  <ProtectedRoute>
+                    <Lists />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/lists/create"
+                element={
+                  <ProtectedRoute>
+                    <CreateList />
                   </ProtectedRoute>
                 } 
               />

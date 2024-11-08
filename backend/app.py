@@ -59,11 +59,15 @@ class MediaInList(db.Model):
     media_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
     added_date = db.Column(db.DateTime, default=datetime.utcnow)
     watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
-    rating = db.Column(db.Integer)
+    rating = db.Column(db.Integer, nullable=True)
     # For TV shows
-    current_season = db.Column(db.Integer)
-    current_episode = db.Column(db.Integer)
-    total_episodes_watched = db.Column(db.Integer, default=0)
+    current_season = db.Column(db.Integer, nullable=True)
+    current_episode = db.Column(db.Integer, nullable=True)
+    total_episodes_watched = db.Column(db.Integer, default=0, nullable=True)
+
+    __table_args__ = (
+        db.Index('idx_list_media', 'list_id', 'tmdb_id', 'media_type', unique=True),
+    )
 
 class SharedList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -568,6 +572,33 @@ def update_media_status(list_id, media_id):
         db.session.commit()
         
         return jsonify({'message': 'Status updated successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>', methods=['DELETE'])
+@jwt_required()
+def delete_list(list_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        # Check if user owns the list
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to delete this list")
+            
+        # Delete associated media items first (cascade delete)
+        MediaInList.query.filter_by(list_id=list_id).delete()
+        
+        # Delete associated shared list entries
+        SharedList.query.filter_by(list_id=list_id).delete()
+        
+        # Delete the list itself
+        db.session.delete(media_list)
+        db.session.commit()
+        
+        return jsonify({'message': 'List deleted successfully'}), 200
         
     except Exception as e:
         db.session.rollback()
