@@ -4,7 +4,6 @@ import HomePage from './components/HomePage';
 import CreateAccount from './components/CreateAccount';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
-import MovieLists from './components/MovieLists';
 import Hub from './components/Hub';
 import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
@@ -34,14 +33,6 @@ function App() {
                   <PublicOnlyRoute>
                     <Login />
                   </PublicOnlyRoute>
-                } 
-              />
-              <Route 
-                path="/lists" 
-                element={
-                  <ProtectedRoute>
-                    <MovieLists />
-                  </ProtectedRoute>
                 } 
               />
               <Route 
