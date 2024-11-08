@@ -53,7 +53,7 @@ const Navbar = () => {
                   >
                     {item.name}
                   </motion.span>
-                  <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform scale-x-0 transition-transform group-hover:scale-x-100" />
+                  <span className={`absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform transition-transform ${location.pathname === item.path ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`} />
                 </Link>
               ))}
               {isAuthenticated && (
@@ -68,7 +68,7 @@ const Navbar = () => {
                     >
                       Account Management
                     </motion.span>
-                    <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform scale-x-0 transition-transform group-hover:scale-x-100" />
+                    <span className={`absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform transition-transform ${location.pathname === '/profile' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`} />
                   </Link>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -142,7 +142,7 @@ const Navbar = () => {
                 >
                   <motion.span
                     whileHover={{ x: 10 }}
-                    className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 bg-gradient-to-r from-transparent to-transparent hover:from-slate-800/50 hover:to-transparent"
+                    className={`text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 bg-gradient-to-r from-transparent to-transparent hover:from-slate-800/50 hover:to-transparent ${location.pathname === item.path ? 'text-white from-slate-800/50' : ''}`}
                   >
                     {item.name}
                   </motion.span>
@@ -156,7 +156,7 @@ const Navbar = () => {
                   >
                     <motion.span
                       whileHover={{ x: 10 }}
-                      className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 bg-gradient-to-r from-transparent to-transparent hover:from-slate-800/50 hover:to-transparent"
+                      className={`text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 bg-gradient-to-r from-transparent to-transparent hover:from-slate-800/50 hover:to-transparent ${location.pathname === '/profile' ? 'text-white from-slate-800/50' : ''}`}
                     >
                       Account Management
                     </motion.span>
