@@ -29,16 +29,17 @@ const Hub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [lists, setLists] = useState([]);
-  const [inProgressMovies, setInProgressMovies] = useState([]);
+  const [mediaItems, setMediaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
-    totalMovies: 0,
-    watched: 0,
+    totalMedia: 0,
+    completed: 0,
     inProgress: 0,
-    notStarted: 0,
+    notWatched: 0,
     averageRating: 0
   });
+  const [selectedView, setSelectedView] = useState('in_progress');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,55 +47,86 @@ const Hub = () => {
         const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
         const token = localStorage.getItem('token');
 
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
         // Fetch lists
         const listsResponse = await fetch(`${apiUrl}/api/lists`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
           }
         });
+
+        if (!listsResponse.ok) {
+          throw new Error('Failed to fetch lists');
+        }
+
         const listsData = await listsResponse.json();
+        const lists = Array.isArray(listsData) ? listsData : listsData.lists;
+        setLists(lists);
 
-        if (!listsResponse.ok) throw new Error(listsData.error);
-        setLists(listsData.lists);
-
-        // Calculate statistics from lists
-        let totalMovies = 0;
-        let watchedCount = 0;
-        let inProgressCount = 0;
+        // Fetch all media items from each list
+        const allMedia = [];
         let totalRating = 0;
         let ratedCount = 0;
-        const inProgress = [];
 
-        // Process movie data
-        listsData.lists.forEach(list => {
-          list.movies?.forEach(movie => {
-            totalMovies++;
-            if (movie.watch_status === 'watched') watchedCount++;
-            if (movie.watch_status === 'in_progress') {
-              inProgressCount++;
-              inProgress.push({
-                ...movie,
-                listName: list.name
-              });
-            }
-            if (movie.rating) {
-              totalRating += movie.rating;
+        // Process media items and calculate ratings
+        const processMediaItems = (mediaItems, listName, listId) => {
+          const processedItems = mediaItems.map(item => ({
+            ...item,
+            listName,
+            listId
+          }));
+
+          processedItems.forEach(item => {
+            if (item.rating) {
+              totalRating += item.rating;
               ratedCount++;
             }
           });
-        });
+
+          return processedItems;
+        };
+
+        for (const list of lists) {
+          const listResponse = await fetch(`${apiUrl}/api/lists/${list.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (listResponse.ok) {
+            const listData = await listResponse.json();
+            const processedMedia = processMediaItems(
+              listData.media_items || [],
+              list.name,
+              list.id
+            );
+            allMedia.push(...processedMedia);
+          }
+        }
+
+        setMediaItems(allMedia);
+
+        // Calculate stats
+        const completed = allMedia.filter(item => item.watch_status === 'completed').length;
+        const inProgress = allMedia.filter(item => item.watch_status === 'in_progress').length;
+        const notWatched = allMedia.filter(item => item.watch_status === 'not_watched').length;
 
         setStats({
-          totalMovies,
-          watched: watchedCount,
-          inProgress: inProgressCount,
-          notStarted: totalMovies - watchedCount - inProgressCount,
+          totalMedia: allMedia.length,
+          completed,
+          inProgress,
+          notWatched,
           averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
         });
 
-        setInProgressMovies(inProgress);
-        
       } catch (err) {
+        console.error('Error fetching data:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -102,12 +134,12 @@ const Hub = () => {
     };
 
     fetchData();
-  }, []);
+  }, [navigate]);
 
   const chartData = {
-    labels: ['Watched', 'In Progress', 'Not Started'],
+    labels: ['Completed', 'In Progress', 'Not Watched'],
     datasets: [{
-      data: [stats.watched, stats.inProgress, stats.notStarted],
+      data: [stats.completed, stats.inProgress, stats.notWatched],
       backgroundColor: [
         'rgba(34, 197, 94, 0.6)',
         'rgba(59, 130, 246, 0.6)',
@@ -122,57 +154,52 @@ const Hub = () => {
     }]
   };
 
-  const handleStatusUpdate = async (movieId, newStatus) => {
+  const handleStatusUpdate = async (mediaId, listId, newStatus) => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      // Find the movie and its list
-      const movie = inProgressMovies.find(m => m.id === movieId);
-      if (!movie) return;
-
-      const response = await fetch(
-        `${apiUrl}/api/lists/${movie.list_id}/movies/${movieId}/status`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ status: newStatus })
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ watch_status: newStatus })
+      });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update status');
+        throw new Error('Failed to update status');
       }
 
       // Update local state
-      setInProgressMovies(prevMovies => 
-        prevMovies.map(m => 
-          m.id === movieId 
-            ? { ...m, watch_status: newStatus }
-            : m
-        )
-      );
+      setMediaItems(prev => prev.map(item => 
+        item.id === mediaId ? { ...item, watch_status: newStatus } : item
+      ));
 
       // Update stats
-      setStats(prevStats => {
-        const newStats = { ...prevStats };
-        if (movie.watch_status === 'in_progress') newStats.inProgress--;
-        if (newStatus === 'in_progress') newStats.inProgress++;
-        if (movie.watch_status === 'watched') newStats.watched--;
-        if (newStatus === 'watched') newStats.watched++;
-        return newStats;
-      });
+      const updatedMedia = mediaItems.map(item => 
+        item.id === mediaId ? { ...item, watch_status: newStatus } : item
+      );
+      
+      const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
+      const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
+      const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
+
+      setStats(prev => ({
+        ...prev,
+        completed,
+        inProgress,
+        notWatched
+      }));
 
     } catch (err) {
       console.error('Failed to update status:', err);
-      // Optionally show error to user
       setError(err.message);
     }
   };
+
+  const filteredMedia = mediaItems.filter(item => item.watch_status === selectedView);
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
@@ -200,7 +227,7 @@ const Hub = () => {
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">{user?.username}</span>
         </h1>
-        <p className="text-gray-400">Your movie tracking dashboard</p>
+        <p className="text-gray-400">Your media tracking dashboard</p>
       </motion.div>
 
       {/* Quick Actions */}
@@ -214,7 +241,7 @@ const Hub = () => {
           onClick={() => navigate('/search')}
           className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
         >
-          <h3 className="text-lg font-semibold mb-2">Find Movies</h3>
+          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
           <p className="text-sm text-gray-400">Search and discover new titles</p>
         </button>
 
@@ -243,12 +270,12 @@ const Hub = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
         <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">Total Movies</h3>
-          <p className="text-2xl font-bold">{stats.totalMovies}</p>
+          <h3 className="text-gray-400 text-sm mb-1">Total Media</h3>
+          <p className="text-2xl font-bold">{stats.totalMedia}</p>
         </div>
         <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-gray-400 text-sm mb-1">Watched</h3>
-          <p className="text-2xl font-bold text-green-500">{stats.watched}</p>
+          <h3 className="text-gray-400 text-sm mb-1">Completed</h3>
+          <p className="text-2xl font-bold text-green-500">{stats.completed}</p>
         </div>
         <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
           <h3 className="text-gray-400 text-sm mb-1">In Progress</h3>
@@ -311,42 +338,93 @@ const Hub = () => {
         </motion.div>
       </div>
 
-      {/* In Progress Section */}
+      {/* Media Section with Status Filter */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
         className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
       >
-        <h3 className="text-xl font-semibold mb-4">Continue Watching</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold">Media Status</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedView('in_progress')}
+              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                selectedView === 'in_progress' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-slate-700 text-gray-300'
+              }`}
+            >
+              In Progress
+            </button>
+            <button
+              onClick={() => setSelectedView('completed')}
+              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                selectedView === 'completed' 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-slate-700 text-gray-300'
+              }`}
+            >
+              Completed
+            </button>
+            <button
+              onClick={() => setSelectedView('not_watched')}
+              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                selectedView === 'not_watched' 
+                  ? 'bg-gray-500 text-white' 
+                  : 'bg-slate-700 text-gray-300'
+              }`}
+            >
+              Not Started
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {inProgressMovies.map(movie => (
+          {filteredMedia.map(media => (
             <div
-              key={movie.id}
+              key={media.id}
               className="bg-slate-700/30 p-4 rounded-lg"
             >
               <div className="flex items-start gap-4">
-                <img
-                  src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
-                  alt={movie.title}
-                  className="w-16 h-24 object-cover rounded"
-                />
-                <div>
-                  <h4 className="font-semibold">{movie.title}</h4>
-                  <p className="text-sm text-gray-400 mb-2">From: {movie.listName}</p>
+                {media.poster_path ? (
+                  <img
+                    src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                    alt={media.title}
+                    className="w-16 h-24 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-16 h-24 bg-slate-600 rounded flex items-center justify-center">
+                    <span className="text-xs text-gray-400">No poster</span>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h4 className="font-semibold line-clamp-1">{media.title}</h4>
+                  <p className="text-sm text-gray-400 mb-2">From: {media.listName}</p>
                   <select
-                    className="bg-slate-600 text-sm rounded px-2 py-1"
-                    value={movie.watch_status}
-                    onChange={(e) => handleStatusUpdate(movie.id, e.target.value)}
+                    className="w-full bg-slate-600 text-sm rounded px-2 py-1"
+                    value={media.watch_status}
+                    onChange={(e) => handleStatusUpdate(media.id, media.listId, e.target.value)}
                   >
                     <option value="not_watched">Not Started</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="watched">Completed</option>
+                    <option value="completed">Completed</option>
                   </select>
+                  {media.rating && (
+                    <p className="text-sm text-yellow-500 mt-2">
+                      Rating: ⭐ {media.rating}/10
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+          {filteredMedia.length === 0 && (
+            <div className="col-span-full text-center py-8 text-gray-400">
+              No media items found with this status
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
