@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
+import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 // Register ChartJS components
 ChartJS.register(
@@ -40,6 +41,7 @@ const Hub = () => {
     averageRating: 0
   });
   const [selectedView, setSelectedView] = useState('in_progress');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -136,6 +138,17 @@ const Hub = () => {
     fetchData();
   }, [navigate]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isStatusDropdownOpen && !event.target.closest('.status-dropdown')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isStatusDropdownOpen]);
+
   const chartData = {
     labels: ['Completed', 'In Progress', 'Not Watched'],
     datasets: [{
@@ -159,13 +172,19 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
+      // Create update object with both status and rating
+      const updates = {
+        watch_status: newStatus,
+        rating: newStatus !== 'completed' ? null : undefined // Set rating to null if not completed
+      };
+      
       const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ watch_status: newStatus })
+        body: JSON.stringify(updates)
       });
 
       if (!response.ok) {
@@ -173,25 +192,39 @@ const Hub = () => {
       }
 
       // Update local state
-      setMediaItems(prev => prev.map(item => 
-        item.id === mediaId ? { ...item, watch_status: newStatus } : item
-      ));
+      setMediaItems(prev => {
+        const updatedMedia = prev.map(item => 
+          item.id === mediaId 
+            ? { ...item, watch_status: newStatus, rating: newStatus !== 'completed' ? null : item.rating }
+            : item
+        );
 
-      // Update stats
-      const updatedMedia = mediaItems.map(item => 
-        item.id === mediaId ? { ...item, watch_status: newStatus } : item
-      );
-      
-      const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
-      const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
-      const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
+        // Recalculate average rating
+        let totalRating = 0;
+        let ratedCount = 0;
+        updatedMedia.forEach(item => {
+          if (item.rating) {
+            totalRating += item.rating;
+            ratedCount++;
+          }
+        });
 
-      setStats(prev => ({
-        ...prev,
-        completed,
-        inProgress,
-        notWatched
-      }));
+        // Calculate other stats
+        const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
+        const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
+        const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
+
+        // Update all stats including average rating
+        setStats(prev => ({
+          ...prev,
+          completed,
+          inProgress,
+          notWatched,
+          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+        }));
+
+        return updatedMedia;
+      });
 
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -199,7 +232,68 @@ const Hub = () => {
     }
   };
 
+  const handleRatingUpdate = async (mediaId, listId, newRating) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rating: newRating ? Number(newRating) : null })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update rating');
+      }
+
+      // Update local state
+      setMediaItems(prev => {
+        const updatedItems = prev.map(item => 
+          item.id === mediaId 
+            ? { ...item, rating: newRating ? Number(newRating) : null }
+            : item
+        );
+
+        // Recalculate average rating
+        let totalRating = 0;
+        let ratedCount = 0;
+        updatedItems.forEach(item => {
+          if (item.rating) {
+            totalRating += item.rating;
+            ratedCount++;
+          }
+        });
+
+        // Update stats with new average
+        setStats(prevStats => ({
+          ...prevStats,
+          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+        }));
+
+        return updatedItems;
+      });
+
+    } catch (err) {
+      console.error('Failed to update rating:', err);
+      setError(err.message);
+    }
+  };
+
   const filteredMedia = mediaItems.filter(item => item.watch_status === selectedView);
+
+  // Helper function to get status display text
+  const getStatusDisplayText = (status) => {
+    switch(status) {
+      case 'in_progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      case 'not_watched': return 'Not Started';
+      default: return 'In Progress';
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
@@ -230,11 +324,132 @@ const Hub = () => {
         <p className="text-gray-400">Your media tracking dashboard</p>
       </motion.div>
 
+      {/* Media Status Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 mb-8"
+      >
+        <div className="relative mb-6 status-dropdown">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-semibold">Media Status:</h3>
+            <button
+              onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+            >
+              <span className={
+                selectedView === 'in_progress' ? 'text-blue-500' :
+                selectedView === 'completed' ? 'text-green-500' :
+                'text-gray-500'
+              }>
+                {getStatusDisplayText(selectedView)}
+              </span>
+              <ChevronDownIcon className={`w-5 h-5 transition-transform duration-200 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {/* Dropdown Menu */}
+          {isStatusDropdownOpen && (
+            <div className="absolute z-10 mt-2 w-48 rounded-lg bg-slate-800 border border-slate-700 shadow-lg">
+              <button
+                onClick={() => {
+                  setSelectedView('in_progress');
+                  setIsStatusDropdownOpen(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-blue-500 first:rounded-t-lg"
+              >
+                In Progress
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedView('completed');
+                  setIsStatusDropdownOpen(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-green-500"
+              >
+                Completed
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedView('not_watched');
+                  setIsStatusDropdownOpen(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-gray-500 last:rounded-b-lg"
+              >
+                Not Started
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMedia.map(media => (
+            <div
+              key={media.id}
+              className="bg-slate-700/30 p-4 rounded-lg"
+            >
+              <div className="flex items-start gap-4">
+                {media.poster_path ? (
+                  <img
+                    src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                    alt={media.title}
+                    className="w-16 h-24 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-16 h-24 bg-slate-600 rounded flex items-center justify-center">
+                    <span className="text-xs text-gray-400">No poster</span>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h4 className="font-semibold line-clamp-1">{media.title}</h4>
+                  <p className="text-sm text-gray-400 mb-2">From: {media.listName}</p>
+                  <select
+                    className="w-full bg-slate-600 text-sm rounded px-2 py-1 mb-2"
+                    value={media.watch_status}
+                    onChange={(e) => handleStatusUpdate(media.id, media.listId, e.target.value)}
+                  >
+                    <option value="not_watched">Not Started</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  {media.watch_status === 'completed' && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-yellow-500">⭐</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={media.rating || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                            handleRatingUpdate(media.id, media.listId, value);
+                          }
+                        }}
+                        placeholder="1-10"
+                        className="bg-slate-600 text-sm rounded px-2 py-1 w-20"
+                      />
+                      <span className="text-sm text-gray-400">/10</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filteredMedia.length === 0 && (
+            <div className="col-span-full text-center py-8 text-gray-400">
+              No media items found with this status
+            </div>
+          )}
+        </div>
+      </motion.div>
+
       {/* Quick Actions */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.2 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
       >
         <button
@@ -266,7 +481,7 @@ const Hub = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
         <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
@@ -337,96 +552,6 @@ const Hub = () => {
           </div>
         </motion.div>
       </div>
-
-      {/* Media Section with Status Filter */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold">Media Status</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedView('in_progress')}
-              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                selectedView === 'in_progress' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-slate-700 text-gray-300'
-              }`}
-            >
-              In Progress
-            </button>
-            <button
-              onClick={() => setSelectedView('completed')}
-              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                selectedView === 'completed' 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-slate-700 text-gray-300'
-              }`}
-            >
-              Completed
-            </button>
-            <button
-              onClick={() => setSelectedView('not_watched')}
-              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                selectedView === 'not_watched' 
-                  ? 'bg-gray-500 text-white' 
-                  : 'bg-slate-700 text-gray-300'
-              }`}
-            >
-              Not Started
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMedia.map(media => (
-            <div
-              key={media.id}
-              className="bg-slate-700/30 p-4 rounded-lg"
-            >
-              <div className="flex items-start gap-4">
-                {media.poster_path ? (
-                  <img
-                    src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
-                    alt={media.title}
-                    className="w-16 h-24 object-cover rounded"
-                  />
-                ) : (
-                  <div className="w-16 h-24 bg-slate-600 rounded flex items-center justify-center">
-                    <span className="text-xs text-gray-400">No poster</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h4 className="font-semibold line-clamp-1">{media.title}</h4>
-                  <p className="text-sm text-gray-400 mb-2">From: {media.listName}</p>
-                  <select
-                    className="w-full bg-slate-600 text-sm rounded px-2 py-1"
-                    value={media.watch_status}
-                    onChange={(e) => handleStatusUpdate(media.id, media.listId, e.target.value)}
-                  >
-                    <option value="not_watched">Not Started</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                  {media.rating && (
-                    <p className="text-sm text-yellow-500 mt-2">
-                      Rating: ⭐ {media.rating}/10
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          {filteredMedia.length === 0 && (
-            <div className="col-span-full text-center py-8 text-gray-400">
-              No media items found with this status
-            </div>
-          )}
-        </div>
-      </motion.div>
     </div>
   );
 };
