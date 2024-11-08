@@ -630,8 +630,12 @@ def get_list(list_id):
         media_list = MediaList.query.get_or_404(list_id)
         
         # Check if user has access to the list (owner or shared)
-        has_access = (media_list.owner_id == current_user_id or 
-                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        is_shared = SharedList.query.filter_by(
+            list_id=list_id, 
+            user_id=current_user_id
+        ).first() is not None
+        
+        has_access = (media_list.owner_id == current_user_id or is_shared)
         
         if not has_access:
             raise Forbidden("Not authorized to view this list")
@@ -681,6 +685,7 @@ def get_list(list_id):
             'name': media_list.name,
             'description': media_list.description,
             'is_owner': media_list.owner_id == current_user_id,
+            'shared_with_me': is_shared,
             'owner': {
                 'id': media_list.owner.id,
                 'username': media_list.owner.username

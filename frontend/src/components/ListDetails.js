@@ -332,8 +332,8 @@ const ListDetails = () => {
                   <span className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded-md text-xs font-medium capitalize">
                     {media.media_type}
                   </span>
-                  {/* Delete Button */}
-                  {list.is_owner && (
+                  {/* Delete Button - Update the condition to allow shared users to delete */}
+                  {(list.is_owner || list.shared_with_me) && (
                     <button
                       onClick={() => setMediaToDelete(media)}
                       className="absolute top-2 right-2 p-1 bg-black/60 rounded-full hover:bg-red-500/80 transition-colors duration-200"
@@ -363,14 +363,14 @@ const ListDetails = () => {
                     )}
                   </div>
 
-                  {/* Watch Status */}
+                  {/* Watch Status - Also update these conditions for consistency */}
                   <div className="mb-3">
                     <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
                     <select
                       value={media.watch_status}
                       onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
                       className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!list.is_owner}
+                      disabled={!(list.is_owner || list.shared_with_me)}
                     >
                       <option value="not_watched">Not Watched</option>
                       <option value="in_progress">In Progress</option>
@@ -378,7 +378,7 @@ const ListDetails = () => {
                     </select>
                   </div>
 
-                  {/* Rating */}
+                  {/* Rating - Update these conditions as well */}
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
                     <select
@@ -386,7 +386,7 @@ const ListDetails = () => {
                       onChange={(e) => handleUpdateStatus(media.id, { rating: e.target.value ? Number(e.target.value) : null })}
                       className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 
                         ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={!list.is_owner || media.watch_status !== 'completed'}
+                      disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
                     >
                       <option value="">Not Rated</option>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(rating => (
