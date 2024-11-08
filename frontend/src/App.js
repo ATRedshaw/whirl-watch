@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import Hub from './components/Hub';
 import Lists from './components/Lists';
 import CreateList from './components/CreateList';
+import ListDetails from './components/ListDetails';
 import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
@@ -67,6 +68,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CreateList />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/lists/:id"
+                element={
+                  <ProtectedRoute>
+                    <ListDetails />
                   </ProtectedRoute>
                 } 
               />

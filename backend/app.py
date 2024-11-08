@@ -60,10 +60,6 @@ class MediaInList(db.Model):
     added_date = db.Column(db.DateTime, default=datetime.utcnow)
     watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
     rating = db.Column(db.Integer, nullable=True)
-    # For TV shows
-    current_season = db.Column(db.Integer, nullable=True)
-    current_episode = db.Column(db.Integer, nullable=True)
-    total_episodes_watched = db.Column(db.Integer, default=0, nullable=True)
 
     __table_args__ = (
         db.Index('idx_list_media', 'list_id', 'tmdb_id', 'media_type', unique=True),
@@ -381,10 +377,7 @@ def get_lists():
                 'tmdb_id': item.tmdb_id,
                 'media_type': item.media_type,
                 'watch_status': item.watch_status,
-                'rating': item.rating,
-                'current_season': item.current_season,
-                'current_episode': item.current_episode,
-                'total_episodes_watched': item.total_episodes_watched
+                'rating': item.rating
             } for item in lst.media_items]
             
             all_lists.append({
@@ -403,10 +396,7 @@ def get_lists():
                 'tmdb_id': item.tmdb_id,
                 'media_type': item.media_type,
                 'watch_status': item.watch_status,
-                'rating': item.rating,
-                'current_season': item.current_season,
-                'current_episode': item.current_episode,
-                'total_episodes_watched': item.total_episodes_watched
+                'rating': item.rating
             } for item in lst.media_items]
             
             all_lists.append({
@@ -524,9 +514,8 @@ def add_media_to_list(list_id):
             tmdb_id=data['tmdb_id'],
             media_type=data['media_type'],
             watch_status=data.get('watch_status', 'not_watched'),
-            current_season=data.get('current_season'),
-            current_episode=data.get('current_episode'),
-            total_episodes_watched=data.get('total_episodes_watched', 0)
+            rating=data.get('rating'),
+            added_date=datetime.utcnow()
         )
         
         db.session.add(new_media)
@@ -554,20 +543,10 @@ def update_media_status(list_id, media_id):
         if media_list.owner_id != current_user_id:
             raise Forbidden("Not authorized to update this media")
             
-        # Update basic fields
         if 'watch_status' in data:
             media.watch_status = data['watch_status']
         if 'rating' in data:
             media.rating = data['rating']
-            
-        # Update TV show specific fields
-        if media.media_type == 'tv':
-            if 'current_season' in data:
-                media.current_season = data['current_season']
-            if 'current_episode' in data:
-                media.current_episode = data['current_episode']
-            if 'total_episodes_watched' in data:
-                media.total_episodes_watched = data['total_episodes_watched']
                 
         db.session.commit()
         
@@ -599,6 +578,100 @@ def delete_list(list_id):
         db.session.commit()
         
         return jsonify({'message': 'List deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>', methods=['GET'])
+@jwt_required()
+def get_list(list_id):
+    try:
+        if not list_id:
+            raise BadRequest("Invalid list ID")
+            
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        # Check if user owns or has access to the list
+        if media_list.owner_id != current_user_id and not SharedList.query.filter_by(
+            list_id=list_id, user_id=current_user_id
+        ).first():
+            raise Forbidden("Not authorized to view this list")
+            
+        media_items = []
+        for item in media_list.media_items:
+            # Fetch TMDB details for each media item
+            try:
+                tmdb_response = requests.get(
+                    f'https://api.themoviedb.org/3/{item.media_type}/{item.tmdb_id}',
+                    params={
+                        'api_key': app.config['TMDB_API_KEY'],
+                        'language': 'en-US'
+                    },
+                    timeout=5
+                )
+                tmdb_data = tmdb_response.json()
+                
+                media_items.append({
+                    'id': item.id,
+                    'tmdb_id': item.tmdb_id,
+                    'media_type': item.media_type,
+                    'watch_status': item.watch_status,
+                    'rating': item.rating,
+                    # TMDB data
+                    'title': tmdb_data.get('title') or tmdb_data.get('name'),
+                    'poster_path': tmdb_data.get('poster_path'),
+                    'overview': tmdb_data.get('overview'),
+                    'release_date': tmdb_data.get('release_date') or tmdb_data.get('first_air_date'),
+                    'vote_average': tmdb_data.get('vote_average')
+                })
+            except Exception as e:
+                print(f"Error fetching TMDB data: {str(e)}")
+                # Include basic info even if TMDB fetch fails
+                media_items.append({
+                    'id': item.id,
+                    'tmdb_id': item.tmdb_id,
+                    'media_type': item.media_type,
+                    'watch_status': item.watch_status,
+                    'rating': item.rating
+                })
+        
+        return jsonify({
+            'id': media_list.id,
+            'name': media_list.name,
+            'description': media_list.description,
+            'is_owner': media_list.owner_id == current_user_id,
+            'owner': {
+                'id': media_list.owner.id,
+                'username': media_list.owner.username
+            },
+            'share_code': media_list.share_code,
+            'media_items': media_items
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>/media/<int:media_id>', methods=['DELETE'])
+@jwt_required()
+def delete_media(list_id, media_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to modify this list")
+            
+        media = MediaInList.query.filter_by(
+            list_id=list_id,
+            id=media_id
+        ).first_or_404()
+        
+        db.session.delete(media)
+        db.session.commit()
+        
+        return jsonify({'message': 'Media removed successfully'}), 200
         
     except Exception as e:
         db.session.rollback()
