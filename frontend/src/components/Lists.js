@@ -496,7 +496,6 @@ const Lists = () => {
                       <div key={user.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
                         <div>
                           <p className="font-medium">{user.username}</p>
-                          <p className="text-sm text-gray-400">{user.email}</p>
                         </div>
                         <button
                           onClick={() => {
