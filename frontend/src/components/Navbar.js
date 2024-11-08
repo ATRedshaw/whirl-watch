@@ -19,7 +19,6 @@ const Navbar = () => {
         { name: 'My Lists', path: '/lists' },
       ]
     : [
-        { name: 'Home', path: '/' },
         { name: 'Login', path: '/login' },
         { name: 'Create Account', path: '/register' },
       ];

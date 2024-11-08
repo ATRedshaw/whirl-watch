@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     setIsVisible(true);
@@ -35,9 +37,10 @@ const HomePage = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="bg-sky-600 hover:bg-sky-700 text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors duration-300"
+            onClick={() => navigate(isAuthenticated ? '/hub' : '/register')}
+            className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
           >
-            Start Tracking
+            {isAuthenticated ? 'Go to Hub' : 'Create Account'}
           </motion.button>
         </motion.div>
 
@@ -58,27 +61,6 @@ const HomePage = () => {
             </motion.div>
           ))}
         </div>
-
-        {/* CTA Section */}
-        <motion.div
-          initial="hidden"
-          animate={isVisible ? "visible" : "hidden"}
-          variants={fadeIn}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="text-center"
-        >
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to start your movie journey?
-          </h2>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/register')}
-            className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
-          >
-            Create Account
-          </motion.button>
-        </motion.div>
       </div>
     </div>
   );
