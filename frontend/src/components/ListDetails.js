@@ -381,18 +381,23 @@ const ListDetails = () => {
                   {/* Rating - Update these conditions as well */}
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
-                    <select
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="0.1"
                       value={media.rating || ''}
-                      onChange={(e) => handleUpdateStatus(media.id, { rating: e.target.value ? Number(e.target.value) : null })}
-                      className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                          handleUpdateStatus(media.id, { rating: value ? Number(value) : null });
+                        }
+                      }}
+                      placeholder="1.0-10.0"
+                      className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
                         ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
                       disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
-                    >
-                      <option value="">Not Rated</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(rating => (
-                        <option key={rating} value={rating}>{rating}/10</option>
-                      ))}
-                    </select>
+                    />
                     {media.watch_status !== 'completed' && (
                       <p className="text-sm text-gray-500 mt-1">
                         Complete watching to rate
