@@ -32,7 +32,7 @@ const HomePage = () => {
             WhirlWatch
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-8">
-            Track, Share, and Discover Movies Together
+            Track, Share, and Discover Movies & TV Shows Together
           </p>
           {isAuthenticated ? (
             <motion.button
@@ -89,19 +89,19 @@ const HomePage = () => {
 
 const features = [
   {
+    icon: "🔍", 
+    title: "Discover Content",
+    description: "Search through thousands of movies and TV shows and get detailed information about each one."
+  },
+  {
     icon: "📝",
-    title: "Create Watchlists",
-    description: "Organize your movies into custom lists and track what you want to watch."
+    title: "Create & Share Watchlists",
+    description: "Organize your movies and TV shows into custom lists, then share them with friends using unique codes."
   },
   {
-    icon: "🤝",
-    title: "Share with Friends", 
-    description: "Generate unique codes to share your movie lists with friends and family."
-  },
-  {
-    icon: "🔍",
-    title: "Discover Movies",
-    description: "Search through thousands of movies and get detailed information about each one."
+    icon: "🎲",
+    title: "Can't Decide? Spin the Wheel",
+    description: "Let the roulette wheel randomly pick your next watch from your lists when you're feeling indecisive."
   }
 ];
 
