@@ -22,6 +22,11 @@ const Lists = () => {
   const [leavingList, setLeavingList] = useState(null);
   const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
   const [userToRemove, setUserToRemove] = useState(null);
+  const [editingListDetails, setEditingListDetails] = useState(false);
+  const [listDetailsForm, setListDetailsForm] = useState({
+    name: '',
+    description: ''
+  });
 
   // Fetch lists on component mount
   useEffect(() => {
@@ -182,6 +187,39 @@ const Lists = () => {
       setLeavingList(null);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  // Add new function to handle list details update
+  const handleUpdateListDetails = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${managingList.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: listDetailsForm.name,
+          description: listDetailsForm.description
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      // Update local state
+      setLists(lists.map(list => 
+        list.id === managingList.id 
+          ? { ...list, name: listDetailsForm.name, description: listDetailsForm.description }
+          : list
+      ));
+      setManagingList({ ...managingList, name: listDetailsForm.name, description: listDetailsForm.description });
+      setEditingListDetails(false);
+    } catch (err) {
+      setManagementError(err.message);
     }
   };
 
@@ -363,7 +401,7 @@ const Lists = () => {
                         }}
                         className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
                       >
-                        {list.is_owner || list.shared_with_me ? 'Edit List' : 'View List'}
+                        View List
                       </button>
                       {list.is_owner && (
                         <button
@@ -455,6 +493,8 @@ const Lists = () => {
               setManagingList(null);
               setListUsers(null);
               setManagementError(null);
+              setEditingListDetails(false);
+              setListDetailsForm({ name: '', description: '' });
             }}
           >
             <motion.div
@@ -464,7 +504,9 @@ const Lists = () => {
               onClick={e => e.stopPropagation()}
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
-              <h3 className="text-xl font-semibold mb-4">Manage List: {managingList.name}</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {editingListDetails ? 'Edit List Details' : `Manage List: ${managingList.name}`}
+              </h3>
               
               {managementError && (
                 <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
@@ -472,6 +514,73 @@ const Lists = () => {
                 </div>
               )}
 
+              {/* List Details Section */}
+              <div className="mb-6">
+                {editingListDetails ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">List Name</label>
+                      <input
+                        type="text"
+                        value={listDetailsForm.name}
+                        onChange={(e) => setListDetailsForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter list name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Description</label>
+                      <textarea
+                        value={listDetailsForm.description}
+                        onChange={(e) => setListDetailsForm(prev => ({ ...prev, description: e.target.value }))}
+                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                        placeholder="Enter list description"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleUpdateListDetails}
+                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingListDetails(false);
+                          setListDetailsForm({
+                            name: managingList.name,
+                            description: managingList.description
+                          });
+                        }}
+                        className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-lg font-semibold">List Details</h4>
+                      <button
+                        onClick={() => {
+                          setEditingListDetails(true);
+                          setListDetailsForm({
+                            name: managingList.name,
+                            description: managingList.description
+                          });
+                        }}
+                        className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <p className="text-gray-400">{managingList.description || 'No description'}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Share Code Section */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold mb-2">Share Code</h4>
                 <div className="bg-slate-700 p-3 rounded-lg text-center">
@@ -479,6 +588,7 @@ const Lists = () => {
                 </div>
               </div>
 
+              {/* Users Section */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold mb-2">Users</h4>
                 {listUsers ? (
@@ -520,12 +630,15 @@ const Lists = () => {
                 )}
               </div>
 
+              {/* Close Button */}
               <button
                 onClick={() => {
                   setShowManageModal(false);
                   setManagingList(null);
                   setListUsers(null);
                   setManagementError(null);
+                  setEditingListDetails(false);
+                  setListDetailsForm({ name: '', description: '' });
                 }}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
               >

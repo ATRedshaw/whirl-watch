@@ -897,6 +897,39 @@ def leave_list(list_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/lists/<int:list_id>', methods=['PUT'])
+@jwt_required()
+def update_list(list_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to modify this list")
+            
+        data = request.get_json()
+        
+        if 'name' in data:
+            media_list.name = data['name']
+        if 'description' in data:
+            media_list.description = data['description']
+            
+        media_list.last_updated = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'List updated successfully',
+            'list': {
+                'id': media_list.id,
+                'name': media_list.name,
+                'description': media_list.description
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         with app.app_context():
