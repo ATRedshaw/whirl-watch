@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ListDetails = () => {
   const { id } = useParams();
@@ -8,6 +8,7 @@ const ListDetails = () => {
   const [list, setList] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [mediaToDelete, setMediaToDelete] = useState(null);
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -60,6 +61,10 @@ const ListDetails = () => {
 
   const handleUpdateStatus = async (mediaId, updates) => {
     try {
+      if (updates.watch_status && updates.watch_status !== 'completed') {
+        updates.rating = null;
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       const response = await fetch(`${apiUrl}/api/lists/${id}/media/${mediaId}`, {
@@ -76,11 +81,18 @@ const ListDetails = () => {
         throw new Error(data.error);
       }
 
-      // Update local state
       setList(prevList => ({
         ...prevList,
         media_items: prevList.media_items.map(item =>
-          item.id === mediaId ? { ...item, ...updates } : item
+          item.id === mediaId 
+            ? {
+                ...item,
+                ...updates,
+                rating: updates.watch_status && updates.watch_status !== 'completed' 
+                  ? null 
+                  : updates.rating !== undefined ? updates.rating : item.rating
+              }
+            : item
         )
       }));
     } catch (err) {
@@ -89,10 +101,6 @@ const ListDetails = () => {
   };
 
   const handleDeleteMedia = async (mediaId) => {
-    if (!window.confirm('Are you sure you want to remove this item from the list?')) {
-      return;
-    }
-
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
@@ -108,11 +116,11 @@ const ListDetails = () => {
         throw new Error(data.error);
       }
 
-      // Update local state to remove the deleted item
       setList(prevList => ({
         ...prevList,
         media_items: prevList.media_items.filter(item => item.id !== mediaId)
       }));
+      setMediaToDelete(null);
     } catch (err) {
       setError(err.message);
     }
@@ -206,7 +214,7 @@ const ListDetails = () => {
                   {/* Delete Button */}
                   {list.is_owner && (
                     <button
-                      onClick={() => handleDeleteMedia(media.id)}
+                      onClick={() => setMediaToDelete(media)}
                       className="absolute top-2 right-2 p-1 bg-black/60 rounded-full hover:bg-red-500/80 transition-colors duration-200"
                       title="Remove from list"
                     >
@@ -255,14 +263,20 @@ const ListDetails = () => {
                     <select
                       value={media.rating || ''}
                       onChange={(e) => handleUpdateStatus(media.id, { rating: e.target.value ? Number(e.target.value) : null })}
-                      className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!list.is_owner}
+                      className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 
+                        ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!list.is_owner || media.watch_status !== 'completed'}
                     >
                       <option value="">Not Rated</option>
                       {[1, 2, 3, 4, 5].map(rating => (
                         <option key={rating} value={rating}>{rating} Star{rating !== 1 ? 's' : ''}</option>
                       ))}
                     </select>
+                    {media.watch_status !== 'completed' && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Complete watching to rate
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -270,6 +284,46 @@ const ListDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {mediaToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => setMediaToDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+            >
+              <h3 className="text-xl font-semibold mb-4">Remove from List</h3>
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to remove "{mediaToDelete?.title}" from this list?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleDeleteMedia(mediaToDelete.id)}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setMediaToDelete(null)}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
