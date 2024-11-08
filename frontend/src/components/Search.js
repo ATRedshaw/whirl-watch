@@ -15,6 +15,7 @@ const Search = () => {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [addingToList, setAddingToList] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState(null);
+  const [addToListError, setAddToListError] = useState(null);
   const navigate = useNavigate();
 
   // Fetch user's lists on component mount
@@ -119,6 +120,7 @@ const Search = () => {
     if (!selectedMedia) return;
 
     setAddingToList(true);
+    setAddToListError(null);
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
@@ -136,15 +138,20 @@ const Search = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) {
+        // Check if error contains the unique constraint message
+        if (data.error.includes('UNIQUE constraint failed')) {
+          throw new Error('This title is already in this list');
+        }
+        throw new Error(data.error);
+      }
 
       setSelectedMedia(prev => ({
         ...prev,
         addedToLists: [...(prev.addedToLists || []), listId]
       }));
     } catch (err) {
-      setError(`Failed to add ${activeTab === 'movie' ? 'movie' : 'TV show'} to list`);
-      console.error(err);
+      setAddToListError(err.message);
     } finally {
       setAddingToList(false);
     }
@@ -378,7 +385,10 @@ const Search = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-            onClick={() => setSelectedMedia(null)}
+            onClick={() => {
+              setSelectedMedia(null);
+              setAddToListError(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.9 }}
@@ -390,7 +400,18 @@ const Search = () => {
               <h3 className="text-xl font-semibold mb-4">
                 Add "{selectedMedia.title || selectedMedia.name}" to List
               </h3>
-              
+
+              {/* Error Message */}
+              {addToListError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-3 bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg"
+                >
+                  {addToListError}
+                </motion.div>
+              )}
+
               {lists.length > 0 ? (
                 <div className="space-y-2">
                   {lists.map(list => (
@@ -445,7 +466,10 @@ const Search = () => {
               )}
 
               <button
-                onClick={() => setSelectedMedia(null)}
+                onClick={() => {
+                  setSelectedMedia(null);
+                  setAddToListError(null);
+                }}
                 className="mt-4 w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
               >
                 Close
