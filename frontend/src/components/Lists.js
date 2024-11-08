@@ -11,6 +11,7 @@ const Lists = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingList, setDeletingList] = useState(null);
+  const [sortBy, setSortBy] = useState('last_updated_desc');
   const [filters, setFilters] = useState({
     search: '',
     owner: 'all'  // 'all', 'owned', 'shared'
@@ -91,14 +92,37 @@ const Lists = () => {
   const getFilteredLists = () => {
     if (!lists) return [];
     
-    return lists.filter(list => {
-      const matchesSearch = list.name.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesOwner = filters.owner === 'all' || 
-        (filters.owner === 'owned' && list.is_owner) || 
-        (filters.owner === 'shared' && !list.is_owner);
-      
-      return matchesSearch && matchesOwner;
-    });
+    return lists
+      .filter(list => {
+        const matchesSearch = list.name.toLowerCase().includes(filters.search.toLowerCase());
+        const matchesOwner = filters.owner === 'all' || 
+          (filters.owner === 'owned' && list.is_owner) || 
+          (filters.owner === 'shared' && !list.is_owner);
+        
+        return matchesSearch && matchesOwner;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'name_asc':
+            return a.name.localeCompare(b.name);
+          case 'name_desc':
+            return b.name.localeCompare(a.name);
+          case 'created_desc':
+            return new Date(b.created_at) - new Date(a.created_at);
+          case 'created_asc':
+            return new Date(a.created_at) - new Date(b.created_at);
+          case 'last_updated_desc':
+            return new Date(b.last_updated) - new Date(a.last_updated);
+          case 'last_updated_asc':
+            return new Date(a.last_updated) - new Date(a.last_updated);
+          case 'items_desc':
+            return (b.media_items?.length || 0) - (a.media_items?.length || 0);
+          case 'items_asc':
+            return (a.media_items?.length || 0) - (b.media_items?.length || 0);
+          default:
+            return 0;
+        }
+      });
   };
 
   if (loading) {
@@ -151,7 +175,7 @@ const Lists = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search Input */}
             <div>
               <label className="block text-sm text-gray-400 mb-1">Search</label>
@@ -178,10 +202,32 @@ const Lists = () => {
               </select>
             </div>
 
-            {/* Clear Filters Button */}
+            {/* Sort Dropdown */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="last_updated_desc">Recently Updated</option>
+                <option value="last_updated_asc">Oldest Updated</option>
+                <option value="created_desc">Recently Created</option>
+                <option value="created_asc">Oldest Created</option>
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="name_desc">Name (Z-A)</option>
+                <option value="items_desc">Most Items</option>
+                <option value="items_asc">Least Items</option>
+              </select>
+            </div>
+
+            {/* Update Clear Filters Button */}
             <div className="flex items-end">
               <button
-                onClick={() => setFilters({ search: '', owner: 'all' })}
+                onClick={() => {
+                  setFilters({ search: '', owner: 'all' });
+                  setSortBy('last_updated_desc');
+                }}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
               >
                 Clear Filters
@@ -226,9 +272,9 @@ const Lists = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex justify-between text-sm text-gray-400">
-                      <span>Media Items: {list.media_items?.length || 0}</span>
-                      <span>{list.is_owner ? 'Owner' : `Shared by ${list.owner.username}`}</span>
+                    <div className="flex flex-col gap-1 text-sm text-gray-400">
+                      <span>Films & TV Shows: {list.media_items?.length || 0}</span>
+                      <span>{list.is_owner ? 'Owner: ' : 'Shared by: '}<span className="text-blue-400">{list.is_owner ? 'You' : list.owner.username}</span></span>
                     </div>
 
                     <div className="flex gap-2">

@@ -52,6 +52,8 @@ class MediaList(db.Model):
     description = db.Column(db.String(500))
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     share_code = db.Column(db.String(8), unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     media_items = db.relationship('MediaInList', backref='media_list', lazy=True)
     shared_with = db.relationship('SharedList', backref='media_list', lazy=True)
 
@@ -389,33 +391,25 @@ def get_lists():
         
         # Process owned lists
         for lst in owned_lists:
-            media_items = [{
-                'id': item.id,
-                'tmdb_id': item.tmdb_id,
-                'media_type': item.media_type,
-                'watch_status': item.watch_status,
-                'rating': item.rating
-            } for item in lst.media_items]
-            
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
                 'description': lst.description,
                 'is_owner': True,
                 'share_code': lst.share_code,
-                'media_items': media_items
+                'created_at': lst.created_at.isoformat(),
+                'last_updated': lst.last_updated.isoformat(),
+                'media_items': [{
+                    'id': item.id,
+                    'tmdb_id': item.tmdb_id,
+                    'media_type': item.media_type,
+                    'watch_status': item.watch_status,
+                    'rating': item.rating
+                } for item in lst.media_items]
             })
         
         # Process shared lists
         for lst in shared_lists:
-            media_items = [{
-                'id': item.id,
-                'tmdb_id': item.tmdb_id,
-                'media_type': item.media_type,
-                'watch_status': item.watch_status,
-                'rating': item.rating
-            } for item in lst.media_items]
-            
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
@@ -425,8 +419,16 @@ def get_lists():
                     'id': lst.owner.id,
                     'username': lst.owner.username
                 },
+                'created_at': lst.created_at.isoformat(),
+                'last_updated': lst.last_updated.isoformat(),
                 'share_code': lst.share_code,
-                'media_items': media_items
+                'media_items': [{
+                    'id': item.id,
+                    'tmdb_id': item.tmdb_id,
+                    'media_type': item.media_type,
+                    'watch_status': item.watch_status,
+                    'rating': item.rating
+                } for item in lst.media_items]
             })
         
         return jsonify({'lists': all_lists}), 200
@@ -557,6 +559,9 @@ def add_media_to_list(list_id):
             added_date=datetime.utcnow()
         )
         
+        # Update the list's last_updated timestamp
+        media_list.last_updated = datetime.utcnow()
+        
         db.session.add(new_media)
         db.session.commit()
         
@@ -582,12 +587,14 @@ def update_media_status(list_id, media_id):
         if media_list.owner_id != current_user_id:
             raise Forbidden("Not authorized to update this media")
             
-        # Only update last_updated when watch_status changes
+        # Only update last_updated when watch_status or rating changes
+        if 'watch_status' in data or 'rating' in data:
+            media_list.last_updated = datetime.utcnow()
+            
         if 'watch_status' in data:
             media.watch_status = data['watch_status']
             media.last_updated = datetime.utcnow()
             
-        # Rating changes don't affect last_updated
         if 'rating' in data:
             media.rating = data['rating']
                 
@@ -712,6 +719,9 @@ def delete_media(list_id, media_id):
             list_id=list_id,
             id=media_id
         ).first_or_404()
+        
+        # Update the list's last_updated timestamp
+        media_list.last_updated = datetime.utcnow()
         
         db.session.delete(media)
         db.session.commit()
