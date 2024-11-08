@@ -13,6 +13,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
 import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
 import Search from './components/Search';
+import JoinList from './components/JoinList';
 
 function App() {
   return (
@@ -76,6 +77,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ListDetails />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/lists/join"
+                element={
+                  <ProtectedRoute>
+                    <JoinList />
                   </ProtectedRoute>
                 } 
               />

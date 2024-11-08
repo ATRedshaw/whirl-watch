@@ -10,6 +10,9 @@ import uuid
 from dotenv import load_dotenv
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, Forbidden
+from sqlalchemy import func
+import string
+import random
 
 # Load environment variables from .env file
 try:
@@ -313,12 +316,19 @@ def create_list():
         
         if not data or 'name' not in data:
             raise BadRequest("List name is required")
+        
+        # Generate an 8-character share code using uppercase letters and numbers
+        share_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        
+        # Ensure uniqueness of share code
+        while MediaList.query.filter(func.upper(MediaList.share_code) == share_code).first():
+            share_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             
         new_list = MediaList(
             name=data['name'],
             description=data.get('description', ''),
             owner_id=current_user_id,
-            share_code=str(uuid.uuid4())[:8]
+            share_code=share_code
         )
         db.session.add(new_list)
         db.session.commit()
@@ -342,37 +352,6 @@ def share_list(list_id):
         return jsonify({'share_code': movie_list.share_code}), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/lists/join/<share_code>', methods=['POST'])
-@jwt_required()
-def join_list(share_code):
-    try:
-        current_user_id = get_jwt_identity()
-        movie_list = MediaList.query.filter_by(share_code=share_code).first()
-        
-        if not movie_list:
-            raise NotFound("Invalid share code")
-            
-        if movie_list.owner_id == current_user_id:
-            raise BadRequest("Cannot join your own list")
-            
-        existing_share = SharedList.query.filter_by(
-            list_id=movie_list.id, 
-            user_id=current_user_id
-        ).first()
-        
-        if existing_share:
-            raise BadRequest("Already joined this list")
-        
-        shared_list = SharedList(list_id=movie_list.id, user_id=current_user_id)
-        db.session.add(shared_list)
-        db.session.commit()
-        
-        return jsonify({'message': 'Successfully joined list'}), 200
-        
-    except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/lists', methods=['GET'])
@@ -752,6 +731,58 @@ def delete_media_by_tmdb(list_id, tmdb_id):
         
         return jsonify({'message': 'Media removed successfully'}), 200
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/join', methods=['POST'])
+@jwt_required()
+def join_list():
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data or 'share_code' not in data:
+            raise BadRequest("Share code is required")
+            
+        share_code = data['share_code'].upper()  # Convert to uppercase
+        
+        # Find the list with the given share code
+        media_list = MediaList.query.filter(
+            func.upper(MediaList.share_code) == share_code
+        ).first()
+        if not media_list:
+            raise NotFound("Invalid share code")
+            
+        # Check if user already owns the list
+        if media_list.owner_id == current_user_id:
+            raise BadRequest("You cannot join your own list")
+            
+        # Check if user already has access to the list
+        existing_share = SharedList.query.filter_by(
+            list_id=media_list.id,
+            user_id=current_user_id
+        ).first()
+        
+        if existing_share:
+            raise BadRequest("You already have access to this list")
+            
+        # Create new shared access
+        new_share = SharedList(
+            list_id=media_list.id,
+            user_id=current_user_id
+        )
+        
+        db.session.add(new_share)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Successfully joined list',
+            'list_id': media_list.id
+        }), 200
+        
+    except (BadRequest, NotFound) as e:
+        return jsonify({'error': str(e)}), e.code
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
