@@ -526,9 +526,14 @@ def add_media_to_list(list_id):
             raise BadRequest("Invalid media type")
             
         media_list = MediaList.query.get_or_404(list_id)
-        if media_list.owner_id != current_user_id:
+        
+        # Check if user has access to the list
+        has_access = (media_list.owner_id == current_user_id or 
+                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        
+        if not has_access:
             raise Forbidden("Not authorized to add to this list")
-            
+        
         new_media = MediaInList(
             list_id=list_id,
             tmdb_id=data['tmdb_id'],
@@ -563,9 +568,14 @@ def update_media_status(list_id, media_id):
         ).first_or_404()
         
         media_list = MediaList.query.get_or_404(list_id)
-        if media_list.owner_id != current_user_id:
+        
+        # Check if user has access to the list
+        has_access = (media_list.owner_id == current_user_id or 
+                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        
+        if not has_access:
             raise Forbidden("Not authorized to update this media")
-            
+        
         # Only update last_updated when watch_status or rating changes
         if 'watch_status' in data or 'rating' in data:
             media_list.last_updated = datetime.utcnow()
@@ -616,18 +626,16 @@ def delete_list(list_id):
 @jwt_required()
 def get_list(list_id):
     try:
-        if not list_id:
-            raise BadRequest("Invalid list ID")
-            
         current_user_id = get_jwt_identity()
         media_list = MediaList.query.get_or_404(list_id)
         
-        # Check if user owns or has access to the list
-        if media_list.owner_id != current_user_id and not SharedList.query.filter_by(
-            list_id=list_id, user_id=current_user_id
-        ).first():
+        # Check if user has access to the list (owner or shared)
+        has_access = (media_list.owner_id == current_user_id or 
+                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        
+        if not has_access:
             raise Forbidden("Not authorized to view this list")
-            
+        
         media_items = []
         for item in media_list.media_items:
             # Fetch TMDB details for each media item

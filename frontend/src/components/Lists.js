@@ -309,7 +309,7 @@ const Lists = () => {
                         }}
                         className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
                       >
-                        View List
+                        {list.is_owner || list.shared_with_me ? 'Edit List' : 'View List'}
                       </button>
                       {list.is_owner && (
                         <button
