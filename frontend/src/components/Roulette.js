@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,12 +12,13 @@ const Roulette = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [showResultModal, setShowResultModal] = useState(false);
-  const wheelRef = useRef(null);
+  const [cyclingMedia, setCyclingMedia] = useState(null);
+  const [spinInterval, setSpinInterval] = useState(null);
   
   // Filters similar to ListDetails
   const [filters, setFilters] = useState({
     mediaType: 'all',
-    watchStatus: 'not_watched', // Default to unwatched items
+    watchStatus: 'not_watched',
     minRating: 0,
   });
 
@@ -89,25 +90,38 @@ const Roulette = () => {
     if (filteredMedia.length === 0) return;
 
     setIsSpinning(true);
-    const randomIndex = Math.floor(Math.random() * filteredMedia.length);
-    const selected = filteredMedia[randomIndex];
-
-    // Animate wheel
-    if (wheelRef.current) {
-      const rotations = 5; // Number of full rotations
-      const degreePerItem = 360 / filteredMedia.length;
-      const finalRotation = (rotations * 360) + (randomIndex * degreePerItem);
+    setShowResultModal(true);
+    
+    // Start cycling through media
+    let cycleCount = 0;
+    const cycleInterval = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * filteredMedia.length);
+      setCyclingMedia(filteredMedia[randomIndex]);
+      cycleCount++;
       
-      wheelRef.current.style.transform = `rotate(${finalRotation}deg)`;
-      wheelRef.current.style.transition = 'transform 3s cubic-bezier(0.4, 0, 0.2, 1)';
-    }
+      // After 20 cycles (increased from 10), stop and select final media
+      if (cycleCount >= 20) {
+        clearInterval(cycleInterval);
+        setSpinInterval(null);
+        const finalIndex = Math.floor(Math.random() * filteredMedia.length);
+        const selected = filteredMedia[finalIndex];
+        setSelectedMedia(selected);
+        setCyclingMedia(null);
+        setIsSpinning(false);
+      }
+    }, 100); // Reduced from 200ms to 100ms for faster cycling
 
-    // Show result after animation
-    setTimeout(() => {
-      setSelectedMedia(selected);
-      setIsSpinning(false);
-      setShowResultModal(true);
-    }, 3000);
+    setSpinInterval(cycleInterval);
+  };
+
+  const handleCloseModal = () => {
+    if (spinInterval) {
+      clearInterval(spinInterval);
+      setSpinInterval(null);
+    }
+    setIsSpinning(false);
+    setShowResultModal(false);
+    setCyclingMedia(null);
   };
 
   const handleAddToInProgress = async () => {
@@ -116,28 +130,44 @@ const Roulette = () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/lists/${selectedList.id}/media/${selectedMedia.id}`, {
+      
+      const updates = {
+        watch_status: 'in_progress',
+        rating: null
+      };
+
+      const response = await fetch(`${apiUrl}/api/lists/${selectedList.id}/media/${selectedMedia.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          watch_status: 'in_progress'
-        })
+        body: JSON.stringify(updates)
       });
 
-      // Update local state
-      setSelectedList(prev => ({
-        ...prev,
-        media_items: prev.media_items.map(item =>
-          item.id === selectedMedia.id
-            ? { ...item, watch_status: 'in_progress' }
-            : item
-        )
-      }));
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
+      }
 
+      // Close the modal and reset states
       setShowResultModal(false);
+      setSelectedMedia(null);
+      setCyclingMedia(null);
+
+      // Fetch fresh list details
+      const detailsResponse = await fetch(`${apiUrl}/api/lists/${selectedList.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const detailsData = await detailsResponse.json();
+      if (!detailsResponse.ok) throw new Error(detailsData.error);
+      
+      // Update the list details with fresh data
+      setSelectedListDetails(detailsData);
+
     } catch (err) {
       setError(err.message);
     }
@@ -249,64 +279,32 @@ const Roulette = () => {
           </div>
         )}
 
-        {/* Roulette Wheel Section */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-8"
-        >
-          {selectedList && getFilteredMedia().length > 0 ? (
-            <>
-              <div className="relative w-64 h-64 sm:w-96 sm:h-96 mb-8">
-                <div
-                  ref={wheelRef}
-                  className="absolute inset-0 rounded-full border-4 border-rose-500 bg-slate-800"
-                >
-                  {getFilteredMedia().map((media, index) => {
-                    const rotation = (360 / getFilteredMedia().length) * index;
-                    return (
-                      <div
-                        key={media.id}
-                        className="absolute w-full h-full"
-                        style={{ transform: `rotate(${rotation}deg)` }}
-                      >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                          <img
-                            src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
-                            alt={media.title}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Center pointer */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-rose-500">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 3.5l-7 7h14l-7-7z" />
-                  </svg>
-                </div>
-              </div>
+        {/* Count Display */}
+        <div className="text-center mb-4">
+          {selectedList && (
+            <p className="text-gray-400">
+              <span className="font-semibold text-white">{getFilteredMedia().length}</span> items match your filters
+            </p>
+          )}
+        </div>
 
-              <button
-                onClick={handleSpin}
-                disabled={isSpinning}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 ${
-                  isSpinning
-                    ? 'bg-gray-600 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600'
-                }`}
-              >
-                {isSpinning ? 'Spinning...' : 'Spin the Wheel!'}
-              </button>
-            </>
+        {/* Simple Button Section */}
+        <div className="flex justify-center py-8">
+          {selectedList && getFilteredMedia().length > 0 ? (
+            <button
+              onClick={handleSpin}
+              disabled={isSpinning}
+              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-300 ${
+                isSpinning
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600'
+              }`}
+            >
+              {isSpinning ? 'Choosing...' : 'Pick Something Random!'}
+            </button>
           ) : (
             <div className="text-center py-12">
               <div className="text-gray-400">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
                 <h3 className="text-xl font-semibold mb-2">
                   {!selectedList ? 'Select a list to begin' : 'No media matches your filters'}
                 </h3>
@@ -318,17 +316,17 @@ const Roulette = () => {
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Result Modal */}
         <AnimatePresence>
-          {showResultModal && selectedMedia && (
+          {showResultModal && (cyclingMedia || selectedMedia) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowResultModal(false)}
+              onClick={() => !isSpinning && handleCloseModal()}
             >
               <motion.div
                 initial={{ scale: 0.95 }}
@@ -337,13 +335,15 @@ const Roulette = () => {
                 onClick={e => e.stopPropagation()}
                 className="bg-slate-800 rounded-lg p-6 max-w-xl w-full"
               >
-                <h3 className="text-2xl font-semibold mb-6">Your Next Watch</h3>
+                <h3 className="text-2xl font-semibold mb-6">
+                  {isSpinning ? "Choosing your next watch..." : "Your Next Watch"}
+                </h3>
                 <div className="flex gap-6 mb-6">
                   <div className="w-1/3 flex-shrink-0">
                     <div className="aspect-[2/3] rounded-lg overflow-hidden">
                       <img
-                        src={`https://image.tmdb.org/t/p/w342${selectedMedia.poster_path}`}
-                        alt={selectedMedia.title}
+                        src={`https://image.tmdb.org/t/p/w342${(cyclingMedia || selectedMedia).poster_path}`}
+                        alt={(cyclingMedia || selectedMedia).title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.src = 'https://via.placeholder.com/342x513?text=No+Image';
@@ -352,33 +352,41 @@ const Roulette = () => {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-xl font-semibold mb-3">{selectedMedia.title || selectedMedia.name}</h4>
-                    <p className="text-gray-400 mb-4 line-clamp-4">{selectedMedia.overview}</p>
+                    <h4 className="text-xl font-semibold mb-3">
+                      {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
+                    </h4>
+                    <p className="text-gray-400 mb-4 line-clamp-4">
+                      {(cyclingMedia || selectedMedia).overview}
+                    </p>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-yellow-500">⭐</span>
-                      <span className="font-medium">{selectedMedia.vote_average.toFixed(1)}</span>
+                      <span className="font-medium">
+                        {(cyclingMedia || selectedMedia).vote_average.toFixed(1)}
+                      </span>
                     </div>
-                    {selectedMedia.release_date && (
+                    {(cyclingMedia || selectedMedia).release_date && (
                       <div className="text-sm text-gray-400">
-                        Released: {new Date(selectedMedia.release_date).getFullYear()}
+                        Released: {new Date((cyclingMedia || selectedMedia).release_date).getFullYear()}
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleAddToInProgress}
-                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 font-medium"
-                  >
-                    Start Watching
-                  </button>
-                  <button
-                    onClick={() => setShowResultModal(false)}
-                    className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200 font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                {!isSpinning && (
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleAddToInProgress}
+                      className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 font-medium"
+                    >
+                      Start Watching
+                    </button>
+                    <button
+                      onClick={() => setShowResultModal(false)}
+                      className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200 font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           )}
