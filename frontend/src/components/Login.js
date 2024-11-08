@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -26,28 +28,7 @@ const Login = () => {
     setError('');
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const response = await fetch(`${apiUrl}/api/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Store the token in localStorage
-      localStorage.setItem('token', data.access_token);
-      
-      // Redirect to home page on success
+      await login(formData.username, formData.password);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -143,13 +124,6 @@ const Login = () => {
                 Create Account
               </motion.button>
             </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => navigate('/forgot-password')}
-              className="text-gray-400 hover:text-gray-300 text-sm"
-            >
-              Forgot your password?
-            </motion.button>
           </div>
         </form>
       </motion.div>

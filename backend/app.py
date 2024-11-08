@@ -239,7 +239,14 @@ def login():
             raise Unauthorized("Invalid credentials")
             
         access_token = create_access_token(identity=user.id)
-        return jsonify({'access_token': access_token}), 200
+        return jsonify({
+            'access_token': access_token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            }
+        }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -399,6 +406,22 @@ def get_movie_details(movie_id):
         
     except requests.RequestException as e:
         return jsonify({'error': f"TMDB API error: {str(e)}"}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/verify-token', methods=['GET'])
+@jwt_required()
+def verify_token():
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        return jsonify({
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            }
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Replace with your auth logic
-  const navigate = useNavigate();
+  const { logout, isAuthenticated } = useAuth();
   const location = useLocation();
 
   // Close mobile menu when route changes
@@ -18,20 +18,12 @@ const Navbar = () => {
         { name: 'Home', path: '/' },
         { name: 'My Lists', path: '/lists' },
         { name: 'Search', path: '/search' },
-        { name: 'Profile', path: '/profile' },
       ]
     : [
         { name: 'Home', path: '/' },
         { name: 'Login', path: '/login' },
         { name: 'Create Account', path: '/register' },
       ];
-
-  const handleLogout = () => {
-    // Add your logout logic here
-    setIsAuthenticated(false);
-    navigate('/');
-  };
-
 
   return (
     <nav className="bg-slate-900/95 backdrop-blur-sm fixed w-full z-50 top-0 left-0 border-b border-slate-800">
@@ -66,14 +58,28 @@ const Navbar = () => {
                 </Link>
               ))}
               {isAuthenticated && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleLogout}
-                  className="text-gray-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 transition-colors duration-200"
-                >
-                  Logout
-                </motion.button>
+                <>
+                  <Link
+                    to="/profile"
+                    className="relative group"
+                  >
+                    <motion.span
+                      whileHover={{ scale: 1.05 }}
+                      className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium inline-block transition-colors duration-200"
+                    >
+                      Account Management
+                    </motion.span>
+                    <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform scale-x-0 transition-transform group-hover:scale-x-100" />
+                  </Link>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={logout}
+                    className="text-gray-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30"
+                  >
+                    Logout
+                  </motion.button>
+                </>
               )}
             </div>
           </div>
@@ -144,13 +150,26 @@ const Navbar = () => {
                 </Link>
               ))}
               {isAuthenticated && (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleLogout}
-                  className="text-gray-300 hover:text-white block w-full text-left px-3 py-2 rounded-md text-base font-medium bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30"
-                >
-                  Logout
-                </motion.button>
+                <>
+                  <Link
+                    to="/profile"
+                    className="block relative group"
+                  >
+                    <motion.span
+                      whileHover={{ x: 10 }}
+                      className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium transition-all duration-200 bg-gradient-to-r from-transparent to-transparent hover:from-slate-800/50 hover:to-transparent"
+                    >
+                      Account Management
+                    </motion.span>
+                  </Link>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={logout}
+                    className="text-gray-300 hover:text-white block w-full text-left px-3 py-2 rounded-md text-base font-medium bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30"
+                  >
+                    Logout
+                  </motion.button>
+                </>
               )}
             </div>
           </motion.div>
