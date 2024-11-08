@@ -29,7 +29,7 @@ const Login = () => {
 
     try {
       await login(formData.username, formData.password);
-      navigate('/');
+      navigate('/hub');
     } catch (err) {
       setError(err.message);
     } finally {

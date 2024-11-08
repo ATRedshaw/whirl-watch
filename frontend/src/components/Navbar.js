@@ -15,9 +15,8 @@ const Navbar = () => {
 
   const navItems = isAuthenticated
     ? [
-        { name: 'Home', path: '/' },
+        { name: 'Hub', path: '/hub' },
         { name: 'My Lists', path: '/lists' },
-        { name: 'Search', path: '/search' },
       ]
     : [
         { name: 'Home', path: '/' },
