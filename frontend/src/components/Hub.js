@@ -42,6 +42,8 @@ const Hub = () => {
   });
   const [selectedView, setSelectedView] = useState('in_progress');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // Show 6 items per page
 
   useEffect(() => {
     const fetchData = async () => {
@@ -285,6 +287,19 @@ const Hub = () => {
 
   const filteredMedia = mediaItems.filter(item => item.watch_status === selectedView);
 
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredMedia.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredMedia.length / itemsPerPage);
+
+  // Handle page changes
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of media section
+    document.getElementById('media-section').scrollIntoView({ behavior: 'smooth' });
+  };
+
   // Helper function to get status display text
   const getStatusDisplayText = (status) => {
     switch(status) {
@@ -326,6 +341,7 @@ const Hub = () => {
 
       {/* Media Status Section */}
       <motion.div
+        id="media-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -384,7 +400,7 @@ const Hub = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMedia.map(media => (
+          {currentItems.map(media => (
             <div
               key={media.id}
               className="bg-slate-700/30 p-4 rounded-lg"
@@ -443,6 +459,59 @@ const Hub = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredMedia.length > itemsPerPage && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-lg ${
+                currentPage === 1
+                  ? 'bg-slate-700 text-gray-500 cursor-not-allowed'
+                  : 'bg-slate-700 hover:bg-slate-600 text-white'
+              }`}
+            >
+              Previous
+            </button>
+            
+            {/* Page numbers - Desktop */}
+            <div className="hidden md:flex items-center gap-1">
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index + 1}
+                  onClick={() => handlePageChange(index + 1)}
+                  className={`w-8 h-8 rounded-lg ${
+                    currentPage === index + 1
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-700 hover:bg-slate-600 text-gray-300'
+                  }`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
+            {/* Page indicator - Mobile */}
+            <div className="md:hidden flex items-center gap-1">
+              <span className="text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded-lg ${
+                currentPage === totalPages
+                  ? 'bg-slate-700 text-gray-500 cursor-not-allowed'
+                  : 'bg-slate-700 hover:bg-slate-600 text-white'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Quick Actions */}
