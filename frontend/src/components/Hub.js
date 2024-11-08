@@ -330,6 +330,25 @@ const Hub = () => {
       .slice(0, 3);
   };
 
+  // Add these helper functions at the top with other functions
+  const getTopRatedMedia = () => {
+    if (!mediaItems) return [];
+    
+    return mediaItems
+      .filter(item => item.rating) // Only items with personal ratings
+      .sort((a, b) => b.rating - a.rating) // Sort by rating descending
+      .slice(0, 5); // Take top 5
+  };
+
+  const getLowestRatedMedia = () => {
+    if (!mediaItems) return [];
+    
+    return mediaItems
+      .filter(item => item.rating) // Only items with personal ratings
+      .sort((a, b) => a.rating - b.rating) // Sort by rating ascending
+      .slice(0, 5); // Take bottom 5
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
@@ -359,70 +378,6 @@ const Hub = () => {
         <p className="text-gray-400">Your media tracking dashboard</p>
       </motion.div>
 
-      {/* Movie Roulette */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <button
-          onClick={() => navigate('/roulette')}
-          className="w-full bg-gradient-to-r from-rose-500/30 to-orange-500/30 hover:from-rose-500/40 hover:to-orange-500/40 p-6 rounded-lg border border-rose-500/30 transition-all duration-300 transform hover:scale-[1.01] group"
-        >
-          <div className="flex items-center justify-center gap-4">
-            <svg 
-              className="w-8 h-8 text-rose-400 animate-spin-slow group-hover:animate-spin" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" 
-              />
-            </svg>
-            <div className="text-left">
-              <h2 className="text-2xl font-bold text-rose-400 group-hover:text-rose-300">Movie Roulette</h2>
-              <p className="text-gray-400">Can't decide what to watch? Give the roulette wheel a whirl!</p>
-            </div>
-          </div>
-        </button>
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
-      >
-        <button
-          onClick={() => navigate('/search')}
-          className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
-          <p className="text-sm text-gray-400">Search and discover new titles</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists')}
-          className="p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Manage Lists</h3>
-          <p className="text-sm text-gray-400">Create and organize your collections</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists/join')}
-          className="p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Join Lists</h3>
-          <p className="text-sm text-gray-400">Connect with friends' collections</p>
-        </button>
-      </motion.div>
-
       {/* Statistics Grid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -448,102 +403,13 @@ const Hub = () => {
         </div>
       </motion.div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
-          <div className="h-64">
-            {stats.totalMedia > 0 ? (
-              <Doughnut
-                data={chartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: {
-                        color: 'rgb(156, 163, 175)'
-                      }
-                    }
-                  }
-                }}
-              />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-center">No watch progress yet</p>
-                <p className="text-sm text-gray-500 mt-2">Add media to your lists to track progress</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Recently Updated</h3>
-          <div className="space-y-3">
-            {getRecentlyUpdatedMedia().map(media => (
-              <div
-                key={media.id}
-                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  {media.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
-                      alt={media.title}
-                      className="w-8 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
-                      <span className="text-xs text-gray-400">No img</span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium line-clamp-1">{media.title}</p>
-                    <p className="text-sm text-gray-400">From: {media.listName}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {media.watch_status === 'completed' ? 'Completed' :
-                   media.watch_status === 'in_progress' ? 'In Progress' :
-                   'Not Started'}
-                </span>
-              </div>
-            ))}
-            {mediaItems.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                No media items found
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-
       {/* Media Status Section */}
       <motion.div
         id="media-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 mb-8"
       >
         <div className="relative mb-6 status-dropdown">
           <div className="flex items-center gap-2">
@@ -645,7 +511,7 @@ const Hub = () => {
                             handleRatingUpdate(media.id, media.listId, value);
                           }
                         }}
-                        placeholder="1-10"
+                        placeholder="1.0-10.0"
                         className="bg-slate-600 text-sm rounded px-2 py-1 w-20"
                       />
                       <span className="text-sm text-gray-400">/10</span>
@@ -715,6 +581,248 @@ const Hub = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Movie Roulette */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <button
+          onClick={() => navigate('/roulette')}
+          className="w-full bg-gradient-to-r from-rose-500/30 to-orange-500/30 hover:from-rose-500/40 hover:to-orange-500/40 p-6 rounded-lg border border-rose-500/30 transition-all duration-300 transform hover:scale-[1.01] group"
+        >
+          <div className="flex items-center justify-center gap-4">
+            <svg 
+              className="w-8 h-8 text-rose-400 animate-spin-slow group-hover:animate-spin" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" 
+              />
+            </svg>
+            <div className="text-left">
+              <h2 className="text-2xl font-bold text-rose-400 group-hover:text-rose-300">Movie Roulette</h2>
+              <p className="text-gray-400">Can't decide what to watch? Give the roulette wheel a whirl!</p>
+            </div>
+          </div>
+        </button>
+      </motion.div>
+
+      {/* Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+      >
+        <button
+          onClick={() => navigate('/search')}
+          className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
+          <p className="text-sm text-gray-400">Search and discover new titles</p>
+        </button>
+
+        <button
+          onClick={() => navigate('/lists')}
+          className="p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Manage Lists</h3>
+          <p className="text-sm text-gray-400">Create and organize your collections</p>
+        </button>
+
+        <button
+          onClick={() => navigate('/lists/join')}
+          className="p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all duration-300"
+        >
+          <h3 className="text-lg font-semibold mb-2">Join Lists</h3>
+          <p className="text-sm text-gray-400">Connect with friends' collections</p>
+        </button>
+      </motion.div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
+          <div className="h-64">
+            {stats.totalMedia > 0 ? (
+              <Doughnut
+                data={chartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                      labels: {
+                        color: 'rgb(156, 163, 175)'
+                      }
+                    }
+                  }
+                }}
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No watch progress yet</p>
+                <p className="text-sm text-gray-500 mt-2">Add media to your lists to track progress</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Recently Updated</h3>
+          <div className="space-y-3">
+            {getRecentlyUpdatedMedia().map(media => (
+              <div
+                key={media.id}
+                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  {media.poster_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
+                      alt={media.title}
+                      className="w-8 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
+                      <span className="text-xs text-gray-400">No img</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium line-clamp-1">{media.title}</p>
+                    <p className="text-sm text-gray-400">From: {media.listName}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded text-sm ${
+                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {media.watch_status === 'completed' ? 'Completed' :
+                   media.watch_status === 'in_progress' ? 'In Progress' :
+                   'Not Started'}
+                </span>
+              </div>
+            ))}
+            {mediaItems.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                No media items found
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Ratings Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Top Rated */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4 text-green-400">Your Top Rated</h3>
+          <div className="space-y-3">
+            {getTopRatedMedia().map(media => (
+              <div
+                key={media.id}
+                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg"
+              >
+                <img
+                  src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
+                  alt={media.title}
+                  className="w-8 h-12 object-cover rounded"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/45x68?text=No+Image';
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm line-clamp-1">
+                    {media.title || media.name}
+                  </p>
+                  <p className="text-sm text-gray-400 line-clamp-1">
+                    From: {media.listName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded">
+                  <span className="text-yellow-500">⭐</span>
+                  <span className="font-medium text-green-400">{media.rating}</span>
+                </div>
+              </div>
+            ))}
+            {getTopRatedMedia().length === 0 && (
+              <div className="text-center py-4 text-gray-400">
+                No rated media yet
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Lowest Rated */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4 text-red-400">Your Lowest Rated</h3>
+          <div className="space-y-3">
+            {getLowestRatedMedia().map(media => (
+              <div
+                key={media.id}
+                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg"
+              >
+                <img
+                  src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
+                  alt={media.title}
+                  className="w-8 h-12 object-cover rounded"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/45x68?text=No+Image';
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm line-clamp-1">
+                    {media.title || media.name}
+                  </p>
+                  <p className="text-sm text-gray-400 line-clamp-1">
+                    From: {media.listName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 bg-red-500/20 px-2 py-1 rounded">
+                  <span className="text-yellow-500">⭐</span>
+                  <span className="font-medium text-red-400">{media.rating}</span>
+                </div>
+              </div>
+            ))}
+            {getLowestRatedMedia().length === 0 && (
+              <div className="text-center py-4 text-gray-400">
+                No rated media yet
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
