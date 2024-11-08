@@ -549,21 +549,21 @@ const Hub = () => {
               </button>
               <button
                 onClick={() => {
-                  setSelectedView('completed');
-                  setIsStatusDropdownOpen(false);
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-green-500"
-              >
-                Completed
-              </button>
-              <button
-                onClick={() => {
                   setSelectedView('not_watched');
                   setIsStatusDropdownOpen(false);
                 }}
-                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-gray-500 last:rounded-b-lg"
+                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-gray-500"
               >
                 Not Started
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedView('completed');
+                  setIsStatusDropdownOpen(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-slate-700 text-green-500 last:rounded-b-lg"
+              >
+                Completed
               </button>
             </div>
           )}
@@ -595,8 +595,8 @@ const Hub = () => {
                     value={media.watch_status}
                     onChange={(e) => handleStatusUpdate(media.id, media.listId, e.target.value)}
                   >
-                    <option value="not_watched">Not Started</option>
                     <option value="in_progress">In Progress</option>
+                    <option value="not_watched">Not Started</option>
                     <option value="completed">Completed</option>
                   </select>
                   {media.watch_status === 'completed' && (
