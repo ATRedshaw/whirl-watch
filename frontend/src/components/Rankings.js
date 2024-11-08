@@ -11,6 +11,8 @@ const Ratings = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedList, setSelectedList] = useState('all');
+  const [lists, setLists] = useState([]);
 
   useEffect(() => {
     const fetchRatedMedia = async () => {
@@ -37,6 +39,7 @@ const Ratings = () => {
 
         const listsData = await listsResponse.json();
         const lists = Array.isArray(listsData) ? listsData : listsData.lists;
+        setLists(lists);
 
         // Fetch all media items from each list
         const allMedia = [];
@@ -75,7 +78,17 @@ const Ratings = () => {
   }, [navigate]);
 
   const getSortedMedia = () => {
-    return [...mediaItems].sort((a, b) => 
+    console.log('Selected List:', selectedList);
+    console.log('Media Items:', mediaItems);
+    
+    const filteredMedia = selectedList === 'all' 
+      ? mediaItems 
+      : mediaItems.filter(item => {
+          console.log('Comparing:', item.listId, parseInt(selectedList));
+          return item.listId === parseInt(selectedList)
+        });
+
+    return [...filteredMedia].sort((a, b) => 
       activeTab === 'highest' ? b.rating - a.rating : a.rating - b.rating
     );
   };
@@ -132,6 +145,22 @@ const Ratings = () => {
           >
             Lowest Rated
           </button>
+        </div>
+
+        {/* Add List Filter Dropdown */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <select
+            value={selectedList}
+            onChange={(e) => setSelectedList(e.target.value)}
+            className="bg-slate-700/50 text-white px-4 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+          >
+            <option value="all">All Lists</option>
+            {lists.map(list => (
+              <option key={list.id} value={list.id}>
+                {list.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Media List */}
