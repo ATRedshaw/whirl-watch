@@ -41,28 +41,33 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
-    lists = db.relationship('MovieList', backref='owner', lazy=True)
+    lists = db.relationship('MediaList', backref='owner', lazy=True)
 
-class MovieList(db.Model):
+class MediaList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     share_code = db.Column(db.String(8), unique=True)
-    movies = db.relationship('MovieInList', backref='movie_list', lazy=True)
-    shared_with = db.relationship('SharedList', backref='movie_list', lazy=True)
+    media_items = db.relationship('MediaInList', backref='media_list', lazy=True)
+    shared_with = db.relationship('SharedList', backref='media_list', lazy=True)
 
-class MovieInList(db.Model):
+class MediaInList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    list_id = db.Column(db.Integer, db.ForeignKey('movie_list.id'), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey('media_list.id'), nullable=False)
     tmdb_id = db.Column(db.Integer, nullable=False)
+    media_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
     added_date = db.Column(db.DateTime, default=datetime.utcnow)
-    watch_status = db.Column(db.String(20), default='not_watched', nullable=False) 
+    watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
     rating = db.Column(db.Integer)
+    # For TV shows
+    current_season = db.Column(db.Integer)
+    current_episode = db.Column(db.Integer)
+    total_episodes_watched = db.Column(db.Integer, default=0)
 
 class SharedList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    list_id = db.Column(db.Integer, db.ForeignKey('movie_list.id'), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey('media_list.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 # Error handlers
@@ -88,18 +93,15 @@ def handle_db_error(e):
 
 @app.route('/api', methods=['GET'])
 def api_documentation():
-    """API Documentation endpoint providing overview of all available routes"""
+    """API Documentation endpoint"""
     return jsonify({
-        'name': 'Whirl-Watch Movie Tracker API',
         'version': '1.0',
-        'description': 'API for managing shared movie lists and watchlists',
-        'base_url': '/api',
+        'description': 'Movie and TV Show Tracking API',
         'endpoints': {
             'authentication': {
                 '/api/register': {
                     'method': 'POST',
-                    'description': 'Register a new user account',
-                    'authentication': False,
+                    'description': 'Register new user',
                     'parameters': {
                         'username': 'string (required)',
                         'email': 'string (required)',
@@ -107,13 +109,17 @@ def api_documentation():
                     }
                 },
                 '/api/login': {
-                    'method': 'POST', 
-                    'description': 'Authenticate user and receive JWT token',
-                    'authentication': False,
+                    'method': 'POST',
+                    'description': 'Login user',
                     'parameters': {
                         'username': 'string (required)',
                         'password': 'string (required)'
                     }
+                },
+                '/api/verify-token': {
+                    'method': 'GET',
+                    'description': 'Verify JWT token and get user info',
+                    'authentication': 'JWT Bearer Token required'
                 }
             },
             'lists': {
@@ -149,24 +155,50 @@ def api_documentation():
                     }
                 }
             },
-            'movies': {
-                '/api/lists/<list_id>/movies': {
+            'media': {
+                '/api/search': {
+                    'method': 'GET',
+                    'description': 'Search for movies or TV shows',
+                    'authentication': 'JWT Bearer Token required',
+                    'parameters': {
+                        'query': 'string (required)',
+                        'type': 'string (optional, default: movie)',
+                        'page': 'integer (optional, default: 1)'
+                    }
+                },
+                '/api/<media_type>/<media_id>': {
+                    'method': 'GET',
+                    'description': 'Get detailed information about a movie or TV show',
+                    'authentication': 'JWT Bearer Token required',
+                    'parameters': {
+                        'media_type': 'string (required, movie or tv)',
+                        'media_id': 'integer (required)'
+                    }
+                },
+                '/api/lists/<list_id>/media': {
                     'methods': ['GET', 'POST'],
-                    'description': 'Get all movies in list or add new movie',
+                    'description': 'Get all media in list or add new media',
                     'authentication': 'JWT Bearer Token required',
                     'POST_parameters': {
                         'tmdb_id': 'integer (required)',
+                        'media_type': 'string (required, movie or tv)',
                         'watch_status': 'string (optional)',
-                        'rating': 'integer (optional)'
+                        'rating': 'integer (optional)',
+                        'current_season': 'integer (optional, TV only)',
+                        'current_episode': 'integer (optional, TV only)',
+                        'total_episodes_watched': 'integer (optional, TV only)'
                     }
                 },
-                '/api/lists/<list_id>/movies/<movie_id>': {
+                '/api/lists/<list_id>/media/<media_id>': {
                     'methods': ['GET', 'PUT', 'DELETE'],
-                    'description': 'Get, update or delete movie from list',
+                    'description': 'Get, update or delete media from list',
                     'authentication': 'JWT Bearer Token required',
                     'PUT_parameters': {
                         'watch_status': 'string (optional)',
-                        'rating': 'integer (optional)'
+                        'rating': 'integer (optional)',
+                        'current_season': 'integer (optional, TV only)',
+                        'current_episode': 'integer (optional, TV only)',
+                        'total_episodes_watched': 'integer (optional, TV only)'
                     }
                 }
             }
@@ -180,7 +212,8 @@ def api_documentation():
             '401': 'Unauthorized - Authentication required or failed',
             '403': 'Forbidden - Insufficient permissions',
             '404': 'Not Found - Resource does not exist',
-            '500': 'Server Error - Internal processing error'
+            '500': 'Server Error - Internal processing error',
+            '503': 'Service Unavailable - TMDB API error'
         }
     }), 200
 
@@ -262,7 +295,7 @@ def create_list():
         if not data or 'name' not in data:
             raise BadRequest("List name is required")
             
-        new_list = MovieList(
+        new_list = MediaList(
             name=data['name'],
             description=data.get('description', ''),
             owner_id=current_user_id,
@@ -282,7 +315,7 @@ def create_list():
 def share_list(list_id):
     try:
         current_user_id = get_jwt_identity()
-        movie_list = MovieList.query.get_or_404(list_id)
+        movie_list = MediaList.query.get_or_404(list_id)
         
         if movie_list.owner_id != current_user_id:
             raise Forbidden("You don't have permission to share this list")
@@ -297,7 +330,7 @@ def share_list(list_id):
 def join_list(share_code):
     try:
         current_user_id = get_jwt_identity()
-        movie_list = MovieList.query.filter_by(share_code=share_code).first()
+        movie_list = MediaList.query.filter_by(share_code=share_code).first()
         
         if not movie_list:
             raise NotFound("Invalid share code")
@@ -331,28 +364,58 @@ def get_lists():
         user = User.query.get_or_404(current_user_id)
         
         owned_lists = user.lists
-        shared_lists = MovieList.query.join(SharedList).filter(
+        shared_lists = MediaList.query.join(SharedList).filter(
             SharedList.user_id == current_user_id
         ).all()
         
         all_lists = []
         
+        # Process owned lists
         for lst in owned_lists:
+            media_items = [{
+                'id': item.id,
+                'tmdb_id': item.tmdb_id,
+                'media_type': item.media_type,
+                'watch_status': item.watch_status,
+                'rating': item.rating,
+                'current_season': item.current_season,
+                'current_episode': item.current_episode,
+                'total_episodes_watched': item.total_episodes_watched
+            } for item in lst.media_items]
+            
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
                 'description': lst.description,
                 'is_owner': True,
-                'share_code': lst.share_code
+                'share_code': lst.share_code,
+                'media_items': media_items
             })
         
+        # Process shared lists
         for lst in shared_lists:
+            media_items = [{
+                'id': item.id,
+                'tmdb_id': item.tmdb_id,
+                'media_type': item.media_type,
+                'watch_status': item.watch_status,
+                'rating': item.rating,
+                'current_season': item.current_season,
+                'current_episode': item.current_episode,
+                'total_episodes_watched': item.total_episodes_watched
+            } for item in lst.media_items]
+            
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
                 'description': lst.description,
                 'is_owner': False,
-                'share_code': lst.share_code
+                'owner': {
+                    'id': lst.owner.id,
+                    'username': lst.owner.username
+                },
+                'share_code': lst.share_code,
+                'media_items': media_items
             })
         
         return jsonify({'lists': all_lists}), 200
@@ -361,16 +424,21 @@ def get_lists():
         return jsonify({'error': str(e)}), 500
 
 # TMDB API routes
-@app.route('/api/movies/search')
+@app.route('/api/search')
 @jwt_required()
-def search_movies():
+def search_media():
     try:
         query = request.args.get('query', '')
+        media_type = request.args.get('type', 'movie')  # 'movie' or 'tv'
+        
         if not query:
             raise BadRequest('No search query provided')
         
+        if media_type not in ['movie', 'tv']:
+            raise BadRequest('Invalid media type')
+        
         response = requests.get(
-            f'https://api.themoviedb.org/3/search/movie',
+            f'https://api.themoviedb.org/3/search/{media_type}',
             params={
                 'api_key': app.config['TMDB_API_KEY'],
                 'query': query,
@@ -388,15 +456,19 @@ def search_movies():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/movies/<int:movie_id>')
+@app.route('/api/<string:media_type>/<int:media_id>')
 @jwt_required()
-def get_movie_details(movie_id):
+def get_media_details(media_type, media_id):
     try:
+        if media_type not in ['movie', 'tv']:
+            raise BadRequest('Invalid media type')
+            
         response = requests.get(
-            f'https://api.themoviedb.org/3/movie/{movie_id}',
+            f'https://api.themoviedb.org/3/{media_type}/{media_id}',
             params={
                 'api_key': app.config['TMDB_API_KEY'],
-                'language': 'en-US'
+                'language': 'en-US',
+                'append_to_response': 'seasons,episodes' if media_type == 'tv' else None
             },
             timeout=5
         )
@@ -425,27 +497,74 @@ def verify_token():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/lists/<int:list_id>/movies/<int:movie_id>/status', methods=['PUT'])
+@app.route('/api/lists/<int:list_id>/media', methods=['POST'])
 @jwt_required()
-def update_movie_status(list_id, movie_id):
+def add_media_to_list(list_id):
     try:
         current_user_id = get_jwt_identity()
         data = request.get_json()
         
-        if 'status' not in data:
-            raise BadRequest("Status is required")
+        required_fields = ['tmdb_id', 'media_type']
+        if not all(field in data for field in required_fields):
+            raise BadRequest("tmdb_id and media_type are required")
             
-        movie = MovieInList.query.filter_by(
+        if data['media_type'] not in ['movie', 'tv']:
+            raise BadRequest("Invalid media type")
+            
+        media_list = MediaList.query.get_or_404(list_id)
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to add to this list")
+            
+        new_media = MediaInList(
             list_id=list_id,
-            id=movie_id
+            tmdb_id=data['tmdb_id'],
+            media_type=data['media_type'],
+            watch_status=data.get('watch_status', 'not_watched'),
+            current_season=data.get('current_season'),
+            current_episode=data.get('current_episode'),
+            total_episodes_watched=data.get('total_episodes_watched', 0)
+        )
+        
+        db.session.add(new_media)
+        db.session.commit()
+        
+        return jsonify({'message': 'Media added successfully', 'id': new_media.id}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>/media/<int:media_id>', methods=['PUT'])
+@jwt_required()
+def update_media_status(list_id, media_id):
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        media = MediaInList.query.filter_by(
+            list_id=list_id,
+            id=media_id
         ).first_or_404()
         
-        # Verify permissions
-        movie_list = MovieList.query.get_or_404(list_id)
-        if movie_list.owner_id != current_user_id:
-            raise Forbidden("Not authorized to update this movie")
+        media_list = MediaList.query.get_or_404(list_id)
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to update this media")
             
-        movie.watch_status = data['status']
+        # Update basic fields
+        if 'watch_status' in data:
+            media.watch_status = data['watch_status']
+        if 'rating' in data:
+            media.rating = data['rating']
+            
+        # Update TV show specific fields
+        if media.media_type == 'tv':
+            if 'current_season' in data:
+                media.current_season = data['current_season']
+            if 'current_episode' in data:
+                media.current_episode = data['current_episode']
+            if 'total_episodes_watched' in data:
+                media.total_episodes_watched = data['total_episodes_watched']
+                
         db.session.commit()
         
         return jsonify({'message': 'Status updated successfully'}), 200
