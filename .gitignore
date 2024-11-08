@@ -24,3 +24,5 @@ frontend/yarn-error.log*
 
 # backend
 backend/venv
+backend/instance
+backend/.env
