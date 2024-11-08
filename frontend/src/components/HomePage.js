@@ -34,14 +34,35 @@ const HomePage = () => {
           <p className="text-xl md:text-2xl text-gray-300 mb-8">
             Track, Share, and Discover Movies Together
           </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate(isAuthenticated ? '/hub' : '/register')}
-            className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
-          >
-            {isAuthenticated ? 'Go to Hub' : 'Create Account'}
-          </motion.button>
+          {isAuthenticated ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/hub')}
+              className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+            >
+              Go to Hub
+            </motion.button>
+          ) : (
+            <div className="flex justify-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/login')}
+                className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+              >
+                Login
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/register')}
+                className="bg-gradient-to-r from-sky-600 to-blue-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+              >
+                Create Account
+              </motion.button>
+            </div>
+          )}
         </motion.div>
 
         {/* Features Grid */}
