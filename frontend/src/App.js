@@ -15,6 +15,7 @@ import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
 import Search from './components/Search';
 import JoinList from './components/JoinList';
 import Roulette from './components/Roulette';
+import Rankings from './components/Rankings';
 
 function App() {
   return (
@@ -94,6 +95,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Roulette />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/ratings"
+                element={
+                  <ProtectedRoute>
+                    <Rankings />
                   </ProtectedRoute>
                 }
               />
