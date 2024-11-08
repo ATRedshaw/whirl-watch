@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, create_refresh_token
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 import os
@@ -31,6 +31,9 @@ if not app.config['JWT_SECRET_KEY']:
 app.config['TMDB_API_KEY'] = os.getenv('TMDB_API_KEY')
 if not app.config['TMDB_API_KEY']:
     raise ValueError("TMDB_API_KEY not found in environment variables")
+
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Set token expiration to 30 days
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=60)  # Refresh token lasts 60 days
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -272,8 +275,11 @@ def login():
             raise Unauthorized("Invalid credentials")
             
         access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+        
         return jsonify({
             'access_token': access_token,
+            'refresh_token': refresh_token,
             'user': {
                 'id': user.id,
                 'username': user.username,
@@ -281,6 +287,16 @@ def login():
             }
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    try:
+        current_user_id = get_jwt_identity()
+        access_token = create_access_token(identity=current_user_id)
+        return jsonify({'access_token': access_token}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
