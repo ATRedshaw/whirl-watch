@@ -14,6 +14,7 @@ import ProtectedRoute from './components/routes/ProtectedRoute';
 import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
 import Search from './components/Search';
 import JoinList from './components/JoinList';
+import Roulette from './components/Roulette';
 
 function App() {
   return (
@@ -87,6 +88,14 @@ function App() {
                     <JoinList />
                   </ProtectedRoute>
                 } 
+              />
+              <Route 
+                path="/roulette"
+                element={
+                  <ProtectedRoute>
+                    <Roulette />
+                  </ProtectedRoute>
+                }
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
