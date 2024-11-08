@@ -5,8 +5,11 @@ import CreateAccount from './components/CreateAccount';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
 import MovieLists from './components/MovieLists';
+import Hub from './components/Hub';
+import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
+import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
 
 function App() {
   return (
@@ -17,8 +20,22 @@ function App() {
           <div className="pt-16">
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/register" element={<CreateAccount />} />
-              <Route path="/login" element={<Login />} />
+              <Route 
+                path="/register" 
+                element={
+                  <PublicOnlyRoute>
+                    <CreateAccount />
+                  </PublicOnlyRoute>
+                } 
+              />
+              <Route 
+                path="/login" 
+                element={
+                  <PublicOnlyRoute>
+                    <Login />
+                  </PublicOnlyRoute>
+                } 
+              />
               <Route 
                 path="/lists" 
                 element={
@@ -27,6 +44,15 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/hub" 
+                element={
+                  <ProtectedRoute>
+                    <Hub />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
         </div>
