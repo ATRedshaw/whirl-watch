@@ -18,6 +18,10 @@ const Lists = () => {
   const [managingList, setManagingList] = useState(null);
   const [listUsers, setListUsers] = useState(null);
   const [managementError, setManagementError] = useState(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leavingList, setLeavingList] = useState(null);
+  const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
+  const [userToRemove, setUserToRemove] = useState(null);
 
   // Fetch lists on component mount
   useEffect(() => {
@@ -126,11 +130,13 @@ const Lists = () => {
   };
 
   // Add this function to handle removing users
-  const handleRemoveUser = async (listId, userId) => {
+  const handleRemoveUser = async () => {
+    if (!userToRemove || !managingList) return;
+    
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/api/lists/${listId}/users/${userId}`, {
+      const response = await fetch(`${apiUrl}/api/lists/${managingList.id}/users/${userToRemove.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -143,9 +149,39 @@ const Lists = () => {
       }
 
       // Refresh the users list
-      await fetchListUsers(listId);
+      await fetchListUsers(managingList.id);
+      setShowRemoveUserModal(false);
+      setUserToRemove(null);
     } catch (err) {
       setManagementError(err.message);
+    }
+  };
+
+  // Add this new function near your other handlers
+  const handleLeaveList = async () => {
+    if (!leavingList) return;
+    
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${leavingList}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
+      }
+
+      // Remove the list from the local state
+      setLists(lists.filter(list => list.id !== leavingList));
+      setShowLeaveModal(false);
+      setLeavingList(null);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -276,6 +312,24 @@ const Lists = () => {
                       <h3 className="text-xl font-semibold mb-2">{list.name}</h3>
                       <p className="text-sm text-gray-400">{list.description || 'No description'}</p>
                     </div>
+                    {/* Delete/Leave Button */}
+                    {!list.is_owner && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setLeavingList(list.id);
+                          setShowLeaveModal(true);
+                        }}
+                        className="text-red-400 hover:text-red-300 transition-colors duration-200 p-2"
+                        aria-label="Leave list"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                      </button>
+                    )}
                     {list.is_owner && (
                       <button
                         type="button"
@@ -445,7 +499,10 @@ const Lists = () => {
                           <p className="text-sm text-gray-400">{user.email}</p>
                         </div>
                         <button
-                          onClick={() => handleRemoveUser(managingList.id, user.id)}
+                          onClick={() => {
+                            setUserToRemove(user);
+                            setShowRemoveUserModal(true);
+                          }}
                           className="text-red-400 hover:text-red-300 transition-colors duration-200"
                         >
                           Remove
@@ -475,6 +532,93 @@ const Lists = () => {
               >
                 Close
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Leave Confirmation Modal */}
+      <AnimatePresence>
+        {showLeaveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowLeaveModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+            >
+              <h3 className="text-xl font-semibold mb-4">Leave List</h3>
+              <p className="text-gray-400 mb-6">Are you sure you want to leave this list? You'll need a new share code to rejoin.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleLeaveList}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                >
+                  Leave
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLeaveModal(false);
+                    setLeavingList(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Remove User Confirmation Modal */}
+      <AnimatePresence>
+        {showRemoveUserModal && userToRemove && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => {
+              setShowRemoveUserModal(false);
+              setUserToRemove(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+            >
+              <h3 className="text-xl font-semibold mb-4">Remove User</h3>
+              <p className="text-gray-400 mb-6">
+                Are you sure you want to remove {userToRemove.username} from this list? They will need a new share code to rejoin.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRemoveUser}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRemoveUserModal(false);
+                    setUserToRemove(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

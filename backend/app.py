@@ -704,7 +704,11 @@ def delete_media(list_id, media_id):
         current_user_id = get_jwt_identity()
         media_list = MediaList.query.get_or_404(list_id)
         
-        if media_list.owner_id != current_user_id:
+        # Check if user has access to the list (owner or shared)
+        has_access = (media_list.owner_id == current_user_id or 
+                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        
+        if not has_access:
             raise Forbidden("Not authorized to modify this list")
             
         media = MediaInList.query.filter_by(
@@ -731,13 +735,20 @@ def delete_media_by_tmdb(list_id, tmdb_id):
         current_user_id = get_jwt_identity()
         media_list = MediaList.query.get_or_404(list_id)
         
-        if media_list.owner_id != current_user_id:
+        # Check if user has access to the list (owner or shared)
+        has_access = (media_list.owner_id == current_user_id or 
+                     SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first())
+        
+        if not has_access:
             raise Forbidden("Not authorized to modify this list")
             
         media = MediaInList.query.filter_by(
             list_id=list_id,
             tmdb_id=tmdb_id
         ).first_or_404()
+        
+        # Update the list's last_updated timestamp
+        media_list.last_updated = datetime.utcnow()
         
         db.session.delete(media)
         db.session.commit()
@@ -855,6 +866,32 @@ def remove_user_from_list(list_id, user_id):
         db.session.commit()
         
         return jsonify({'message': 'User removed successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>/leave', methods=['POST'])
+@jwt_required()
+def leave_list(list_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        # Check if user is actually a shared user (not the owner)
+        if media_list.owner_id == current_user_id:
+            raise BadRequest("Cannot leave a list you own")
+            
+        # Find and delete the shared access
+        shared_access = SharedList.query.filter_by(
+            list_id=list_id,
+            user_id=current_user_id
+        ).first_or_404()
+        
+        db.session.delete(shared_access)
+        db.session.commit()
+        
+        return jsonify({'message': 'Successfully left the list'}), 200
         
     except Exception as e:
         db.session.rollback()
