@@ -502,135 +502,138 @@ const Lists = () => {
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               onClick={e => e.stopPropagation()}
-              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full max-h-[90vh] flex flex-col"
             >
-              <h3 className="text-xl font-semibold mb-4">
-                {editingListDetails ? 'Edit List Details' : `Manage List: ${managingList.name}`}
-              </h3>
-              
-              {managementError && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
-                  {managementError}
-                </div>
-              )}
-
-              {/* List Details Section */}
-              <div className="mb-6">
-                {editingListDetails ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">List Name</label>
-                      <input
-                        type="text"
-                        value={listDetailsForm.name}
-                        onChange={(e) => setListDetailsForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter list name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Description</label>
-                      <textarea
-                        value={listDetailsForm.description}
-                        onChange={(e) => setListDetailsForm(prev => ({ ...prev, description: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
-                        placeholder="Enter list description"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleUpdateListDetails}
-                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-                      >
-                        Save Changes
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingListDetails(false);
-                          setListDetailsForm({
-                            name: managingList.name,
-                            description: managingList.description
-                          });
-                        }}
-                        className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-lg font-semibold">List Details</h4>
-                      <button
-                        onClick={() => {
-                          setEditingListDetails(true);
-                          setListDetailsForm({
-                            name: managingList.name,
-                            description: managingList.description
-                          });
-                        }}
-                        className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <p className="text-gray-400">{managingList.description || 'No description'}</p>
+              {/* Scrollable content */}
+              <div className="overflow-y-auto flex-1 pr-2 -mr-2">
+                <h3 className="text-xl font-semibold mb-4">
+                  {editingListDetails ? 'Edit List Details' : `Manage List: ${managingList.name}`}
+                </h3>
+                
+                {managementError && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
+                    {managementError}
                   </div>
                 )}
-              </div>
 
-              {/* Share Code Section */}
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold mb-2">Share Code</h4>
-                <div className="bg-slate-700 p-3 rounded-lg text-center">
-                  <span className="font-mono">{managingList.share_code}</span>
-                </div>
-              </div>
-
-              {/* Users Section */}
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold mb-2">Users</h4>
-                {listUsers ? (
-                  <div className="space-y-3">
-                    {/* Owner */}
-                    <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                {/* List Details Section */}
+                <div className="mb-6">
+                  {editingListDetails ? (
+                    <div className="space-y-4">
                       <div>
-                        <p className="font-medium">{listUsers.owner.username}</p>
-                        <p className="text-sm text-gray-400">Owner</p>
+                        <label className="block text-sm text-gray-400 mb-1">List Name</label>
+                        <input
+                          type="text"
+                          value={listDetailsForm.name}
+                          onChange={(e) => setListDetailsForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter list name"
+                        />
                       </div>
-                    </div>
-                    
-                    {/* Shared Users */}
-                    {listUsers.shared_users.map(user => (
-                      <div key={user.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{user.username}</p>
-                        </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Description</label>
+                        <textarea
+                          value={listDetailsForm.description}
+                          onChange={(e) => setListDetailsForm(prev => ({ ...prev, description: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                          placeholder="Enter list description"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleUpdateListDetails}
+                          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                        >
+                          Save Changes
+                        </button>
                         <button
                           onClick={() => {
-                            setUserToRemove(user);
-                            setShowRemoveUserModal(true);
+                            setEditingListDetails(false);
+                            setListDetailsForm({
+                              name: managingList.name,
+                              description: managingList.description
+                            });
                           }}
-                          className="text-red-400 hover:text-red-300 transition-colors duration-200"
+                          className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
                         >
-                          Remove
+                          Cancel
                         </button>
                       </div>
-                    ))}
-                    
-                    {listUsers.shared_users.length === 0 && (
-                      <p className="text-gray-400 text-center py-3">No shared users yet</p>
-                    )}
+                    </div>
+                  ) : (
+                    <div className="mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-lg font-semibold">List Details</h4>
+                        <button
+                          onClick={() => {
+                            setEditingListDetails(true);
+                            setListDetailsForm({
+                              name: managingList.name,
+                              description: managingList.description
+                            });
+                          }}
+                          className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <p className="text-gray-400">{managingList.description || 'No description'}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Share Code Section */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold mb-2">Share Code</h4>
+                  <div className="bg-slate-700 p-3 rounded-lg text-center">
+                    <span className="font-mono">{managingList.share_code}</span>
                   </div>
-                ) : (
-                  <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-                )}
+                </div>
+
+                {/* Users Section */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold mb-2">Users</h4>
+                  {listUsers ? (
+                    <div className="space-y-3">
+                      {/* Owner */}
+                      <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{listUsers.owner.username}</p>
+                          <p className="text-sm text-gray-400">Owner</p>
+                        </div>
+                      </div>
+                      
+                      {/* Shared Users */}
+                      {listUsers.shared_users.map(user => (
+                        <div key={user.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                          <div>
+                            <p className="font-medium">{user.username}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setUserToRemove(user);
+                              setShowRemoveUserModal(true);
+                            }}
+                            className="text-red-400 hover:text-red-300 transition-colors duration-200"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {listUsers.shared_users.length === 0 && (
+                        <p className="text-gray-400 text-center py-3">No shared users yet</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Close Button */}
+              {/* Close button - fixed at bottom */}
               <button
                 onClick={() => {
                   setShowManageModal(false);
@@ -640,7 +643,7 @@ const Lists = () => {
                   setEditingListDetails(false);
                   setListDetailsForm({ name: '', description: '' });
                 }}
-                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200 mt-4"
               >
                 Close
               </button>

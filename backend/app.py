@@ -51,8 +51,8 @@ class User(db.Model):
 
 class MediaList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(500))
+    name = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(100))
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     share_code = db.Column(db.String(8), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
