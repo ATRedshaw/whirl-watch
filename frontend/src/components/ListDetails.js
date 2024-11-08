@@ -9,6 +9,11 @@ const ListDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mediaToDelete, setMediaToDelete] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    mediaType: 'all'
+  });
+  const [sortBy, setSortBy] = useState('added_date_desc');
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -126,6 +131,36 @@ const ListDetails = () => {
     }
   };
 
+  const getFilteredAndSortedMedia = () => {
+    if (!list?.media_items) return [];
+    
+    return list.media_items
+      .filter(media => {
+        const matchesSearch = media.title.toLowerCase().includes(filters.search.toLowerCase());
+        const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
+        
+        return matchesSearch && matchesMediaType;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'title_asc':
+            return a.title.localeCompare(b.title);
+          case 'title_desc':
+            return b.title.localeCompare(a.title);
+          case 'rating_desc':
+            return (b.rating || 0) - (a.rating || 0);
+          case 'rating_asc':
+            return (a.rating || 0) - (b.rating || 0);
+          case 'added_date_desc':
+            return -1;
+          case 'added_date_asc':
+            return 1;
+          default:
+            return 0;
+        }
+      });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
@@ -168,6 +203,71 @@ const ListDetails = () => {
           <p className="text-gray-400">{list.description || 'No description'}</p>
         </motion.div>
 
+        {/* Filtration Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search Input */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Search</label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                placeholder="Search titles..."
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Media Type Filter */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Media Type</label>
+              <select
+                value={filters.mediaType}
+                onChange={(e) => setFilters(prev => ({ ...prev, mediaType: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Types</option>
+                <option value="movie">Movies</option>
+                <option value="tv">TV Shows</option>
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="added_date_desc">Recently Added</option>
+                <option value="added_date_asc">Oldest Added</option>
+                <option value="title_asc">Title (A-Z)</option>
+                <option value="title_desc">Title (Z-A)</option>
+                <option value="rating_desc">Rating (High-Low)</option>
+                <option value="rating_asc">Rating (Low-High)</option>
+              </select>
+            </div>
+
+            {/* Clear Filters Button */}
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setFilters({ search: '', mediaType: 'all' });
+                  setSortBy('added_date_desc');
+                }}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Empty State Message */}
         {(!list.media_items || list.media_items.length === 0) ? (
           <motion.div
@@ -186,7 +286,7 @@ const ListDetails = () => {
         ) : (
           /* Media Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {list.media_items.map(media => (
+            {getFilteredAndSortedMedia().map(media => (
               <motion.div
                 key={media.id}
                 layout
@@ -259,7 +359,7 @@ const ListDetails = () => {
 
                   {/* Rating */}
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Rating</label>
+                    <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
                     <select
                       value={media.rating || ''}
                       onChange={(e) => handleUpdateStatus(media.id, { rating: e.target.value ? Number(e.target.value) : null })}
@@ -268,8 +368,8 @@ const ListDetails = () => {
                       disabled={!list.is_owner || media.watch_status !== 'completed'}
                     >
                       <option value="">Not Rated</option>
-                      {[1, 2, 3, 4, 5].map(rating => (
-                        <option key={rating} value={rating}>{rating} Star{rating !== 1 ? 's' : ''}</option>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(rating => (
+                        <option key={rating} value={rating}>{rating}/10</option>
                       ))}
                     </select>
                     {media.watch_status !== 'completed' && (
@@ -284,6 +384,23 @@ const ListDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Add a "No Results" message when filters return empty */}
+      {list.media_items?.length > 0 && getFilteredAndSortedMedia().length === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-12"
+        >
+          <div className="text-gray-400">
+            <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <h3 className="text-xl font-semibold mb-2">No matches found</h3>
+            <p className="text-gray-500">Try adjusting your filters</p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
