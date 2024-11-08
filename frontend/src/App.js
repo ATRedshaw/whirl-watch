@@ -9,6 +9,7 @@ import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
 import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
+import Search from './components/Search';
 
 function App() {
   return (
@@ -40,6 +41,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Hub />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/search" 
+                element={
+                  <ProtectedRoute>
+                    <Search />
                   </ProtectedRoute>
                 } 
               />
