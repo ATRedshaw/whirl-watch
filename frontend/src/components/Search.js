@@ -283,19 +283,19 @@ const Search = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto"
             onClick={() => setSelectedDetails(null)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full max-h-[90vh]"
+              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex flex-col md:flex-row">
+              <div className="flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh]">
                 {/* Poster */}
-                <div className="w-full md:w-1/3 relative aspect-[2/3]">
+                <div className="w-full md:w-1/3 relative">
                   {selectedDetails.poster_path ? (
                     <img
                       src={`https://image.tmdb.org/t/p/w500${selectedDetails.poster_path}`}
@@ -303,48 +303,50 @@ const Search = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-slate-700 flex items-center justify-center">
+                    <div className="w-full aspect-[2/3] bg-slate-700 flex items-center justify-center">
                       <span className="text-gray-400">No poster available</span>
                     </div>
                   )}
                 </div>
 
                 {/* Details */}
-                <div className="w-full md:w-2/3 p-6 overflow-y-auto max-h-[60vh] md:max-h-[unset]">
-                  <h2 className="text-2xl font-bold mb-2">
-                    {selectedDetails.title || selectedDetails.name}
-                  </h2>
-                  
-                  <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                    <span>{(selectedDetails.release_date || selectedDetails.first_air_date)?.split('-')[0]}</span>
-                    {selectedDetails.vote_average && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        {selectedDetails.vote_average.toFixed(1)}
-                      </span>
+                <div className="w-full md:w-2/3 p-6 overflow-y-auto flex flex-col max-h-[60vh] md:max-h-[80vh]">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">
+                      {selectedDetails.title || selectedDetails.name}
+                    </h2>
+
+                    <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                      <span>{(selectedDetails.release_date || selectedDetails.first_air_date)?.split('-')[0]}</span>
+                      {selectedDetails.vote_average && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          {selectedDetails.vote_average.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-gray-300 mb-6 leading-relaxed">
+                      {selectedDetails.overview}
+                    </p>
+
+                    {/* Additional details for TV shows */}
+                    {activeTab === 'tv' && selectedDetails.number_of_seasons && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold mb-2">Show Info</h3>
+                        <div className="space-y-2 text-sm text-gray-300">
+                          <p>Seasons: {selectedDetails.number_of_seasons}</p>
+                          <p>Episodes: {selectedDetails.number_of_episodes}</p>
+                          <p>Status: {selectedDetails.status}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  <p className="text-gray-300 mb-6 leading-relaxed">
-                    {selectedDetails.overview}
-                  </p>
-
-                  {/* Additional details for TV shows */}
-                  {activeTab === 'tv' && selectedDetails.number_of_seasons && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold mb-2">Show Info</h3>
-                      <div className="space-y-2 text-sm text-gray-300">
-                        <p>Seasons: {selectedDetails.number_of_seasons}</p>
-                        <p>Episodes: {selectedDetails.number_of_episodes}</p>
-                        <p>Status: {selectedDetails.status}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  {/* Action Buttons - Fixed at bottom */}
+                  <div className="flex gap-3 mt-4">
                     <button
                       onClick={() => {
                         setSelectedMedia(selectedDetails);
