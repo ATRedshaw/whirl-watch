@@ -1,10 +1,18 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import HomePage from './components/HomePage';
+import CreateAccount from './components/CreateAccount';
+
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100">
-      <h1 className="text-3xl font-bold text-center py-8">
-        Hello Tailwind CSS!
-      </h1>
-    </div>
+    <BrowserRouter>
+      <div className="App">
+        <Routes>
+          <Route exact path="/" element={<HomePage />} />
+          <Route path="/register" element={<CreateAccount />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 
