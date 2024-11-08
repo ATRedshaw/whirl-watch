@@ -13,9 +13,9 @@ const Search = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedMedia, setSelectedMedia] = useState(null);
-  const [addingToList, setAddingToList] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [addToListError, setAddToListError] = useState(null);
+  const [processingLists, setProcessingLists] = useState(new Set());
   const navigate = useNavigate();
 
   // Fetch user's lists on component mount
@@ -116,44 +116,70 @@ const Search = () => {
     }
   };
 
-  const handleAddToList = async (listId) => {
+  const handleListToggle = async (listId) => {
     if (!selectedMedia) return;
-
-    setAddingToList(true);
+    
+    setProcessingLists(prev => new Set([...prev, listId]));
     setAddToListError(null);
+    
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/api/lists/${listId}/media`, {
-        method: 'POST',
+      const isRemoving = selectedMedia.addedToLists?.includes(listId);
+      
+      const url = isRemoving 
+        ? `${apiUrl}/api/lists/${listId}/media/tmdb/${selectedMedia.id}`
+        : `${apiUrl}/api/lists/${listId}/media`;
+      
+      const response = await fetch(url, {
+        method: isRemoving ? 'DELETE' : 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          tmdb_id: selectedMedia.id,
-          media_type: activeTab,
-          watch_status: 'not_watched'
+        ...(isRemoving ? {} : {
+          body: JSON.stringify({
+            tmdb_id: selectedMedia.id,
+            media_type: activeTab,
+            watch_status: 'not_watched'
+          })
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        // Check if error contains the unique constraint message
-        if (data.error.includes('UNIQUE constraint failed')) {
-          throw new Error('This title is already in this list');
-        }
-        throw new Error(data.error);
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update list');
       }
+
+      const updatedLists = isRemoving 
+        ? (selectedMedia.addedToLists || []).filter(id => id !== listId)
+        : [...(selectedMedia.addedToLists || []), listId];
 
       setSelectedMedia(prev => ({
         ...prev,
-        addedToLists: [...(prev.addedToLists || []), listId]
+        addedToLists: updatedLists
       }));
+
+      setResults(prevResults => 
+        prevResults.map(result => 
+          result.id === selectedMedia.id
+            ? {
+                ...result,
+                addedToLists: updatedLists
+              }
+            : result
+        )
+      );
+
     } catch (err) {
+      console.error('Error in handleListToggle:', err);
       setAddToListError(err.message);
     } finally {
-      setAddingToList(false);
+      setProcessingLists(prev => {
+        const next = new Set(prev);
+        next.delete(listId);
+        return next;
+      });
     }
   };
 
@@ -417,18 +443,32 @@ const Search = () => {
                   {lists.map(list => (
                     <button
                       key={list.id}
-                      onClick={() => handleAddToList(list.id)}
-                      disabled={addingToList || selectedMedia.addedToLists?.includes(list.id)}
-                      className={`w-full p-3 rounded-lg text-left transition-colors duration-200 ${
+                      onClick={() => handleListToggle(list.id)}
+                      disabled={processingLists.has(list.id)}
+                      className={`w-full p-3 rounded-lg text-left transition-colors duration-200 relative ${
                         selectedMedia.addedToLists?.includes(list.id)
-                          ? 'bg-green-500/20 text-green-500 cursor-default'
+                          ? 'bg-green-500/20 hover:bg-green-500/30'
                           : 'bg-slate-700 hover:bg-slate-600'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span>{list.name}</span>
-                        {selectedMedia.addedToLists?.includes(list.id) && (
-                          <span>✓ Added</span>
+                        {processingLists.has(list.id) ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent" />
+                        ) : (
+                          selectedMedia.addedToLists?.includes(list.id) && (
+                            <svg 
+                              className="w-5 h-5 text-green-500" 
+                              fill="currentColor" 
+                              viewBox="0 0 20 20"
+                            >
+                              <path 
+                                fillRule="evenodd" 
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                                clipRule="evenodd" 
+                              />
+                            </svg>
+                          )
                         )}
                       </div>
                     </button>

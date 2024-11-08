@@ -422,6 +422,7 @@ def get_lists():
 @jwt_required()
 def search_media():
     try:
+        current_user_id = get_jwt_identity()
         query = request.args.get('query', '')
         media_type = request.args.get('type', 'movie')  # 'movie' or 'tv'
         
@@ -431,6 +432,7 @@ def search_media():
         if media_type not in ['movie', 'tv']:
             raise BadRequest('Invalid media type')
         
+        # Get TMDB search results
         response = requests.get(
             f'https://api.themoviedb.org/3/search/{media_type}',
             params={
@@ -442,8 +444,28 @@ def search_media():
             timeout=5
         )
         response.raise_for_status()
+        data = response.json()
         
-        return jsonify(response.json()), 200
+        # Get user's lists that contain these media items
+        user_lists = MediaList.query.filter(
+            (MediaList.owner_id == current_user_id) |
+            MediaList.shared_with.any(user_id=current_user_id)
+        ).all()
+        
+        # Create a mapping of tmdb_id to list_ids
+        media_in_lists = {}
+        for lst in user_lists:
+            for item in lst.media_items:
+                if item.media_type == media_type:
+                    if item.tmdb_id not in media_in_lists:
+                        media_in_lists[item.tmdb_id] = []
+                    media_in_lists[item.tmdb_id].append(lst.id)
+        
+        # Add list information to each result
+        for item in data['results']:
+            item['addedToLists'] = media_in_lists.get(item['id'], [])
+        
+        return jsonify(data), 200
         
     except requests.RequestException as e:
         return jsonify({'error': f"TMDB API error: {str(e)}"}), 503
@@ -666,6 +688,30 @@ def delete_media(list_id, media_id):
         media = MediaInList.query.filter_by(
             list_id=list_id,
             id=media_id
+        ).first_or_404()
+        
+        db.session.delete(media)
+        db.session.commit()
+        
+        return jsonify({'message': 'Media removed successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>/media/tmdb/<int:tmdb_id>', methods=['DELETE'])
+@jwt_required()
+def delete_media_by_tmdb(list_id, tmdb_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to modify this list")
+            
+        media = MediaInList.query.filter_by(
+            list_id=list_id,
+            tmdb_id=tmdb_id
         ).first_or_404()
         
         db.session.delete(media)
