@@ -33,7 +33,7 @@ const Navbar = () => {
               whileHover={{ scale: 1.05 }}
               className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-blue-500 to-purple-600"
             >
-              Whirl Watch
+              WhirlWatch
             </motion.h1>
           </Link>
 

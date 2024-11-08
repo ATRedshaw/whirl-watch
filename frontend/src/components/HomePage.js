@@ -29,7 +29,7 @@ const HomePage = () => {
           className="text-center mb-20"
         >
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-blue-500 to-purple-600 drop-shadow-lg tracking-tight">
-            Whirl Watch
+            WhirlWatch
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-8">
             Track, Share, and Discover Movies Together
