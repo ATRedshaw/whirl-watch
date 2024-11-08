@@ -426,21 +426,32 @@ const Hub = () => {
         >
           <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
           <div className="h-64">
-            <Doughnut
-              data={chartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'bottom',
-                    labels: {
-                      color: 'rgb(156, 163, 175)'
+            {stats.totalMedia > 0 ? (
+              <Doughnut
+                data={chartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                      labels: {
+                        color: 'rgb(156, 163, 175)'
+                      }
                     }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No watch progress yet</p>
+                <p className="text-sm text-gray-500 mt-2">Add media to your lists to track progress</p>
+              </div>
+            )}
           </div>
         </motion.div>
 
