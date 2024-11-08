@@ -7,8 +7,6 @@ const Lists = () => {
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [shareCode, setShareCode] = useState(null);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingList, setDeletingList] = useState(null);
   const [sortBy, setSortBy] = useState('last_updated_desc');
@@ -16,6 +14,10 @@ const Lists = () => {
     search: '',
     owner: 'all'  // 'all', 'owned', 'shared'
   });
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [managingList, setManagingList] = useState(null);
+  const [listUsers, setListUsers] = useState(null);
+  const [managementError, setManagementError] = useState(null);
 
   // Fetch lists on component mount
   useEffect(() => {
@@ -40,26 +42,6 @@ const Lists = () => {
 
     fetchLists();
   }, []);
-
-  // Handle share list
-  const handleShare = async (listId) => {
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/api/lists/${listId}/share`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setShareCode(data.share_code);
-      setShowShareModal(true);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   // Handle delete list
   const handleDelete = async () => {
@@ -123,6 +105,48 @@ const Lists = () => {
             return 0;
         }
       });
+  };
+
+  // Add this new function to fetch list users
+  const fetchListUsers = async (listId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${listId}/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setListUsers(data);
+    } catch (err) {
+      setManagementError(err.message);
+    }
+  };
+
+  // Add this function to handle removing users
+  const handleRemoveUser = async (listId, userId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${listId}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
+      }
+
+      // Refresh the users list
+      await fetchListUsers(listId);
+    } catch (err) {
+      setManagementError(err.message);
+    }
   };
 
   if (loading) {
@@ -285,17 +309,19 @@ const Lists = () => {
                         }}
                         className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
                       >
-                        View Details
+                        View List
                       </button>
                       {list.is_owner && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleShare(list.id);
+                            setManagingList(list);
+                            setShowManageModal(true);
+                            fetchListUsers(list.id);
                           }}
                           className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
                         >
-                          Share
+                          Share & Manage
                         </button>
                       )}
                     </div>
@@ -320,39 +346,6 @@ const Lists = () => {
           </motion.div>
         )}
       </div>
-
-      {/* Share Modal */}
-      <AnimatePresence>
-        {showShareModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowShareModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
-            >
-              <h3 className="text-xl font-semibold mb-4">Share List</h3>
-              <p className="text-gray-400 mb-4">Share this code with friends to let them join your list:</p>
-              <div className="bg-slate-700 p-4 rounded-lg text-center mb-4">
-                <span className="text-2xl font-mono">{shareCode}</span>
-              </div>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
@@ -390,6 +383,98 @@ const Lists = () => {
                   Cancel
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* List Management Modal */}
+      <AnimatePresence>
+        {showManageModal && managingList && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => {
+              setShowManageModal(false);
+              setManagingList(null);
+              setListUsers(null);
+              setManagementError(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+            >
+              <h3 className="text-xl font-semibold mb-4">Manage List: {managingList.name}</h3>
+              
+              {managementError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
+                  {managementError}
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-2">Share Code</h4>
+                <div className="bg-slate-700 p-3 rounded-lg text-center">
+                  <span className="font-mono">{managingList.share_code}</span>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-2">Users</h4>
+                {listUsers ? (
+                  <div className="space-y-3">
+                    {/* Owner */}
+                    <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                      <div>
+                        <p className="font-medium">{listUsers.owner.username}</p>
+                        <p className="text-sm text-gray-400">Owner</p>
+                      </div>
+                    </div>
+                    
+                    {/* Shared Users */}
+                    {listUsers.shared_users.map(user => (
+                      <div key={user.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{user.username}</p>
+                          <p className="text-sm text-gray-400">{user.email}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveUser(managingList.id, user.id)}
+                          className="text-red-400 hover:text-red-300 transition-colors duration-200"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {listUsers.shared_users.length === 0 && (
+                      <p className="text-gray-400 text-center py-3">No shared users yet</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowManageModal(false);
+                  setManagingList(null);
+                  setListUsers(null);
+                  setManagementError(null);
+                }}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+              >
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}

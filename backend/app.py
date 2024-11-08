@@ -787,6 +787,66 @@ def join_list():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+# Add these new routes after your existing list routes
+
+@app.route('/api/lists/<int:list_id>/users', methods=['GET'])
+@jwt_required()
+def get_list_users(list_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        # Only list owner can view users
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to view list users")
+            
+        # Get all users with access to the list
+        shared_users = User.query.join(SharedList).filter(
+            SharedList.list_id == list_id
+        ).all()
+        
+        return jsonify({
+            'owner': {
+                'id': media_list.owner.id,
+                'username': media_list.owner.username,
+                'email': media_list.owner.email
+            },
+            'shared_users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            } for user in shared_users]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lists/<int:list_id>/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+def remove_user_from_list(list_id, user_id):
+    try:
+        current_user_id = get_jwt_identity()
+        media_list = MediaList.query.get_or_404(list_id)
+        
+        # Only list owner can remove users
+        if media_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to remove users from this list")
+            
+        # Find and delete the shared access
+        shared_access = SharedList.query.filter_by(
+            list_id=list_id,
+            user_id=user_id
+        ).first_or_404()
+        
+        db.session.delete(shared_access)
+        db.session.commit()
+        
+        return jsonify({'message': 'User removed successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         with app.app_context():
