@@ -425,6 +425,35 @@ def verify_token():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/lists/<int:list_id>/movies/<int:movie_id>/status', methods=['PUT'])
+@jwt_required()
+def update_movie_status(list_id, movie_id):
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        if 'status' not in data:
+            raise BadRequest("Status is required")
+            
+        movie = MovieInList.query.filter_by(
+            list_id=list_id,
+            id=movie_id
+        ).first_or_404()
+        
+        # Verify permissions
+        movie_list = MovieList.query.get_or_404(list_id)
+        if movie_list.owner_id != current_user_id:
+            raise Forbidden("Not authorized to update this movie")
+            
+        movie.watch_status = data['status']
+        db.session.commit()
+        
+        return jsonify({'message': 'Status updated successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         with app.app_context():
