@@ -86,6 +86,105 @@ def handle_not_found(e):
 def handle_db_error(e):
     return jsonify({"error": "Database error", "message": str(e)}), 500
 
+@app.route('/api', methods=['GET'])
+def api_documentation():
+    """API Documentation endpoint providing overview of all available routes"""
+    return jsonify({
+        'name': 'Whirl-Watch Movie Tracker API',
+        'version': '1.0',
+        'description': 'API for managing shared movie lists and watchlists',
+        'base_url': '/api',
+        'endpoints': {
+            'authentication': {
+                '/api/register': {
+                    'method': 'POST',
+                    'description': 'Register a new user account',
+                    'authentication': False,
+                    'parameters': {
+                        'username': 'string (required)',
+                        'email': 'string (required)',
+                        'password': 'string (required)'
+                    }
+                },
+                '/api/login': {
+                    'method': 'POST', 
+                    'description': 'Authenticate user and receive JWT token',
+                    'authentication': False,
+                    'parameters': {
+                        'username': 'string (required)',
+                        'password': 'string (required)'
+                    }
+                }
+            },
+            'lists': {
+                '/api/lists': {
+                    'methods': ['GET', 'POST'],
+                    'description': 'Get all lists for authenticated user or create new list',
+                    'authentication': 'JWT Bearer Token required',
+                    'POST_parameters': {
+                        'name': 'string (required)',
+                        'description': 'string (optional)'
+                    }
+                },
+                '/api/lists/<list_id>': {
+                    'methods': ['GET', 'PUT', 'DELETE'],
+                    'description': 'Get, update or delete specific list',
+                    'authentication': 'JWT Bearer Token required',
+                    'PUT_parameters': {
+                        'name': 'string (optional)',
+                        'description': 'string (optional)'
+                    }
+                },
+                '/api/lists/<list_id>/share': {
+                    'method': 'POST',
+                    'description': 'Generate share code for list',
+                    'authentication': 'JWT Bearer Token required'
+                },
+                '/api/lists/join': {
+                    'method': 'POST',
+                    'description': 'Join a shared list using share code',
+                    'authentication': 'JWT Bearer Token required',
+                    'parameters': {
+                        'share_code': 'string (required)'
+                    }
+                }
+            },
+            'movies': {
+                '/api/lists/<list_id>/movies': {
+                    'methods': ['GET', 'POST'],
+                    'description': 'Get all movies in list or add new movie',
+                    'authentication': 'JWT Bearer Token required',
+                    'POST_parameters': {
+                        'tmdb_id': 'integer (required)',
+                        'watch_status': 'string (optional)',
+                        'rating': 'integer (optional)'
+                    }
+                },
+                '/api/lists/<list_id>/movies/<movie_id>': {
+                    'methods': ['GET', 'PUT', 'DELETE'],
+                    'description': 'Get, update or delete movie from list',
+                    'authentication': 'JWT Bearer Token required',
+                    'PUT_parameters': {
+                        'watch_status': 'string (optional)',
+                        'rating': 'integer (optional)'
+                    }
+                }
+            }
+        },
+        'authentication': {
+            'type': 'JWT Bearer Token',
+            'header': 'Authorization: Bearer <token>'
+        },
+        'errors': {
+            '400': 'Bad Request - Invalid input parameters',
+            '401': 'Unauthorized - Authentication required or failed',
+            '403': 'Forbidden - Insufficient permissions',
+            '404': 'Not Found - Resource does not exist',
+            '500': 'Server Error - Internal processing error'
+        }
+    }), 200
+
+
 # Authentication routes
 @app.route('/api/register', methods=['POST'])
 def register():
