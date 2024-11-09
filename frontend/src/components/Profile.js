@@ -7,8 +7,11 @@ const Profile = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+  const [passwordError, setPasswordError] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
+  const [profileSuccess, setProfileSuccess] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Form states
@@ -26,20 +29,23 @@ const Profile = () => {
   const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
 
   useEffect(() => {
-    let timeout;
-    if (success) {
-      timeout = setTimeout(() => {
-        setSuccess(null);
-      }, 3000);
+    let timeouts = [];
+    
+    if (profileSuccess) {
+      timeouts.push(setTimeout(() => setProfileSuccess(null), 3000));
     }
-    return () => clearTimeout(timeout);
-  }, [success]);
+    if (passwordSuccess) {
+      timeouts.push(setTimeout(() => setPasswordSuccess(null), 3000));
+    }
+    
+    return () => timeouts.forEach(timeout => clearTimeout(timeout));
+  }, [profileSuccess, passwordSuccess]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setProfileError(null);
+    setProfileSuccess(null);
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
@@ -63,9 +69,9 @@ const Profile = () => {
       }
 
       updateUser(data.user);
-      setSuccess('Profile updated successfully');
+      setProfileSuccess('Profile updated successfully');
     } catch (err) {
-      setError(err.message);
+      setProfileError(err.message);
     } finally {
       setLoading(false);
     }
@@ -74,18 +80,18 @@ const Profile = () => {
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('New passwords do not match');
+      setPasswordError('New passwords do not match');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setPasswordError('Password must be at least 6 characters long');
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setPasswordError(null);
+    setPasswordSuccess(null);
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
@@ -111,14 +117,14 @@ const Profile = () => {
         throw new Error(data.error || 'Failed to update password');
       }
 
-      setSuccess('Password updated successfully');
+      setPasswordSuccess('Password updated successfully');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
     } catch (err) {
-      setError(err.message);
+      setPasswordError(err.message);
     } finally {
       setLoading(false);
     }
@@ -126,7 +132,7 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     setLoading(true);
-    setError(null);
+    setDeleteError(null);
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
@@ -147,7 +153,7 @@ const Profile = () => {
       logout();
       navigate('/login');
     } catch (err) {
-      setError(err.message);
+      setDeleteError(err.message);
     } finally {
       setLoading(false);
       setShowDeleteModal(false);
@@ -164,21 +170,19 @@ const Profile = () => {
         >
           <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
 
-          {/* Success/Error Messages */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
-              <p className="text-red-500">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 mb-6">
-              <p className="text-green-500">{success}</p>
-            </div>
-          )}
-
           {/* Profile Information */}
           <section className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
+            {profileError && (
+              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+                <p className="text-red-500">{profileError}</p>
+              </div>
+            )}
+            {profileSuccess && (
+              <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 mb-4">
+                <p className="text-green-500">{profileSuccess}</p>
+              </div>
+            )}
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Username</label>
@@ -216,6 +220,16 @@ const Profile = () => {
           {/* Password Change */}
           <section className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Change Password</h2>
+            {passwordError && (
+              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+                <p className="text-red-500">{passwordError}</p>
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 mb-4">
+                <p className="text-green-500">{passwordSuccess}</p>
+              </div>
+            )}
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Current Password</label>
@@ -292,6 +306,11 @@ const Profile = () => {
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
               <h3 className="text-xl font-semibold mb-4 text-red-500">Delete Account</h3>
+              {deleteError && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+                  <p className="text-red-500">{deleteError}</p>
+                </div>
+              )}
               <p className="text-gray-300 mb-4">
                 This action cannot be undone. All your lists and data will be permanently deleted.
               </p>
