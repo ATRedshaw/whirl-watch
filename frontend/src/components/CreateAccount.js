@@ -2,6 +2,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const validateUsername = (username) => {
+  const regex = /^[a-zA-Z0-9_-]+$/;
+  return regex.test(username);
+};
+
 const CreateAccount = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -18,8 +23,9 @@ const CreateAccount = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    if (name === 'username' && value.length > 30) {
-      return;
+    if (name === 'username') {
+      if (value.length > 30) return;
+      if (value !== '' && !validateUsername(value)) return;
     }
 
     setFormData({
@@ -38,6 +44,12 @@ const CreateAccount = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
+    if (!validateUsername(formData.username)) {
+      setError('Username can only contain letters, numbers, underscore (_) and hyphen (-)');
+      setIsLoading(false);
+      return;
+    }
 
     if (formData.username.length > 30) {
       setError('Username must be 30 characters or less');
@@ -138,10 +150,12 @@ const CreateAccount = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              maxLength={30}
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
               required
             />
+            <p className="text-sm text-gray-500 mt-1">
+              Only letters, numbers, underscore (_) and hyphen (-) allowed
+            </p>
           </div>
 
           <div>

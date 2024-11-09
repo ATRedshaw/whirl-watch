@@ -41,9 +41,19 @@ const Profile = () => {
     return () => timeouts.forEach(timeout => clearTimeout(timeout));
   }, [profileSuccess, passwordSuccess]);
 
+  const validateUsername = (username) => {
+    const regex = /^[a-zA-Z0-9_-]+$/;
+    return regex.test(username);
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
+    if (!validateUsername(profileData.username)) {
+      setProfileError('Username can only contain letters, numbers, underscore (_) and hyphen (-)');
+      return;
+    }
+
     if (profileData.username.length > 30) {
       setProfileError('Username must be 30 characters or less');
       return;
@@ -206,14 +216,19 @@ const Profile = () => {
                 <input
                   type="text"
                   value={profileData.username}
-                  onChange={(e) => setProfileData(prev => ({ 
-                    ...prev, 
-                    username: e.target.value.slice(0, 30)
-                  }))}
+                  onChange={(e) => {
+                    const newUsername = e.target.value.slice(0, 30);
+                    if (newUsername === '' || validateUsername(newUsername)) {
+                      setProfileData(prev => ({ ...prev, username: newUsername }));
+                    }
+                  }}
                   maxLength={30}
                   autoComplete="username"
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Only letters, numbers, underscore (_) and hyphen (-) allowed
+                </p>
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Email</label>
