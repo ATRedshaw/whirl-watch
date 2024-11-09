@@ -43,6 +43,17 @@ const Profile = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    
+    if (profileData.username.length > 30) {
+      setProfileError('Username must be 30 characters or less');
+      return;
+    }
+
+    if (profileData.username.length < 1) {
+      setProfileError('Username is required');
+      return;
+    }
+
     setLoading(true);
     setProfileError(null);
     setProfileSuccess(null);
@@ -79,13 +90,19 @@ const Profile = () => {
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
+    
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long');
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
+    if (passwordData.newPassword.length > 128) {
+      setPasswordError('New password must be 128 characters or less');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
       return;
     }
 
@@ -189,7 +206,11 @@ const Profile = () => {
                 <input
                   type="text"
                   value={profileData.username}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
+                  onChange={(e) => setProfileData(prev => ({ 
+                    ...prev, 
+                    username: e.target.value.slice(0, 30)
+                  }))}
+                  maxLength={30}
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </div>

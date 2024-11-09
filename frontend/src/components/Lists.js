@@ -192,6 +192,21 @@ const Lists = () => {
 
   // Add new function to handle list details update
   const handleUpdateListDetails = async () => {
+    if (listDetailsForm.name.length > 30) {
+      setManagementError('List name must be 30 characters or less');
+      return;
+    }
+
+    if (listDetailsForm.name.length < 1) {
+      setManagementError('List name is required');
+      return;
+    }
+
+    if (listDetailsForm.description.length > 80) {
+      setManagementError('Description must be 80 characters or less');
+      return;
+    }
+
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
@@ -525,7 +540,11 @@ const Lists = () => {
                         <input
                           type="text"
                           value={listDetailsForm.name}
-                          onChange={(e) => setListDetailsForm(prev => ({ ...prev, name: e.target.value }))}
+                          onChange={(e) => setListDetailsForm(prev => ({ 
+                            ...prev, 
+                            name: e.target.value.slice(0, 30)
+                          }))}
+                          maxLength={30}
                           className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Enter list name"
                         />
@@ -534,10 +553,17 @@ const Lists = () => {
                         <label className="block text-sm text-gray-400 mb-1">Description</label>
                         <textarea
                           value={listDetailsForm.description}
-                          onChange={(e) => setListDetailsForm(prev => ({ ...prev, description: e.target.value }))}
+                          onChange={(e) => setListDetailsForm(prev => ({ 
+                            ...prev, 
+                            description: e.target.value.slice(0, 80)
+                          }))}
+                          maxLength={80}
                           className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
                           placeholder="Enter list description"
                         />
+                        <p className="text-sm text-gray-500 mt-1">
+                          {listDetailsForm.description.length}/80 characters
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <button

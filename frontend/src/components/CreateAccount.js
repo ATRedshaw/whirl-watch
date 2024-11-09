@@ -17,15 +17,19 @@ const CreateAccount = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    if (name === 'username' && value.length > 30) {
+      return;
+    }
+
     setFormData({
       ...formData,
       [name]: value
     });
     setError('');
 
-    // Check password complexity
     if (name === 'password') {
-      const isValid = value.length >= 6; // Example: minimum 6 characters
+      const isValid = value.length >= 6 && value.length <= 128;
       setPasswordValid(isValid);
     }
   };
@@ -35,15 +39,32 @@ const CreateAccount = () => {
     setIsLoading(true);
     setError('');
 
-    // Basic validation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (formData.username.length > 30) {
+      setError('Username must be 30 characters or less');
       setIsLoading(false);
       return;
     }
 
-    if (!passwordValid) {
+    if (formData.username.length < 1) {
+      setError('Username is required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length > 128) {
+      setError('Password must be 128 characters or less');
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       setIsLoading(false);
       return;
     }
@@ -68,10 +89,8 @@ const CreateAccount = () => {
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Show success modal instead of immediate redirect
       setShowSuccessModal(true);
       
-      // Redirect after 2 seconds
       setTimeout(() => {
         navigate('/login');
       }, 2000);
@@ -119,6 +138,7 @@ const CreateAccount = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              maxLength={30}
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
               required
             />
@@ -204,7 +224,6 @@ const CreateAccount = () => {
           </p>
         </form>
 
-        {/* Success Modal */}
         <AnimatePresence>
           {showSuccessModal && (
             <motion.div

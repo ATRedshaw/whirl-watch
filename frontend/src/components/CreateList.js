@@ -76,6 +76,7 @@ const CreateList = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Favorite Movies"
                 required
+                maxLength={30}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
               />
             </div>
@@ -90,8 +91,12 @@ const CreateList = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="A collection of my all-time favorites..."
                 rows={4}
+                maxLength={80}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-none"
               />
+              <p className="text-sm text-gray-500 mt-1">
+                {description.length}/80 characters
+              </p>
             </div>
 
             <div className="flex gap-3">
