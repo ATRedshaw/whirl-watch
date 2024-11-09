@@ -333,58 +333,63 @@ const Roulette = () => {
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.95 }}
                 onClick={e => e.stopPropagation()}
-                className="bg-slate-800 rounded-lg p-6 max-w-xl w-full"
+                className="bg-slate-800 rounded-lg w-full max-w-xl flex flex-col max-h-[90vh]"
               >
-                <h3 className="text-2xl font-semibold mb-6">
-                  {isSpinning ? "Choosing your next watch..." : "Your Next Watch"}
-                </h3>
-                <div className="flex gap-6 mb-6">
-                  <div className="w-1/3 flex-shrink-0">
-                    <div className="aspect-[2/3] rounded-lg overflow-hidden">
-                      <img
-                        src={`https://image.tmdb.org/t/p/w342${(cyclingMedia || selectedMedia).poster_path}`}
-                        alt={(cyclingMedia || selectedMedia).title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/342x513?text=No+Image';
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-semibold mb-3">
-                      {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
-                    </h4>
-                    <p className="text-gray-400 mb-4 line-clamp-4">
-                      {(cyclingMedia || selectedMedia).overview}
-                    </p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-yellow-500">⭐</span>
-                      <span className="font-medium">
-                        {(cyclingMedia || selectedMedia).vote_average.toFixed(1)}
-                      </span>
-                    </div>
-                    {(cyclingMedia || selectedMedia).release_date && (
-                      <div className="text-sm text-gray-400">
-                        Released: {new Date((cyclingMedia || selectedMedia).release_date).getFullYear()}
+                <div className="p-6 overflow-y-auto flex-1">
+                  <h3 className="text-2xl font-semibold mb-6">
+                    {isSpinning ? "Choosing your next watch..." : "Your Next Watch"}
+                  </h3>
+                  <div className="flex flex-col sm:flex-row gap-6 mb-6">
+                    <div className="w-full sm:w-1/3 flex-shrink-0">
+                      <div className="aspect-[2/3] rounded-lg overflow-hidden">
+                        <img
+                          src={`https://image.tmdb.org/t/p/w342${(cyclingMedia || selectedMedia).poster_path}`}
+                          alt={(cyclingMedia || selectedMedia).title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/342x513?text=No+Image';
+                          }}
+                        />
                       </div>
-                    )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-xl font-semibold mb-3">
+                        {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
+                      </h4>
+                      <p className="text-gray-400 mb-4">
+                        {(cyclingMedia || selectedMedia).overview}
+                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-yellow-500">⭐</span>
+                        <span className="font-medium">
+                          {(cyclingMedia || selectedMedia).vote_average.toFixed(1)}
+                        </span>
+                      </div>
+                      {(cyclingMedia || selectedMedia).release_date && (
+                        <div className="text-sm text-gray-400">
+                          Released: {new Date((cyclingMedia || selectedMedia).release_date).getFullYear()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+
                 {!isSpinning && (
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleAddToInProgress}
-                      className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 font-medium"
-                    >
-                      Start Watching
-                    </button>
-                    <button
-                      onClick={() => setShowResultModal(false)}
-                      className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200 font-medium"
-                    >
-                      Cancel
-                    </button>
+                  <div className="p-6 border-t border-slate-700">
+                    <div className="flex gap-4">
+                      <button
+                        onClick={handleAddToInProgress}
+                        className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 font-medium"
+                      >
+                        Start Watching
+                      </button>
+                      <button
+                        onClick={() => setShowResultModal(false)}
+                        className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200 font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </motion.div>
