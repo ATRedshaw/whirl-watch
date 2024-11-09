@@ -14,6 +14,7 @@ const ListDetails = () => {
     mediaType: 'all'
   });
   const [sortBy, setSortBy] = useState('added_date_desc');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -207,9 +208,55 @@ const ListDetails = () => {
               </svg>
             </button>
             <h1 className="text-3xl font-bold">{list.name}</h1>
+            {list.is_owner && (
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share List
+              </button>
+            )}
           </div>
           <p className="text-gray-400">{list.description || 'No description'}</p>
         </motion.div>
+
+        {/* Add Share Modal - place this just before the Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showShareModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowShareModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.95 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+              >
+                <h3 className="text-xl font-semibold mb-4">Share List</h3>
+                <div className="mb-6">
+                  <p className="text-gray-400 mb-2">Share this code with others to let them join your list:</p>
+                  <div className="bg-slate-700 p-3 rounded-lg text-center">
+                    <span className="font-mono text-lg">{list.share_code}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  Close
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Filtration Bar */}
         <motion.div
