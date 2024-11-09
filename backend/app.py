@@ -930,6 +930,81 @@ def update_list(list_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+# Add these new routes after your existing user routes
+
+@app.route('/api/user/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        data = request.get_json()
+
+        if 'username' in data:
+            # Check if new username is already taken
+            if User.query.filter(User.id != current_user_id, User.username == data['username']).first():
+                raise BadRequest('Username already exists')
+            user.username = data['username']
+
+        if 'email' in data:
+            # Check if new email is already taken
+            if User.query.filter(User.id != current_user_id, User.email == data['email']).first():
+                raise BadRequest('Email already exists')
+            user.email = data['email']
+
+        if 'current_password' in data and 'new_password' in data:
+            if not check_password_hash(user.password_hash, data['current_password']):
+                raise BadRequest('Current password is incorrect')
+            user.password_hash = generate_password_hash(data['new_password'])
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/profile', methods=['DELETE'])
+@jwt_required()
+def delete_account():
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        data = request.get_json()
+
+        # Verify password before deletion
+        if not data or 'password' not in data:
+            raise BadRequest('Password is required to delete account')
+
+        if not check_password_hash(user.password_hash, data['password']):
+            raise BadRequest('Invalid password')
+
+        # Remove user from shared lists
+        SharedList.query.filter_by(user_id=current_user_id).delete()
+
+        # Delete user's lists and their contents
+        for lst in user.lists:
+            MediaInList.query.filter_by(list_id=lst.id).delete()
+            SharedList.query.filter_by(list_id=lst.id).delete()
+            db.session.delete(lst)
+
+        # Delete the user
+        db.session.delete(user)
+        db.session.commit()
+
+        return jsonify({'message': 'Account deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         with app.app_context():

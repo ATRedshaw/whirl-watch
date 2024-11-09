@@ -16,6 +16,7 @@ import Search from './components/Search';
 import JoinList from './components/JoinList';
 import Roulette from './components/Roulette';
 import Rankings from './components/Rankings';
+import Profile from './components/Profile';
 
 function App() {
   return (
@@ -103,6 +104,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Rankings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

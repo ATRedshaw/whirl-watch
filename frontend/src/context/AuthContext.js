@@ -101,11 +101,16 @@ export const AuthProvider = ({ children }) => {
     navigate('/');
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
   const value = {
     user,
     loading,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user
   };
 
