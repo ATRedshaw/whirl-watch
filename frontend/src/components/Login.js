@@ -73,6 +73,7 @@ const Login = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              autoComplete="username"
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
               required
             />
@@ -88,6 +89,7 @@ const Login = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
+              autoComplete="current-password"
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
               required
             />

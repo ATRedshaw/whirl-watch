@@ -211,6 +211,7 @@ const Profile = () => {
                     username: e.target.value.slice(0, 30)
                   }))}
                   maxLength={30}
+                  autoComplete="username"
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </div>
