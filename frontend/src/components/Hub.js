@@ -669,8 +669,10 @@ const Hub = () => {
             </div>
           ))}
           {filteredMedia.length === 0 && (
-            <div className="col-span-full text-center py-8 text-gray-400">
-              No media items found with this status
+            <div className="col-span-full text-center py-8">
+              <p className="text-gray-400">
+                No media items found with {getStatusDisplayText(selectedView).toLowerCase()} status
+              </p>
             </div>
           )}
         </div>
@@ -875,8 +877,13 @@ const Hub = () => {
               </div>
             ))}
             {mediaItems.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                No media items found
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No media items found</p>
+                <p className="text-sm text-gray-500 mt-2">Add media to your lists to see updates here</p>
               </div>
             )}
           </div>
@@ -928,8 +935,13 @@ const Hub = () => {
               </div>
             ))}
             {getTopRatedMedia().length === 0 && (
-              <div className="text-center py-4 text-gray-400">
-                No rated media yet
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No rated media yet</p>
+                <p className="text-sm text-gray-500 mt-2">Complete watching media to rate it</p>
               </div>
             )}
           </div>
@@ -978,8 +990,13 @@ const Hub = () => {
               </div>
             ))}
             {getLowestRatedMedia().length === 0 && (
-              <div className="text-center py-4 text-gray-400">
-                No rated media yet
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No rated media yet</p>
+                <p className="text-sm text-gray-500 mt-2">Complete watching media to rate it</p>
               </div>
             )}
           </div>
