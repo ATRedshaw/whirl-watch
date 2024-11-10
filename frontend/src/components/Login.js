@@ -28,6 +28,37 @@ const Login = () => {
     setError('');
 
     try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const response = await fetch(`${apiUrl}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        })
+      });
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 429) {  // Rate limit exceeded
+          const retryAfter = data.retry_after || 900;
+          const minutes = Math.ceil(retryAfter / 60);
+          throw new Error(
+            `Too many login attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+          );
+        }
+        throw new Error(data.error || 'Login failed');
+      }
+
       await login(formData.username, formData.password);
       navigate('/hub');
     } catch (err) {

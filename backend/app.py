@@ -285,6 +285,7 @@ def register():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("5 per 15 minutes")  # Stricter limit for login attempts
 def login():
     try:
         data = request.get_json()
@@ -315,6 +316,12 @@ def login():
             }
         }), 200
         
+    except RateLimitExceeded:
+        # Ensure rate limit responses are always JSON
+        return jsonify({
+            'error': 'Too many login attempts',
+            'retry_after': get_retry_after()
+        }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
