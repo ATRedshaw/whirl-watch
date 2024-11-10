@@ -124,10 +124,13 @@ def api_documentation():
                     'method': 'POST',
                     'description': 'Register new user',
                     'parameters': {
-                        'username': 'string (required)',
-                        'email': 'string (required)',
-                        'password': 'string (required)'
-                    }
+                        'username': 'string (required) - 3 to 80 characters',
+                        'email': 'string (required) - valid email format', 
+                        'password': 'string (required) - 6 to 128 characters',
+                        'security_question': 'string (required) - must be one of the predefined questions',
+                        'security_answer': 'string (required)'
+                    },
+                    'rate_limit': 'None'
                 },
                 '/api/login': {
                     'method': 'POST',
@@ -135,12 +138,78 @@ def api_documentation():
                     'parameters': {
                         'username': 'string (required)',
                         'password': 'string (required)'
-                    }
+                    },
+                    'rate_limit': '5 per 15 minutes'
                 },
-                '/api/verify-token': {
-                    'method': 'GET',
-                    'description': 'Verify JWT token and get user info',
-                    'authentication': 'JWT Bearer Token required'
+                '/api/refresh': {
+                    'method': 'POST', 
+                    'description': 'Get new access token using refresh token',
+                    'authentication': 'JWT Refresh Token required',
+                    'rate_limit': 'None'
+                }
+            },
+            'password_reset': {
+                '/api/reset-password/get-username': {
+                    'method': 'POST',
+                    'description': 'Get username associated with email',
+                    'parameters': {
+                        'email': 'string (required)'
+                    },
+                    'rate_limit': '5 per 15 minutes'
+                },
+                '/api/reset-password/get-question': {
+                    'method': 'POST',
+                    'description': 'Get security question for username',
+                    'parameters': {
+                        'username': 'string (required)'
+                    },
+                    'rate_limit': '5 per 15 minutes'
+                },
+                '/api/reset-password/verify': {
+                    'method': 'POST',
+                    'description': 'Verify security answer and get reset token',
+                    'parameters': {
+                        'username': 'string (required)',
+                        'security_answer': 'string (required)'
+                    },
+                    'rate_limit': '5 per 15 minutes'
+                },
+                '/api/reset-password/complete': {
+                    'method': 'POST',
+                    'description': 'Complete password reset with token',
+                    'authentication': 'JWT Bearer Token required',
+                    'parameters': {
+                        'newPassword': 'string (required) - 6 to 128 characters'
+                    },
+                    'rate_limit': '5 per 15 minutes'
+                }
+            },
+            'user': {
+                '/api/user/profile': {
+                    'methods': ['PUT', 'DELETE'],
+                    'description': 'Update or delete user profile',
+                    'authentication': 'JWT Bearer Token required',
+                    'PUT_parameters': {
+                        'username': 'string (optional) - 3 to 80 characters',
+                        'email': 'string (optional) - valid email format',
+                        'current_password': 'string (required for password change)',
+                        'new_password': 'string (optional) - 6 to 128 characters'
+                    },
+                    'DELETE_parameters': {
+                        'password': 'string (required)'
+                    },
+                    'rate_limit': 'None'
+                },
+                '/api/user/security-question': {
+                    'method': 'PUT',
+                    'description': 'Update security question and answer',
+                    'authentication': 'JWT Bearer Token required',
+                    'parameters': {
+                        'currentPassword': 'string (required)',
+                        'security_question': 'string (required) - must be one of the predefined questions',
+                        'security_answer': 'string (required)'
+                    },
+                    'rate_limit': 'None'
                 }
             },
             'lists': {
@@ -149,31 +218,56 @@ def api_documentation():
                     'description': 'Get all lists for authenticated user or create new list',
                     'authentication': 'JWT Bearer Token required',
                     'POST_parameters': {
-                        'name': 'string (required)',
-                        'description': 'string (optional)'
-                    }
+                        'name': 'string (required) - 1 to 80 characters',
+                        'description': 'string (optional) - up to 100 characters'
+                    },
+                    'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>': {
                     'methods': ['GET', 'PUT', 'DELETE'],
                     'description': 'Get, update or delete specific list',
                     'authentication': 'JWT Bearer Token required',
                     'PUT_parameters': {
-                        'name': 'string (optional)',
-                        'description': 'string (optional)'
-                    }
+                        'name': 'string (optional) - 1 to 80 characters',
+                        'description': 'string (optional) - up to 100 characters'
+                    },
+                    'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>/share': {
                     'method': 'POST',
                     'description': 'Generate share code for list',
-                    'authentication': 'JWT Bearer Token required'
+                    'authentication': 'JWT Bearer Token required',
+                    'response': {
+                        'share_code': 'string - 8 character unique code'
+                    },
+                    'rate_limit': 'None'
                 },
                 '/api/lists/join': {
                     'method': 'POST',
                     'description': 'Join a shared list using share code',
                     'authentication': 'JWT Bearer Token required',
                     'parameters': {
-                        'share_code': 'string (required)'
-                    }
+                        'share_code': 'string (required) - 8 character code'
+                    },
+                    'rate_limit': 'None'
+                },
+                '/api/lists/<list_id>/users': {
+                    'method': 'GET',
+                    'description': 'Get users with access to list',
+                    'authentication': 'JWT Bearer Token required',
+                    'rate_limit': 'None'
+                },
+                '/api/lists/<list_id>/users/<user_id>': {
+                    'method': 'DELETE',
+                    'description': 'Remove user from shared list',
+                    'authentication': 'JWT Bearer Token required',
+                    'rate_limit': 'None'
+                },
+                '/api/lists/<list_id>/leave': {
+                    'method': 'POST',
+                    'description': 'Leave a shared list',
+                    'authentication': 'JWT Bearer Token required',
+                    'rate_limit': 'None'
                 }
             },
             'media': {
@@ -183,18 +277,20 @@ def api_documentation():
                     'authentication': 'JWT Bearer Token required',
                     'parameters': {
                         'query': 'string (required)',
-                        'type': 'string (optional, default: movie)',
+                        'type': 'string (optional, default: movie) - movie or tv',
                         'page': 'integer (optional, default: 1)'
-                    }
+                    },
+                    'rate_limit': '200 per day, 50 per hour'
                 },
                 '/api/<media_type>/<media_id>': {
                     'method': 'GET',
                     'description': 'Get detailed information about a movie or TV show',
                     'authentication': 'JWT Bearer Token required',
                     'parameters': {
-                        'media_type': 'string (required, movie or tv)',
-                        'media_id': 'integer (required)'
-                    }
+                        'media_type': 'string (required) - movie or tv',
+                        'media_id': 'integer (required) - TMDB ID'
+                    },
+                    'rate_limit': '200 per day, 50 per hour'
                 },
                 '/api/lists/<list_id>/media': {
                     'methods': ['GET', 'POST'],
@@ -202,42 +298,44 @@ def api_documentation():
                     'authentication': 'JWT Bearer Token required',
                     'POST_parameters': {
                         'tmdb_id': 'integer (required)',
-                        'media_type': 'string (required, movie or tv)',
-                        'watch_status': 'string (optional)',
-                        'rating': 'integer (optional)',
-                        'current_season': 'integer (optional, TV only)',
-                        'current_episode': 'integer (optional, TV only)',
-                        'total_episodes_watched': 'integer (optional, TV only)'
-                    }
+                        'media_type': 'string (required) - movie or tv',
+                        'watch_status': 'string (optional) - not_watched, watching, completed',
+                        'rating': 'integer (optional) - 1 to 10'
+                    },
+                    'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>/media/<media_id>': {
                     'methods': ['GET', 'PUT', 'DELETE'],
                     'description': 'Get, update or delete media from list',
                     'authentication': 'JWT Bearer Token required',
                     'PUT_parameters': {
-                        'watch_status': 'string (optional)',
-                        'rating': 'integer (optional)',
-                        'current_season': 'integer (optional, TV only)',
-                        'current_episode': 'integer (optional, TV only)',
-                        'total_episodes_watched': 'integer (optional, TV only)'
-                    }
+                        'watch_status': 'string (optional) - not_watched, watching, completed',
+                        'rating': 'integer (optional) - 1 to 10'
+                    },
+                    'rate_limit': 'None'
                 }
             }
         },
         'authentication': {
             'type': 'JWT Bearer Token',
-            'header': 'Authorization: Bearer <token>'
+            'header': 'Authorization: Bearer <token>',
+            'access_token_expiry': '30 days',
+            'refresh_token_expiry': '60 days'
+        },
+        'rate_limits': {
+            'default': '200 per day, 50 per hour',
+            'auth_endpoints': '5 per 15 minutes'
         },
         'errors': {
             '400': 'Bad Request - Invalid input parameters',
             '401': 'Unauthorized - Authentication required or failed',
             '403': 'Forbidden - Insufficient permissions',
             '404': 'Not Found - Resource does not exist',
+            '429': 'Too Many Requests - Rate limit exceeded',
             '500': 'Server Error - Internal processing error',
             '503': 'Service Unavailable - TMDB API error'
         }
     }), 200
-
 
 # Authentication routes
 @app.route('/api/register', methods=['POST'])
