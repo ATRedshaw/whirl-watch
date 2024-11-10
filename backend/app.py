@@ -1024,15 +1024,10 @@ def verify_security_answer():
     try:
         data = request.get_json()
         username = data.get('username')
-        email = data.get('email')
         
         user = User.query.filter_by(username=username).first()
         if not user:
             raise BadRequest('User not found')
-            
-        # Verify email matches
-        if user.email != email:
-            raise BadRequest('Email does not match records')
             
         if not user.security_question:
             raise BadRequest('No security question set up for this account')
@@ -1113,6 +1108,38 @@ def update_security_question():
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reset-password/get-question', methods=['POST'])
+def get_security_question():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        
+        if not username:
+            raise BadRequest('Username is required')
+            
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            raise NotFound('User not found')
+            
+        if not user.security_question:
+            raise BadRequest('No security question set for this user')
+            
+        # Get the human-readable question text
+        question_map = {
+            'childhood_hero': 'Who was your childhood hero or role model?',
+            'first_concert': 'What was the first concert you attended?',
+            # ... add all other questions ...
+        }
+        
+        question_text = question_map.get(user.security_question, user.security_question)
+            
+        return jsonify({
+            'security_question': question_text
+        }), 200
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

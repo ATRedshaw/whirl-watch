@@ -232,6 +232,20 @@ const Profile = () => {
     setLoading(true);
     setError('');
 
+    // Validate inputs
+    if (!securityData.currentPassword) {
+      setError('Current password is required');
+      setLoading(false);
+      return;
+    }
+
+    if ((securityData.securityQuestion && !securityData.securityAnswer) || 
+        (!securityData.securityQuestion && securityData.securityAnswer)) {
+      setError('Both security question and answer must be provided');
+      setLoading(false);
+      return;
+    }
+
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const response = await fetch(`${apiUrl}/api/user/security-question`, {
@@ -242,17 +256,22 @@ const Profile = () => {
         },
         body: JSON.stringify({
           currentPassword: securityData.currentPassword,
-          securityQuestion: securityData.securityQuestion,
-          securityAnswer: securityData.securityAnswer
+          security_question: securityData.securityQuestion,
+          security_answer: securityData.securityAnswer.trim()
         })
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update security question');
       }
 
-      updateUser(data.user);
+      updateUser({
+        ...user,
+        security_question: securityData.securityQuestion
+      });
+
       setShowSecurityQuestionModal(false);
       setSecurityData({
         currentPassword: '',

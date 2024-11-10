@@ -7,11 +7,11 @@ const ResetPassword = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     securityAnswer: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [securityQuestion, setSecurityQuestion] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resetToken, setResetToken] = useState(null);
@@ -32,6 +32,40 @@ const ResetPassword = () => {
     }
   };
 
+  // Step 1: Get security question
+  const handleGetQuestion = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const response = await fetch(`${apiUrl}/api/reset-password/get-question`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      setSecurityQuestion(data.security_question);
+      setStep(2);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Verify security answer
   const handleVerify = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -46,8 +80,7 @@ const ResetPassword = () => {
         },
         body: JSON.stringify({
           username: formData.username,
-          email: formData.email,
-          securityAnswer: formData.securityAnswer
+          security_answer: formData.securityAnswer
         })
       });
 
@@ -58,7 +91,7 @@ const ResetPassword = () => {
       }
 
       setResetToken(data.reset_token);
-      setStep(2);
+      setStep(3);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -139,7 +172,7 @@ const ResetPassword = () => {
         )}
         
         {step === 1 ? (
-          <form onSubmit={handleVerify} className="space-y-4">
+          <form onSubmit={handleGetQuestion} className="space-y-4">
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="reset-username">
                 Username
@@ -155,26 +188,27 @@ const ResetPassword = () => {
                 required
               />
             </div>
-            
-            <div>
-              <label className="block text-gray-300 mb-1" htmlFor="reset-email">
-                Email
-              </label>
-              <input
-                type="email"
-                id="reset-email"
-                name="email"
-                autoComplete="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
-                required
-              />
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+            >
+              {isLoading ? 'Checking...' : 'Continue'}
+            </motion.button>
+          </form>
+        ) : step === 2 ? (
+          <form onSubmit={handleVerify} className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
+              <p className="text-blue-400">Security Question:</p>
+              <p className="text-gray-300 mt-1">{securityQuestion}</p>
             </div>
             
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="reset-security-answer">
-                Security Answer
+                Your Answer
               </label>
               <input
                 type="text"
@@ -195,7 +229,7 @@ const ResetPassword = () => {
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
             >
-              {isLoading ? 'Verifying...' : 'Verify'}
+              {isLoading ? 'Verifying...' : 'Verify Answer'}
             </motion.button>
           </form>
         ) : (
