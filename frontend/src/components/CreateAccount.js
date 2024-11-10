@@ -47,6 +47,13 @@ const CreateAccount = () => {
     setIsLoading(true);
     setError('');
 
+    if ((formData.securityQuestion && !formData.securityAnswer) || 
+        (!formData.securityQuestion && formData.securityAnswer)) {
+      setError('Both security question and answer must be provided');
+      setIsLoading(false);
+      return;
+    }
+
     if (!validateUsername(formData.username)) {
       setError('Username can only contain letters, numbers, underscore (_) and hyphen (-)');
       setIsLoading(false);
@@ -85,16 +92,21 @@ const CreateAccount = () => {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      
+      const requestBody = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        security_question: formData.securityQuestion || null,
+        security_answer: formData.securityAnswer || null
+      };
+
       const response = await fetch(`${apiUrl}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
@@ -220,8 +232,13 @@ const CreateAccount = () => {
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Security Question</label>
                 <select
+                  name="securityQuestion"
                   value={formData.securityQuestion}
-                  onChange={(e) => setFormData(prev => ({ ...prev, securityQuestion: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    securityQuestion: e.target.value,
+                    securityAnswer: e.target.value ? prev.securityAnswer : '' 
+                  }))}
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">Choose a security question (optional)</option>
@@ -240,13 +257,21 @@ const CreateAccount = () => {
 
               {formData.securityQuestion && (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Security Answer</label>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Security Answer
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
                   <input
                     type="text"
+                    name="securityAnswer"
                     value={formData.securityAnswer}
-                    onChange={(e) => setFormData(prev => ({ ...prev, securityAnswer: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      securityAnswer: e.target.value 
+                    }))}
                     className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                     required={!!formData.securityQuestion}
+                    placeholder="Enter your answer"
                   />
                 </div>
               )}

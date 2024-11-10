@@ -250,18 +250,26 @@ def register():
         )
         
         # Add security question if provided
-        if data.get('securityQuestion') and data.get('securityAnswer'):
-            user.security_question = data['securityQuestion']
-            user.security_answer_hash = generate_password_hash(data['securityAnswer'])
+        if data.get('security_question') and data.get('security_answer'):
+            user.security_question = data['security_question']
+            user.security_answer_hash = generate_password_hash(data['security_answer'])
         
         db.session.add(user)
         db.session.commit()
         
-        return jsonify({'message': 'User created successfully'}), 201
+        return jsonify({
+            'message': 'User created successfully',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'security_question': user.security_question
+            }
+        }), 201
         
     except IntegrityError:
         db.session.rollback()
-        return jsonify({'error': 'Database integrity error'}), 400
+        return jsonify({'error': 'Username or email already exists'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1029,7 +1037,7 @@ def verify_security_answer():
         if not user.security_question:
             raise BadRequest('No security question set up for this account')
             
-        if not check_password_hash(user.security_answer_hash, data.get('securityAnswer')):
+        if not check_password_hash(user.security_answer_hash, data.get('security_answer')):
             raise BadRequest('Incorrect security answer')
             
         # Generate a temporary token for password reset
@@ -1082,15 +1090,15 @@ def update_security_question():
             return jsonify({'message': 'Security question removed'}), 200
 
         # Update or add security question
-        if not data.get('securityQuestion') or not data.get('securityAnswer'):
+        if not data.get('security_question') or not data.get('security_answer'):
             raise BadRequest('Security question and answer are required')
 
         # Verify current password before making changes
         if not check_password_hash(user.password_hash, data.get('currentPassword', '')):
             raise BadRequest('Current password is incorrect')
 
-        user.security_question = data['securityQuestion']
-        user.security_answer_hash = generate_password_hash(data['securityAnswer'])
+        user.security_question = data['security_question']
+        user.security_answer_hash = generate_password_hash(data['security_answer'])
         db.session.commit()
         
         return jsonify({
