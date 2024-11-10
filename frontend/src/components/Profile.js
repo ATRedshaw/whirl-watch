@@ -195,39 +195,6 @@ const Profile = () => {
     }
   };
 
-  const handleRemoveSecurityQuestion = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const response = await fetch(`${apiUrl}/api/user/security-question`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          remove: true
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      updateUser({
-        ...user,
-        security_question: null
-      });
-      
-      setProfileSuccess('Security question removed successfully');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleUpdateSecurityQuestion = async () => {
     setLoading(true);
     setError('');
@@ -415,43 +382,22 @@ const Profile = () => {
             {user?.security_question ? (
               <>
                 <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
-                  <p className="text-blue-400">
-                    You have a security question set up. This allows you to reset your password if you forget it.
-                  </p>
-                  <p className="text-gray-400 mt-2">
-                    Current question: {
-                      {
-                        'childhood_hero': 'Who was your childhood hero or role model?',
-                        'first_concert': 'What was the first concert you attended?',
-                        'childhood_nickname': 'What was your childhood nickname?',
-                        'first_job': 'What was your first paid job?',
-                        'favorite_teacher': 'What was the name of your favorite teacher?',
-                        'first_car': 'What was the make/model of your first car?',
-                        'met_spouse': 'In what city did you meet your spouse/significant other?',
-                        'grandparent_occupation': 'What was your maternal grandfather\'s occupation?',
-                        'childhood_street': 'What street did you live on in third grade?',
-                        'childhood_bestfriend': 'What was the name of your childhood best friend?'
-                      }[user.security_question] || user.security_question
-                    }
+                  <p className="text-blue-500">
+                    Your current security question is set up. You can update it if needed.
                   </p>
                 </div>
                 <button
-                  onClick={handleRemoveSecurityQuestion}
-                  disabled={loading}
-                  className={`px-6 py-2 ${
-                    loading 
-                      ? 'bg-red-500/50 cursor-not-allowed' 
-                      : 'bg-red-600 hover:bg-red-700'
-                  } rounded-lg transition-colors duration-200`}
+                  onClick={() => setShowSecurityQuestionModal(true)}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
                 >
-                  {loading ? 'Removing...' : 'Remove Security Question'}
+                  Update Security Question
                 </button>
               </>
             ) : (
               <>
-                <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mb-4">
-                  <p className="text-yellow-500">
-                    You haven't set up a security question. Without this, you won't be able to reset your password if you forget it.
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+                  <p className="text-red-500">
+                    Security question is required. Please set up your security question.
                   </p>
                 </div>
                 <button
@@ -605,6 +551,21 @@ const Profile = () => {
                     <option value="grandparent_occupation">What was your maternal grandfather's occupation?</option>
                     <option value="childhood_street">What street did you live on in third grade?</option>
                     <option value="childhood_bestfriend">What was the name of your childhood best friend?</option>
+                    <option value="first_pet">What was the name of your first pet?</option>
+                    <option value="mothers_maiden">What is your mother's maiden name?</option>
+                    <option value="elementary_school">What elementary school did you attend?</option>
+                    <option value="birth_city">In what city were you born?</option>
+                    <option value="first_phone">What was your first phone number?</option>
+                    <option value="childhood_vacation">Where did you go on your first vacation?</option>
+                    <option value="favorite_book">What was your favorite book as a child?</option>
+                    <option value="first_movie">What was the first movie you saw in theaters?</option>
+                    <option value="sports_team">What was the first sports team you supported?</option>
+                    <option value="childhood_hobby">What was your favorite childhood hobby?</option>
+                    <option value="first_computer">What was your first computer or gaming console?</option>
+                    <option value="favorite_subject">What was your favorite subject in high school?</option>
+                    <option value="first_language">What was the first foreign language you studied?</option>
+                    <option value="childhood_dream">What did you want to be when you grew up?</option>
+                    <option value="first_award">What was the first award or achievement you remember winning?</option>
                   </select>
                 </div>
                 <div>

@@ -247,22 +247,19 @@ def register():
         if not data:
             raise BadRequest("No input data provided")
         
-        required_fields = ['username', 'email', 'password']
+        required_fields = ['username', 'email', 'password', 'security_question', 'security_answer']
         for field in required_fields:
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
         
-        # Create user with basic fields
+        # Create user with all required fields
         user = User(
             username=data['username'],
             email=data['email'],
-            password_hash=generate_password_hash(data['password'])
+            password_hash=generate_password_hash(data['password']),
+            security_question=data['security_question'],
+            security_answer_hash=generate_password_hash(data['security_answer'])
         )
-        
-        # Add security question if provided
-        if data.get('security_question') and data.get('security_answer'):
-            user.security_question = data['security_question']
-            user.security_answer_hash = generate_password_hash(data['security_answer'])
         
         db.session.add(user)
         db.session.commit()
@@ -276,7 +273,7 @@ def register():
                 'security_question': user.security_question
             }
         }), 201
-        
+
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Username or email already exists'}), 400
@@ -1112,14 +1109,7 @@ def update_security_question():
         user = User.query.get_or_404(current_user_id)
         data = request.get_json()
 
-        # Remove security question
-        if data.get('remove'):
-            user.security_question = None
-            user.security_answer_hash = None
-            db.session.commit()
-            return jsonify({'message': 'Security question removed'}), 200
-
-        # Update or add security question
+        # Validate required fields
         if not data.get('security_question') or not data.get('security_answer'):
             raise BadRequest('Security question and answer are required')
 
