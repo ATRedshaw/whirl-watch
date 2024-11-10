@@ -22,6 +22,9 @@ const History = () => {
 
   const [selectedMedia, setSelectedMedia] = useState(null);
 
+  // Add state for delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+
   useEffect(() => {
     const fetchMediaHistory = async () => {
       try {
@@ -541,18 +544,44 @@ const History = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-3">
-                <button
-                  onClick={() => handleDeleteMedia(selectedMedia.id)}
-                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
-                >
-                  Remove from List
-                </button>
-                <button
-                  onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-                >
-                  View List
-                </button>
+                {!showDeleteConfirm ? (
+                  <>
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                    >
+                      Remove from List
+                    </button>
+                    <button
+                      onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                    >
+                      View List
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm text-red-400 mb-2">
+                        Are you sure you want to remove this from '{selectedMedia.listName}'?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDeleteMedia(selectedMedia.id)}
+                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                        >
+                          Yes, Remove
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition-colors duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>
