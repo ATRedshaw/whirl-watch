@@ -224,7 +224,7 @@ const CreateAccount = () => {
           <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">Account Recovery</h3>
             <p className="text-gray-400 mb-4">
-              Choose a security question and provide an answer that you'll remember long-term. This information is critical - you won't be able to reset your password without it. Make sure your answer is something only you would know.
+              Choose a security question and provide an answer that you'll remember long-term. This information is critical - you won't be able to reset your password without it. Make sure your answer is something only you would know. Don't worry - you can always update your security question and answer later in your account settings.
             </p>
             
             <div className="space-y-4">

@@ -36,6 +36,38 @@ const Profile = () => {
   });
   const [error, setError] = useState('');
 
+  // First, add a state to store the mapped question
+  const [mappedQuestion, setMappedQuestion] = useState('');
+
+  // Add this useEffect to fetch the mapped question when the component mounts
+  useEffect(() => {
+    if (user?.security_question) {
+      const fetchQuestion = async () => {
+        try {
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+          const response = await fetch(`${apiUrl}/api/reset-password/get-question`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              username: user.username
+            })
+          });
+
+          const data = await response.json();
+          if (response.ok) {
+            setMappedQuestion(data.security_question);
+          }
+        } catch (error) {
+          console.error('Error fetching security question:', error);
+        }
+      };
+
+      fetchQuestion();
+    }
+  }, [user]);
+
   useEffect(() => {
     let timeouts = [];
     
@@ -504,110 +536,141 @@ const Profile = () => {
               onClick={e => e.stopPropagation()}
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
-              <h3 className="text-xl font-semibold mb-4">Set Up Security Question</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {user?.security_question ? 'Update Security Question' : 'Set Up Security Question'}
+              </h3>
               {error && (
                 <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
                   <p className="text-red-500">{error}</p>
                 </div>
               )}
-              <p className="text-gray-300 mb-4">
-                This security question will help you recover your account if you forget your password.
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={securityData.currentPassword}
-                    onChange={(e) => setSecurityData(prev => ({ 
-                      ...prev, 
-                      currentPassword: e.target.value 
-                    }))}
-                    className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
-                  />
+
+              {/* Then update the display section */}
+              {user?.security_question && (
+                <div className="mb-6 p-4 bg-slate-700/30 border border-slate-600 rounded-lg">
+                  <p className="text-gray-400">
+                    Your current security question is: <span className="text-white">{mappedQuestion}</span>
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    Security Question
-                  </label>
-                  <select
-                    value={securityData.securityQuestion}
-                    onChange={(e) => setSecurityData(prev => ({ 
-                      ...prev, 
-                      securityQuestion: e.target.value 
-                    }))}
-                    className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="">Select a security question</option>
-                    <option value="childhood_hero">Who was your childhood hero or role model?</option>
-                    <option value="first_concert">What was the first concert you attended?</option>
-                    <option value="childhood_nickname">What was your childhood nickname?</option>
-                    <option value="first_job">What was your first paid job?</option>
-                    <option value="favorite_teacher">What was the name of your favorite teacher?</option>
-                    <option value="first_car">What was the make/model of your first car?</option>
-                    <option value="met_spouse">In what city did you meet your spouse/significant other?</option>
-                    <option value="grandparent_occupation">What was your maternal grandfather's occupation?</option>
-                    <option value="childhood_street">What street did you live on in third grade?</option>
-                    <option value="childhood_bestfriend">What was the name of your childhood best friend?</option>
-                    <option value="first_pet">What was the name of your first pet?</option>
-                    <option value="mothers_maiden">What is your mother's maiden name?</option>
-                    <option value="elementary_school">What elementary school did you attend?</option>
-                    <option value="birth_city">In what city were you born?</option>
-                    <option value="first_phone">What was your first phone number?</option>
-                    <option value="childhood_vacation">Where did you go on your first vacation?</option>
-                    <option value="favorite_book">What was your favorite book as a child?</option>
-                    <option value="first_movie">What was the first movie you saw in theaters?</option>
-                    <option value="sports_team">What was the first sports team you supported?</option>
-                    <option value="childhood_hobby">What was your favorite childhood hobby?</option>
-                    <option value="first_computer">What was your first computer or gaming console?</option>
-                    <option value="favorite_subject">What was your favorite subject in high school?</option>
-                    <option value="first_language">What was the first foreign language you studied?</option>
-                    <option value="childhood_dream">What did you want to be when you grew up?</option>
-                    <option value="first_award">What was the first award or achievement you remember winning?</option>
-                  </select>
+              )}
+              
+              <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Account Recovery</h3>
+                <p className="text-gray-400 mb-4">
+                  {user?.security_question 
+                    ? "Update your security question and answer. Choose something memorable that only you would know."
+                    : "Choose a security question and provide an answer that you'll remember long-term. This information is critical - you won't be able to reset your password without it."}
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Current Password
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={securityData.currentPassword}
+                      onChange={(e) => setSecurityData(prev => ({ 
+                        ...prev, 
+                        currentPassword: e.target.value 
+                      }))}
+                      className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Security Question
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <select
+                      value={securityData.securityQuestion}
+                      onChange={(e) => setSecurityData(prev => ({ 
+                        ...prev, 
+                        securityQuestion: e.target.value 
+                      }))}
+                      className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select a security question</option>
+                      <option value="childhood_hero">Who was your childhood hero or role model?</option>
+                      <option value="first_concert">What was the first concert you attended?</option>
+                      <option value="childhood_nickname">What was your childhood nickname?</option>
+                      <option value="first_job">What was your first paid job?</option>
+                      <option value="favorite_teacher">What was the name of your favorite teacher?</option>
+                      <option value="first_car">What was the make/model of your first car?</option>
+                      <option value="met_spouse">In what city did you meet your spouse/significant other?</option>
+                      <option value="grandparent_occupation">What was your maternal grandfather's occupation?</option>
+                      <option value="childhood_street">What street did you live on in third grade?</option>
+                      <option value="childhood_bestfriend">What was the name of your childhood best friend?</option>
+                      <option value="first_pet">What was the name of your first pet?</option>
+                      <option value="mothers_maiden">What is your mother's maiden name?</option>
+                      <option value="elementary_school">What elementary school did you attend?</option>
+                      <option value="birth_city">In what city were you born?</option>
+                      <option value="first_phone">What was your first phone number?</option>
+                      <option value="childhood_vacation">Where did you go on your first vacation?</option>
+                      <option value="favorite_book">What was your favorite book as a child?</option>
+                      <option value="first_movie">What was the first movie you saw in theaters?</option>
+                      <option value="sports_team">What was the first sports team you supported?</option>
+                      <option value="childhood_hobby">What was your favorite childhood hobby?</option>
+                      <option value="first_computer">What was your first computer or gaming console?</option>
+                      <option value="favorite_subject">What was your favorite subject in high school?</option>
+                      <option value="first_language">What was the first foreign language you studied?</option>
+                      <option value="childhood_dream">What did you want to be when you grew up?</option>
+                      <option value="first_award">What was the first award or achievement you remember winning?</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Security Answer
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={securityData.securityAnswer}
+                      onChange={(e) => setSecurityData(prev => ({ 
+                        ...prev, 
+                        securityAnswer: e.target.value 
+                      }))}
+                      className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                      required
+                      placeholder="Enter an answer you'll always remember"
+                    />
+                    <p className="text-sm text-gray-400 mt-1">
+                      Your answer must be exact when recovering your account - make it memorable and specific.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    Security Answer
-                  </label>
-                  <input
-                    type="text"
-                    value={securityData.securityAnswer}
-                    onChange={(e) => setSecurityData(prev => ({ 
-                      ...prev, 
-                      securityAnswer: e.target.value 
-                    }))}
-                    className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handleUpdateSecurityQuestion}
-                    disabled={loading || !securityData.currentPassword || !securityData.securityQuestion || !securityData.securityAnswer}
-                    className={`flex-1 px-4 py-2 ${
-                      loading || !securityData.currentPassword || !securityData.securityQuestion || !securityData.securityAnswer
-                        ? 'bg-blue-500/50 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    } rounded-lg transition-colors duration-200`}
-                  >
-                    {loading ? 'Updating...' : 'Save Security Question'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowSecurityQuestionModal(false);
-                      setSecurityData({
-                        currentPassword: '',
-                        securityQuestion: '',
-                        securityAnswer: ''
-                      });
-                    }}
-                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleUpdateSecurityQuestion}
+                  disabled={loading || !securityData.currentPassword || !securityData.securityQuestion || !securityData.securityAnswer}
+                  className={`flex-1 px-4 py-2 ${
+                    loading || !securityData.currentPassword || !securityData.securityQuestion || !securityData.securityAnswer
+                      ? 'bg-blue-500/50 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  } rounded-lg transition-colors duration-200`}
+                >
+                  {loading ? 'Updating...' : 'Save Security Question'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSecurityQuestionModal(false);
+                    setSecurityData({
+                      currentPassword: '',
+                      securityQuestion: '',
+                      securityAnswer: ''
+                    });
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                >
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </motion.div>
