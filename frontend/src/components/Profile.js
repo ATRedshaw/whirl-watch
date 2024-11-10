@@ -215,13 +215,16 @@ const Profile = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      updateUser(data.user);
+      updateUser({
+        ...user,
+        security_question: null
+      });
+      
       setProfileSuccess('Security question removed successfully');
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
-      setShowSecurityQuestionModal(false);
     }
   };
 
@@ -390,7 +393,7 @@ const Profile = () => {
           <section className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4">Account Recovery</h2>
             
-            {user && user.security_question && user.security_question !== 'null' ? (
+            {user?.security_question ? (
               <>
                 <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
                   <p className="text-blue-400">
@@ -398,7 +401,6 @@ const Profile = () => {
                   </p>
                   <p className="text-gray-400 mt-2">
                     Current question: {
-                      // Map the security_question value to its readable form
                       {
                         'childhood_hero': 'Who was your childhood hero or role model?',
                         'first_concert': 'What was the first concert you attended?',
@@ -416,9 +418,14 @@ const Profile = () => {
                 </div>
                 <button
                   onClick={handleRemoveSecurityQuestion}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                  disabled={loading}
+                  className={`px-6 py-2 ${
+                    loading 
+                      ? 'bg-red-500/50 cursor-not-allowed' 
+                      : 'bg-red-600 hover:bg-red-700'
+                  } rounded-lg transition-colors duration-200`}
                 >
-                  Remove Security Question
+                  {loading ? 'Removing...' : 'Remove Security Question'}
                 </button>
               </>
             ) : (
