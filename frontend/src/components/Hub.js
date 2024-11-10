@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
@@ -43,6 +43,7 @@ const Hub = () => {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Show 6 items per page
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -347,6 +348,112 @@ const Hub = () => {
       .filter(item => item.rating) // Only items with personal ratings
       .sort((a, b) => a.rating - b.rating) // Sort by rating ascending
       .slice(0, 5); // Take bottom 5
+  };
+
+  const handleUpdateStatus = async (mediaId, updates) => {
+    try {
+      if (!selectedMedia) return;
+
+      // If changing to non-completed status, clear rating
+      if (updates.watch_status && updates.watch_status !== 'completed') {
+        updates.rating = null;
+      }
+
+      // Add last_updated timestamp
+      const now = new Date().toISOString();
+      updates.last_updated = now;
+
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update media');
+      }
+
+      // Update local state
+      setMediaItems(prevItems => 
+        prevItems.map(item => 
+          item.id === mediaId 
+            ? { 
+                ...item, 
+                ...updates,
+                last_updated: now, // Include the timestamp in local state
+                lastUpdatedDate: new Date(now) // Add for sorting purposes
+              }
+            : item
+        )
+      );
+
+      // Update selected media state
+      setSelectedMedia(prev => ({
+        ...prev,
+        ...updates,
+        last_updated: now,
+        lastUpdatedDate: new Date(now)
+      }));
+
+      // Update stats if necessary
+      if (updates.watch_status || updates.rating) {
+        const updatedStats = { ...stats };
+        
+        if (updates.watch_status) {
+          // Decrement old status count
+          if (selectedMedia.watch_status === 'completed') updatedStats.completed--;
+          else if (selectedMedia.watch_status === 'in_progress') updatedStats.inProgress--;
+          else updatedStats.notWatched--;
+
+          // Increment new status count
+          if (updates.watch_status === 'completed') updatedStats.completed++;
+          else if (updates.watch_status === 'in_progress') updatedStats.inProgress++;
+          else updatedStats.notWatched++;
+        }
+
+        if (updates.rating !== undefined) {
+          // Recalculate average rating
+          const allRatings = mediaItems
+            .map(item => item.id === mediaId ? updates.rating : item.rating)
+            .filter(rating => rating !== null && rating !== undefined);
+          
+          updatedStats.averageRating = allRatings.length 
+            ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
+            : 0;
+        }
+
+        setStats(updatedStats);
+      }
+    } catch (error) {
+      console.error('Error updating media:', error);
+    }
+  };
+
+  const handleDeleteMedia = async (mediaId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to delete media');
+
+      // Update local state
+      setMediaItems(prevItems => prevItems.filter(item => item.id !== mediaId));
+      setSelectedMedia(null);
+    } catch (error) {
+      console.error('Error deleting media:', error);
+    }
   };
 
   if (loading) return (
@@ -696,7 +803,8 @@ const Hub = () => {
             {getRecentlyUpdatedMedia().map(media => (
               <div
                 key={media.id}
-                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
+                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
+                onClick={() => setSelectedMedia(media)}
               >
                 <div className="flex items-center gap-3">
                   {media.poster_path ? (
@@ -754,7 +862,8 @@ const Hub = () => {
             {getTopRatedMedia().map(media => (
               <div
                 key={media.id}
-                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg"
+                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
+                onClick={() => setSelectedMedia(media)}
               >
                 <img
                   src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
@@ -803,7 +912,8 @@ const Hub = () => {
             {getLowestRatedMedia().map(media => (
               <div
                 key={media.id}
-                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg"
+                className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
+                onClick={() => setSelectedMedia(media)}
               >
                 <img
                   src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
@@ -841,6 +951,100 @@ const Hub = () => {
           </button>
         </motion.div>
       </div>
+
+      {/* Media Management Modal */}
+      <AnimatePresence>
+        {selectedMedia && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => setSelectedMedia(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+            >
+              {/* Modal Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1 pr-4">
+                  <h3 className="text-xl font-semibold">{selectedMedia.title}</h3>
+                  <p className="text-sm text-gray-400">From: {selectedMedia.listName}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Watch Status */}
+              <div className="mb-4">
+                <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
+                <select
+                  value={selectedMedia.watch_status || 'not_started'}
+                  onChange={(e) => handleUpdateStatus(selectedMedia.id, { watch_status: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              {/* Rating */}
+              <div className="mb-6">
+                <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="0.1"
+                  value={selectedMedia.rating || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                      handleUpdateStatus(selectedMedia.id, { rating: value ? Number(value) : null });
+                    }
+                  }}
+                  placeholder="1.0-10.0"
+                  className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
+                    ${selectedMedia.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={selectedMedia.watch_status !== 'completed'}
+                />
+                {selectedMedia.watch_status !== 'completed' && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Complete watching to rate
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleDeleteMedia(selectedMedia.id)}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                >
+                  Remove from List
+                </button>
+                <button
+                  onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  View List
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
