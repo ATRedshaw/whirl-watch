@@ -48,6 +48,8 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     lists = db.relationship('MediaList', backref='owner', lazy=True)
+    security_question = db.Column(db.String(50), nullable=True)
+    security_answer_hash = db.Column(db.String(200), nullable=True)
 
 class MediaList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -240,17 +242,18 @@ def register():
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
         
-        if User.query.filter_by(username=data['username']).first():
-            raise BadRequest('Username already exists')
-            
-        if User.query.filter_by(email=data['email']).first():
-            raise BadRequest('Email already exists')
-        
+        # Create user with basic fields
         user = User(
             username=data['username'],
             email=data['email'],
             password_hash=generate_password_hash(data['password'])
         )
+        
+        # Add security question if provided
+        if data.get('securityQuestion') and data.get('securityAnswer'):
+            user.security_question = data['securityQuestion']
+            user.security_answer_hash = generate_password_hash(data['securityAnswer'])
+        
         db.session.add(user)
         db.session.commit()
         
@@ -289,7 +292,8 @@ def login():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
+                'security_question': user.security_question
             }
         }), 200
         
@@ -505,7 +509,8 @@ def verify_token():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
+                'security_question': user.security_question
             }
         }), 200
     except Exception as e:
@@ -1001,6 +1006,103 @@ def delete_account():
 
         return jsonify({'message': 'Account deleted successfully'}), 200
 
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Add new routes for password reset
+@app.route('/api/reset-password/verify', methods=['POST'])
+def verify_security_answer():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        email = data.get('email')
+        
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            raise BadRequest('User not found')
+            
+        # Verify email matches
+        if user.email != email:
+            raise BadRequest('Email does not match records')
+            
+        if not user.security_question:
+            raise BadRequest('No security question set up for this account')
+            
+        if not check_password_hash(user.security_answer_hash, data.get('securityAnswer')):
+            raise BadRequest('Incorrect security answer')
+            
+        # Generate a temporary token for password reset
+        reset_token = create_access_token(
+            identity=user.id,
+            expires_delta=timedelta(minutes=15)
+        )
+        
+        return jsonify({
+            'message': 'Security answer verified',
+            'reset_token': reset_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reset-password/complete', methods=['POST'])
+@jwt_required()
+def complete_password_reset():
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        data = request.get_json()
+        
+        new_password = data.get('newPassword')
+        if not new_password:
+            raise BadRequest('New password is required')
+            
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        return jsonify({'message': 'Password reset successful'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/security-question', methods=['PUT'])
+@jwt_required()
+def update_security_question():
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        data = request.get_json()
+
+        # Remove security question
+        if data.get('remove'):
+            user.security_question = None
+            user.security_answer_hash = None
+            db.session.commit()
+            return jsonify({'message': 'Security question removed'}), 200
+
+        # Update or add security question
+        if not data.get('securityQuestion') or not data.get('securityAnswer'):
+            raise BadRequest('Security question and answer are required')
+
+        # Verify current password before making changes
+        if not check_password_hash(user.password_hash, data.get('currentPassword', '')):
+            raise BadRequest('Current password is incorrect')
+
+        user.security_question = data['securityQuestion']
+        user.security_answer_hash = generate_password_hash(data['securityAnswer'])
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Security question updated',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'security_question': user.security_question
+            }
+        }), 200
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

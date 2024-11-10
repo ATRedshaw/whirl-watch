@@ -18,6 +18,7 @@ import Roulette from './components/Roulette';
 import Rankings from './components/Rankings';
 import Profile from './components/Profile';
 import History from './components/History';
+import ResetPassword from './components/ResetPassword';
 
 function App() {
   return (
@@ -41,6 +42,14 @@ function App() {
                 element={
                   <PublicOnlyRoute>
                     <Login />
+                  </PublicOnlyRoute>
+                } 
+              />
+              <Route 
+                path="/reset-password" 
+                element={
+                  <PublicOnlyRoute>
+                    <ResetPassword />
                   </PublicOnlyRoute>
                 } 
               />

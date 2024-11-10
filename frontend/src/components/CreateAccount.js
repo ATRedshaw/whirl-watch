@@ -13,7 +13,9 @@ const CreateAccount = () => {
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    securityQuestion: '',
+    securityAnswer: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -204,6 +206,51 @@ const CreateAccount = () => {
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
               required
             />
+          </div>
+
+          {/* Security Question Section */}
+          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Account Recovery (Optional)</h3>
+            <p className="text-gray-400 mb-4">
+              Setting up a security question allows you to reset your password if you forget it.
+              Without this, you won't be able to recover your account if you lose access.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Security Question</label>
+                <select
+                  value={formData.securityQuestion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, securityQuestion: e.target.value }))}
+                  className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Choose a security question (optional)</option>
+                  <option value="childhood_hero">Who was your childhood hero or role model?</option>
+                  <option value="first_concert">What was the first concert you attended?</option>
+                  <option value="childhood_nickname">What was your childhood nickname?</option>
+                  <option value="first_job">What was your first paid job?</option>
+                  <option value="favorite_teacher">What was the name of your favorite teacher?</option>
+                  <option value="first_car">What was the make/model of your first car?</option>
+                  <option value="met_spouse">In what city did you meet your spouse/significant other?</option>
+                  <option value="grandparent_occupation">What was your maternal grandfather's occupation?</option>
+                  <option value="childhood_street">What street did you live on in third grade?</option>
+                  <option value="childhood_bestfriend">What was the name of your childhood best friend?</option>
+                </select>
+              </div>
+
+              {formData.securityQuestion && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Security Answer</label>
+                  <input
+                    type="text"
+                    value={formData.securityAnswer}
+                    onChange={(e) => setFormData(prev => ({ ...prev, securityAnswer: e.target.value }))}
+                    className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                    required={!!formData.securityQuestion}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <motion.button

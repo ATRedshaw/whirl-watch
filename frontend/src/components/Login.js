@@ -127,6 +127,16 @@ const Login = () => {
               </motion.button>
             </p>
           </div>
+
+          <div className="text-center space-y-2 mt-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              onClick={() => navigate('/reset-password')}
+              className="text-sky-400 hover:text-sky-300"
+            >
+              Forgot Password?
+            </motion.button>
+          </div>
         </form>
       </motion.div>
     </div>
