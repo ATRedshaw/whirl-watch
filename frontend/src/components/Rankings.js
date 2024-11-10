@@ -121,167 +121,220 @@ const Ratings = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto"
       >
-        <h1 className="text-3xl font-bold mb-8">All-Time Ratings</h1>
-
-        {/* Filtration Bar */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+          className="mb-8"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Search Input */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Search</label>
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                placeholder="Search titles..."
-                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Media Type Filter */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Media Type</label>
-              <select
-                value={filters.mediaType}
-                onChange={(e) => setFilters(prev => ({ ...prev, mediaType: e.target.value }))}
-                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Types</option>
-                <option value="movie">Movies</option>
-                <option value="tv">TV Shows</option>
-              </select>
-            </div>
-
-            {/* List Filter */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">List</label>
-              <select
-                value={selectedList}
-                onChange={(e) => setSelectedList(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Lists</option>
-                {lists.map(list => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Clear Filters Button */}
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setFilters({ search: '', mediaType: 'all' });
-                  setSelectedList('all');
-                }}
-                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-              >
-                Clear Filters
-              </button>
-            </div>
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => navigate('/hub')}
+              className="text-gray-400 hover:text-white transition-colors duration-200"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <h1 className="text-3xl font-bold">All-Time Ratings</h1>
           </div>
         </motion.div>
 
-        {/* Centered Rating Tabs */}
-        <div className="flex justify-center gap-4 mb-6">
-          <button
-            onClick={() => setActiveTab('highest')}
-            className={`px-6 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === 'highest'
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-slate-700/50 text-gray-400 hover:text-white'
-            }`}
-          >
-            Highest Rated
-          </button>
-          <button
-            onClick={() => setActiveTab('lowest')}
-            className={`px-6 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === 'lowest'
-                ? 'bg-red-500/20 text-red-400'
-                : 'bg-slate-700/50 text-gray-400 hover:text-white'
-            }`}
-          >
-            Lowest Rated
-          </button>
-        </div>
-
-        {/* No Results Message */}
-        {mediaItems.length > 0 && getFilteredAndSortedMedia().length === 0 && (
+        {/* Show empty state if no rated media */}
+        {mediaItems.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-12"
+            className="text-center py-12 bg-slate-800/50 rounded-lg border border-slate-700"
           >
             <div className="text-gray-400">
-              <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg 
+                className="w-16 h-16 mx-auto mb-4 opacity-50" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" 
+                />
               </svg>
-              <h3 className="text-xl font-semibold mb-2">No matches found</h3>
-              <p className="text-gray-500">Try adjusting your filters</p>
+              <h3 className="text-xl font-semibold mb-2">No Rated Media</h3>
+              <p className="text-gray-500 mb-4">Rate some movies or TV shows to see them here!</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/lists')}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+              >
+                View My Lists
+              </motion.button>
             </div>
           </motion.div>
-        )}
-
-        {/* Media List */}
-        <div className="space-y-4">
-          {currentItems.map((media, index) => (
-            <div
-              key={media.id}
-              className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+        ) : (
+          <>
+            {/* Filtration Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
             >
-              <div className="text-gray-400 font-medium w-8">
-                #{indexOfFirstItem + index + 1}
-              </div>
-              <img
-                src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
-                alt={media.title}
-                className="w-12 h-18 object-cover rounded"
-                onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/92x138?text=No+Image';
-                }}
-              />
-              <div className="flex-1">
-                <h3 className="font-medium">{media.title || media.name}</h3>
-                <p className="text-sm text-gray-400">From: {media.listName}</p>
-              </div>
-              <div className={`flex items-center gap-1 px-3 py-1 rounded ${
-                activeTab === 'highest' ? 'bg-green-500/20' : 'bg-red-500/20'
-              }`}>
-                <span className="text-yellow-500">⭐</span>
-                <span className={`font-medium ${
-                  activeTab === 'highest' ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {media.rating}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Search Input */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Search</label>
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    placeholder="Search titles..."
+                    className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-8">
-            {[...Array(totalPages)].map((_, index) => (
+                {/* Media Type Filter */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Media Type</label>
+                  <select
+                    value={filters.mediaType}
+                    onChange={(e) => setFilters(prev => ({ ...prev, mediaType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                  </select>
+                </div>
+
+                {/* List Filter */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">List</label>
+                  <select
+                    value={selectedList}
+                    onChange={(e) => setSelectedList(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Lists</option>
+                    {lists.map(list => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setFilters({ search: '', mediaType: 'all' });
+                      setSelectedList('all');
+                    }}
+                    className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Centered Rating Tabs */}
+            <div className="flex justify-center gap-4 mb-6">
               <button
-                key={index + 1}
-                onClick={() => setCurrentPage(index + 1)}
-                className={`w-8 h-8 rounded-lg ${
-                  currentPage === index + 1
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-slate-700 hover:bg-slate-600 text-gray-300'
+                onClick={() => setActiveTab('highest')}
+                className={`px-6 py-2 rounded-lg transition-colors duration-200 ${
+                  activeTab === 'highest'
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-slate-700/50 text-gray-400 hover:text-white'
                 }`}
               >
-                {index + 1}
+                Highest Rated
               </button>
-            ))}
-          </div>
+              <button
+                onClick={() => setActiveTab('lowest')}
+                className={`px-6 py-2 rounded-lg transition-colors duration-200 ${
+                  activeTab === 'lowest'
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-slate-700/50 text-gray-400 hover:text-white'
+                }`}
+              >
+                Lowest Rated
+              </button>
+            </div>
+
+            {/* No Results Message */}
+            {mediaItems.length > 0 && getFilteredAndSortedMedia().length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <div className="text-gray-400">
+                  <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <h3 className="text-xl font-semibold mb-2">No matches found</h3>
+                  <p className="text-gray-500">Try adjusting your filters</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Media List */}
+            <div className="space-y-4">
+              {currentItems.map((media, index) => (
+                <div
+                  key={media.id}
+                  className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+                >
+                  <div className="text-gray-400 font-medium w-8">
+                    #{indexOfFirstItem + index + 1}
+                  </div>
+                  <img
+                    src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                    alt={media.title}
+                    className="w-12 h-18 object-cover rounded"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/92x138?text=No+Image';
+                    }}
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-medium">{media.title || media.name}</h3>
+                    <p className="text-sm text-gray-400">From: {media.listName}</p>
+                  </div>
+                  <div className={`flex items-center gap-1 px-3 py-1 rounded ${
+                    activeTab === 'highest' ? 'bg-green-500/20' : 'bg-red-500/20'
+                  }`}>
+                    <span className="text-yellow-500">⭐</span>
+                    <span className={`font-medium ${
+                      activeTab === 'highest' ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {media.rating}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-8">
+                {[...Array(totalPages)].map((_, index) => (
+                  <button
+                    key={index + 1}
+                    onClick={() => setCurrentPage(index + 1)}
+                    className={`w-8 h-8 rounded-lg ${
+                      currentPage === index + 1
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-slate-700 hover:bg-slate-600 text-gray-300'
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </motion.div>
     </div>
