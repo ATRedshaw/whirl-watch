@@ -369,20 +369,28 @@ const History = () => {
                 <div
                   key={media.id}
                   onClick={() => setSelectedMedia(media)}
-                  className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/70 transition-colors duration-200"
+                  className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/70 transition-colors duration-200"
                 >
+                  {/* Poster - larger and consistent size */}
                   <img
                     src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
                     alt={media.title}
-                    className="w-12 h-18 object-cover rounded"
+                    className="w-16 h-24 object-cover rounded shrink-0"
                     onError={(e) => {
                       e.target.src = 'https://via.placeholder.com/92x138?text=No+Image';
                     }}
                   />
-                  <div className="flex-1">
-                    <h3 className="font-medium">{media.title || media.name}</h3>
-                    <p className="text-sm text-gray-400">From: {media.listName}</p>
-                    <div className="mt-2 space-y-1">
+
+                  {/* Content Container */}
+                  <div className="flex-1 min-w-0">
+                    {/* Title and List Name */}
+                    <div className="mb-2">
+                      <h3 className="font-medium text-base line-clamp-1">{media.title || media.name}</h3>
+                      <p className="text-sm text-gray-400">From: {media.listName}</p>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="space-y-1 mb-2">
                       <p className="text-xs text-gray-500">
                         Added: {new Date(media.added_date).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -402,15 +410,17 @@ const History = () => {
                         })}
                       </p>
                     </div>
-                  </div>
-                  <div className={`px-3 py-1 rounded ${
-                    media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                    media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                    'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {media.watch_status === 'completed' ? 'Completed' :
-                     media.watch_status === 'in_progress' ? 'In Progress' :
-                     'Not Started'}
+
+                    {/* Watch Status Badge */}
+                    <div className={`inline-block px-3 py-1 rounded text-sm ${
+                      media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                      media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                      'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {media.watch_status === 'completed' ? 'Completed' :
+                       media.watch_status === 'in_progress' ? 'In Progress' :
+                       'Not Started'}
+                    </div>
                   </div>
                 </div>
               ))}
