@@ -440,20 +440,55 @@ const Hub = () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
+      
       const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
         }
       });
 
-      if (!response.ok) throw new Error('Failed to delete media');
+      if (!response.ok) {
+        throw new Error('Failed to delete media');
+      }
 
       // Update local state
-      setMediaItems(prevItems => prevItems.filter(item => item.id !== mediaId));
+      setMediaItems(prevItems => {
+        const updatedItems = prevItems.filter(item => item.id !== mediaId);
+        
+        // Calculate new stats after removal
+        const completed = updatedItems.filter(item => item.watch_status === 'completed').length;
+        const inProgress = updatedItems.filter(item => item.watch_status === 'in_progress').length;
+        const notWatched = updatedItems.filter(item => item.watch_status === 'not_watched').length;
+        
+        // Calculate new average rating
+        let totalRating = 0;
+        let ratedCount = 0;
+        updatedItems.forEach(item => {
+          if (item.rating) {
+            totalRating += item.rating;
+            ratedCount++;
+          }
+        });
+
+        // Update stats
+        setStats({
+          totalMedia: updatedItems.length,
+          completed,
+          inProgress,
+          notWatched,
+          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+        });
+
+        return updatedItems;
+      });
+
       setSelectedMedia(null);
+      setShowDeleteConfirm(false);
+
     } catch (error) {
       console.error('Error deleting media:', error);
+      setError('Failed to delete media');
     }
   };
 
