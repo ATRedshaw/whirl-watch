@@ -13,6 +13,9 @@ from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, Forbidden
 from sqlalchemy import func
 import string
 import random
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_limiter import RateLimitExceeded
 
 # Load environment variables from .env file
 try:
@@ -40,6 +43,13 @@ app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=60)  # Refresh token la
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # Models
 class User(db.Model):
@@ -1020,6 +1030,7 @@ def delete_account():
 
 # Add new routes for password reset
 @app.route('/api/reset-password/verify', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
 def verify_security_answer():
     try:
         data = request.get_json()
@@ -1027,13 +1038,15 @@ def verify_security_answer():
         
         user = User.query.filter_by(username=username).first()
         if not user:
-            raise BadRequest('User not found')
+            # Use same error message for security
+            raise BadRequest('Invalid username or security answer')
             
         if not user.security_question:
             raise BadRequest('No security question set up for this account')
             
         if not check_password_hash(user.security_answer_hash, data.get('security_answer')):
-            raise BadRequest('Incorrect security answer')
+            # Use same error message for security
+            raise BadRequest('Invalid username or security answer')
             
         # Generate a temporary token for password reset
         reset_token = create_access_token(
@@ -1046,8 +1059,23 @@ def verify_security_answer():
             'reset_token': reset_token
         }), 200
         
+    except RateLimitExceeded:
+        # Ensure rate limit responses are always JSON
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def get_retry_after():
+    """Get the retry-after time from rate limiter"""
+    try:
+        # Get retry-after from headers, or use default of 15 minutes
+        retry_after = request.headers.get('Retry-After')
+        return int(retry_after) if retry_after else 900
+    except (ValueError, TypeError):
+        return 900
 
 @app.route('/api/reset-password/complete', methods=['POST'])
 @jwt_required()
@@ -1141,6 +1169,13 @@ def get_security_question():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        'error': 'Too many attempts',
+        'retry_after': get_retry_after()
+    }), 429
 
 if __name__ == '__main__':
     try:
