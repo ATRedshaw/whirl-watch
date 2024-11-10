@@ -23,7 +23,7 @@ const History = () => {
   const [selectedMedia, setSelectedMedia] = useState(null);
 
   // Add state for delete confirmation
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const fetchMediaHistory = async () => {
@@ -89,6 +89,10 @@ const History = () => {
 
     fetchMediaHistory();
   }, [navigate]);
+
+  useEffect(() => {
+    setShowDeleteConfirm(false);
+  }, [selectedMedia]);
 
   const getFilteredAndSortedMedia = () => {
     return mediaItems
@@ -191,6 +195,10 @@ const History = () => {
     } catch (error) {
       console.error('Error deleting media:', error);
     }
+  };
+
+  const handleMediaClick = (media) => {
+    setSelectedMedia(media);
   };
 
   if (loading) return (
@@ -371,7 +379,7 @@ const History = () => {
               {currentItems.map((media) => (
                 <div
                   key={media.id}
-                  onClick={() => setSelectedMedia(media)}
+                  onClick={() => handleMediaClick(media)}
                   className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/70 transition-colors duration-200"
                 >
                   {/* Poster - larger and consistent size */}

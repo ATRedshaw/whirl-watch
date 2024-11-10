@@ -18,7 +18,11 @@ const Ratings = () => {
     mediaType: 'all'
   });
   const [selectedMedia, setSelectedMedia] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    setShowDeleteConfirm(false);
+  }, [selectedMedia]);
 
   useEffect(() => {
     const fetchRatedMedia = async () => {
@@ -166,6 +170,10 @@ const Ratings = () => {
     } catch (error) {
       console.error('Error deleting media:', error);
     }
+  };
+
+  const handleMediaClick = (media) => {
+    setSelectedMedia(media);
   };
 
   if (loading) return (
@@ -354,7 +362,7 @@ const Ratings = () => {
               {currentItems.map((media, index) => (
                 <div
                   key={media.id}
-                  onClick={() => setSelectedMedia(media)}
+                  onClick={() => handleMediaClick(media)}
                   className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/70 transition-colors duration-200"
                 >
                   <div className="text-gray-400 font-medium w-8">

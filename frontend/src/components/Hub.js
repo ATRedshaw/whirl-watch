@@ -457,6 +457,10 @@ const Hub = () => {
     }
   };
 
+  useEffect(() => {
+    setShowDeleteConfirm(false);
+  }, [selectedMedia]);
+
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
@@ -963,7 +967,6 @@ const Hub = () => {
             className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
             onClick={() => {
               setSelectedMedia(null);
-              setShowDeleteConfirm(false);
             }}
           >
             <motion.div
@@ -982,7 +985,6 @@ const Hub = () => {
                 <button
                   onClick={() => {
                     setSelectedMedia(null);
-                    setShowDeleteConfirm(false);
                   }}
                   className="text-gray-400 hover:text-white"
                 >
