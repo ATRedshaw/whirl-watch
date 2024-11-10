@@ -17,6 +17,11 @@ const ResetPassword = () => {
   const [resetToken, setResetToken] = useState(null);
   const [passwordValid, setPasswordValid] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showEmailRecovery, setShowEmailRecovery] = useState(false);
+  const [emailRecovery, setEmailRecovery] = useState('');
+  const [emailRecoveryLoading, setEmailRecoveryLoading] = useState(false);
+  const [emailRecoveryError, setEmailRecoveryError] = useState('');
+  const [emailRecoverySuccess, setEmailRecoverySuccess] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -178,6 +183,55 @@ const ResetPassword = () => {
     }
   };
 
+  const handleEmailRecovery = async (e) => {
+    e.preventDefault();
+    setEmailRecoveryLoading(true);
+    setEmailRecoveryError('');
+    setEmailRecoverySuccess('');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const response = await fetch(`${apiUrl}/api/reset-password/get-username`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: emailRecovery
+        })
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 429) {  // Rate limit exceeded
+          const retryAfter = data.retry_after || 900;
+          const minutes = Math.ceil(retryAfter / 60);
+          throw new Error(
+            `Too many attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+          );
+        }
+        throw new Error(data.error || 'Failed to recover username');
+      }
+
+      setEmailRecoverySuccess(`Your username is: ${data.username}`);
+      setTimeout(() => {
+        setShowEmailRecovery(false);
+        setEmailRecovery('');
+        setEmailRecoverySuccess('');
+      }, 5000);
+    } catch (err) {
+      setEmailRecoveryError(err.message);
+    } finally {
+      setEmailRecoveryLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center px-4">
       <motion.div
@@ -187,62 +241,62 @@ const ResetPassword = () => {
       >
         <h2 className="text-3xl font-bold text-center mb-8">Reset Password</h2>
         
-        {error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg p-3 text-sm mb-4"
-          >
-            {error}
-          </motion.div>
+        {/* Only show toggle buttons in step 1 */}
+        {step === 1 && (
+          <div className="flex justify-center space-x-4 mb-6">
+            <button
+              onClick={() => setShowEmailRecovery(false)}
+              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                !showEmailRecovery ? 'bg-blue-600' : 'bg-slate-700'
+              }`}
+            >
+              I know my username
+            </button>
+            <button
+              onClick={() => setShowEmailRecovery(true)}
+              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                showEmailRecovery ? 'bg-blue-600' : 'bg-slate-700'
+              }`}
+            >
+              Forgot username
+            </button>
+          </div>
         )}
-        
-        {step === 1 ? (
-          <form onSubmit={handleGetQuestion} className="space-y-4">
-            <div>
-              <label className="block text-gray-300 mb-1" htmlFor="reset-username">
-                Username
-              </label>
-              <input
-                type="text"
-                id="reset-username"
-                name="username"
-                autoComplete="username"
-                value={formData.username}
-                onChange={handleChange}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
-                required
-              />
-            </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
-            >
-              {isLoading ? 'Checking...' : 'Continue'}
-            </motion.button>
-          </form>
-        ) : step === 2 ? (
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
-              <p className="text-blue-400">Security Question:</p>
-              <p className="text-gray-300 mt-1">{securityQuestion}</p>
-            </div>
+        {showEmailRecovery ? (
+          <form onSubmit={handleEmailRecovery} className="space-y-4">
+            {emailRecoveryError && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg p-3 text-sm"
+              >
+                {emailRecoveryError}
+              </motion.div>
+            )}
             
+            {emailRecoverySuccess && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-green-500/10 border border-green-500/50 text-green-500 rounded-lg p-3 text-sm"
+              >
+                {emailRecoverySuccess}
+              </motion.div>
+            )}
+
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="reset-security-answer">
-                Your Answer
+              <label className="block text-gray-300 mb-1" htmlFor="recovery-email">
+                Email Address
               </label>
               <input
-                type="text"
-                id="reset-security-answer"
-                name="securityAnswer"
-                autoComplete="off"
-                value={formData.securityAnswer}
-                onChange={handleChange}
+                type="email"
+                id="recovery-email"
+                value={emailRecovery}
+                onChange={(e) => {
+                  setEmailRecovery(e.target.value);
+                  setEmailRecoveryError('');
+                }}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
                 required
               />
@@ -252,61 +306,136 @@ const ResetPassword = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={isLoading}
+              disabled={emailRecoveryLoading}
               className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
             >
-              {isLoading ? 'Verifying...' : 'Verify Answer'}
+              {emailRecoveryLoading ? 'Checking...' : 'Recover Username'}
             </motion.button>
           </form>
         ) : (
-          <form onSubmit={handleReset} className="space-y-4">
-            <div>
-              <label className="block text-gray-300 mb-1" htmlFor="reset-new-password">
-                New Password
-              </label>
-              <input
-                type="password"
-                id="reset-new-password"
-                name="newPassword"
-                autoComplete="new-password"
-                value={formData.newPassword}
-                onChange={handleChange}
-                className={`w-full bg-slate-800/50 border ${
-                  passwordValid ? 'border-green-500' : 'border-red-500'
-                } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
-                required
-              />
-              <p className={`text-sm ${passwordValid ? 'text-green-500' : 'text-red-500'}`}>
-                {passwordValid ? 'Password meets requirements' : 'Password must be at least 6 characters long'}
-              </p>
-            </div>
+          <>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg p-3 text-sm mb-4"
+              >
+                {error}
+              </motion.div>
+            )}
             
-            <div>
-              <label className="block text-gray-300 mb-1" htmlFor="reset-confirm-password">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="reset-confirm-password"
-                name="confirmPassword"
-                autoComplete="new-password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
-                required
-              />
-            </div>
+            {step === 1 ? (
+              <form onSubmit={handleGetQuestion} className="space-y-4">
+                <div>
+                  <label className="block text-gray-300 mb-1" htmlFor="reset-username">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    id="reset-username"
+                    name="username"
+                    autoComplete="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                    required
+                  />
+                </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
-            >
-              {isLoading ? 'Resetting...' : 'Reset Password'}
-            </motion.button>
-          </form>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+                >
+                  {isLoading ? 'Checking...' : 'Continue'}
+                </motion.button>
+              </form>
+            ) : step === 2 ? (
+              <form onSubmit={handleVerify} className="space-y-4">
+                <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
+                  <p className="text-blue-400">Security Question:</p>
+                  <p className="text-gray-300 mt-1">{securityQuestion}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-gray-300 mb-1" htmlFor="reset-security-answer">
+                    Your Answer
+                  </label>
+                  <input
+                    type="text"
+                    id="reset-security-answer"
+                    name="securityAnswer"
+                    autoComplete="off"
+                    value={formData.securityAnswer}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                    required
+                  />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+                >
+                  {isLoading ? 'Verifying...' : 'Verify Answer'}
+                </motion.button>
+              </form>
+            ) : (
+              <form onSubmit={handleReset} className="space-y-4">
+                <div>
+                  <label className="block text-gray-300 mb-1" htmlFor="reset-new-password">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="reset-new-password"
+                    name="newPassword"
+                    autoComplete="new-password"
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    className={`w-full bg-slate-800/50 border ${
+                      passwordValid ? 'border-green-500' : 'border-red-500'
+                    } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
+                    required
+                  />
+                  <p className={`text-sm ${passwordValid ? 'text-green-500' : 'text-red-500'}`}>
+                    {passwordValid ? 'Password meets requirements' : 'Password must be at least 6 characters long'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-gray-300 mb-1" htmlFor="reset-confirm-password">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    id="reset-confirm-password"
+                    name="confirmPassword"
+                    autoComplete="new-password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                    required
+                  />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+                >
+                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                </motion.button>
+              </form>
+            )}
+          </>
         )}
 
         <div className="text-center mt-6">

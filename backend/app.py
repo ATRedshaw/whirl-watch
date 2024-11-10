@@ -1201,6 +1201,33 @@ def ratelimit_handler(e):
         'retry_after': get_retry_after()
     }), 429
 
+@app.route('/api/reset-password/get-username', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def get_username_by_email():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            raise BadRequest('Email is required')
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Use a vague error message for security
+            raise NotFound('No account found with this email address')
+            
+        return jsonify({
+            'username': user.username
+        }), 200
+        
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         with app.app_context():
