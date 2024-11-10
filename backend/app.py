@@ -1136,6 +1136,7 @@ def update_security_question():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reset-password/get-question', methods=['POST'])
+@limiter.limit("5 per 15 minutes")  # Add the same rate limit as verify endpoint
 def get_security_question():
     try:
         data = request.get_json()
@@ -1151,7 +1152,6 @@ def get_security_question():
         if not user.security_question:
             raise BadRequest('No security question set for this user')
             
-        # Complete question map matching CreateAccount.js
         question_map = {
             'childhood_hero': 'Who was your childhood hero or role model?',
             'first_concert': 'What was the first concert you attended?',
@@ -1186,6 +1186,11 @@ def get_security_question():
             'security_question': question_text
         }), 200
         
+    except RateLimitExceeded:  # Add rate limit exceeded handler
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
