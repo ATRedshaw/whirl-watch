@@ -1151,11 +1151,33 @@ def get_security_question():
         if not user.security_question:
             raise BadRequest('No security question set for this user')
             
-        # Get the human-readable question text
+        # Complete question map matching CreateAccount.js
         question_map = {
             'childhood_hero': 'Who was your childhood hero or role model?',
             'first_concert': 'What was the first concert you attended?',
-            # ... add all other questions ...
+            'childhood_nickname': 'What was your childhood nickname?',
+            'first_job': 'What was your first paid job?',
+            'favorite_teacher': 'What was the name of your favorite teacher?',
+            'first_car': 'What was the make/model of your first car?',
+            'met_spouse': 'In what city did you meet your spouse/significant other?',
+            'grandparent_occupation': 'What was your maternal grandfather\'s occupation?',
+            'childhood_street': 'What street did you live on in third grade?',
+            'childhood_bestfriend': 'What was the name of your childhood best friend?',
+            'first_pet': 'What was the name of your first pet?',
+            'mothers_maiden': 'What is your mother\'s maiden name?',
+            'elementary_school': 'What elementary school did you attend?',
+            'birth_city': 'In what city were you born?',
+            'first_phone': 'What was your first phone number?',
+            'childhood_vacation': 'Where did you go on your first vacation?',
+            'favorite_book': 'What was your favorite book as a child?',
+            'first_movie': 'What was the first movie you saw in theaters?',
+            'sports_team': 'What was the first sports team you supported?',
+            'childhood_hobby': 'What was your favorite childhood hobby?',
+            'first_computer': 'What was your first computer or gaming console?',
+            'favorite_subject': 'What was your favorite subject in high school?',
+            'first_language': 'What was the first foreign language you studied?',
+            'childhood_dream': 'What did you want to be when you grew up?',
+            'first_award': 'What was the first award or achievement you remember winning?'
         }
         
         question_text = question_map.get(user.security_question, user.security_question)
