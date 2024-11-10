@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 const ResetPassword = () => {
@@ -15,6 +15,8 @@ const ResetPassword = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resetToken, setResetToken] = useState(null);
+  const [passwordValid, setPasswordValid] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,6 +25,11 @@ const ResetPassword = () => {
       [name]: value
     }));
     setError('');
+
+    if (name === 'newPassword') {
+      const isValid = value.length >= 6 && value.length <= 128;
+      setPasswordValid(isValid);
+    }
   };
 
   const handleVerify = async (e) => {
@@ -64,6 +71,18 @@ const ResetPassword = () => {
     setIsLoading(true);
     setError('');
 
+    if (formData.newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.newPassword.length > 128) {
+      setError('Password must be 128 characters or less');
+      setIsLoading(false);
+      return;
+    }
+
     if (formData.newPassword !== formData.confirmPassword) {
       setError('Passwords do not match');
       setIsLoading(false);
@@ -89,7 +108,7 @@ const ResetPassword = () => {
         throw new Error(data.error);
       }
 
-      // Show success message and redirect to login
+      setShowSuccessModal(true);
       setTimeout(() => {
         navigate('/login');
       }, 2000);
@@ -122,13 +141,14 @@ const ResetPassword = () => {
         {step === 1 ? (
           <form onSubmit={handleVerify} className="space-y-4">
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="username">
+              <label className="block text-gray-300 mb-1" htmlFor="reset-username">
                 Username
               </label>
               <input
                 type="text"
-                id="username"
+                id="reset-username"
                 name="username"
+                autoComplete="username"
                 value={formData.username}
                 onChange={handleChange}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
@@ -137,13 +157,14 @@ const ResetPassword = () => {
             </div>
             
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="email">
+              <label className="block text-gray-300 mb-1" htmlFor="reset-email">
                 Email
               </label>
               <input
                 type="email"
-                id="email"
+                id="reset-email"
                 name="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
@@ -152,13 +173,14 @@ const ResetPassword = () => {
             </div>
             
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="securityAnswer">
+              <label className="block text-gray-300 mb-1" htmlFor="reset-security-answer">
                 Security Answer
               </label>
               <input
                 type="text"
-                id="securityAnswer"
+                id="reset-security-answer"
                 name="securityAnswer"
+                autoComplete="off"
                 value={formData.securityAnswer}
                 onChange={handleChange}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
@@ -179,28 +201,35 @@ const ResetPassword = () => {
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="newPassword">
+              <label className="block text-gray-300 mb-1" htmlFor="reset-new-password">
                 New Password
               </label>
               <input
                 type="password"
-                id="newPassword"
+                id="reset-new-password"
                 name="newPassword"
+                autoComplete="new-password"
                 value={formData.newPassword}
                 onChange={handleChange}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                className={`w-full bg-slate-800/50 border ${
+                  passwordValid ? 'border-green-500' : 'border-red-500'
+                } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
                 required
               />
+              <p className={`text-sm ${passwordValid ? 'text-green-500' : 'text-red-500'}`}>
+                {passwordValid ? 'Password meets requirements' : 'Password must be at least 6 characters long'}
+              </p>
             </div>
             
             <div>
-              <label className="block text-gray-300 mb-1" htmlFor="confirmPassword">
+              <label className="block text-gray-300 mb-1" htmlFor="reset-confirm-password">
                 Confirm Password
               </label>
               <input
                 type="password"
-                id="confirmPassword"
+                id="reset-confirm-password"
                 name="confirmPassword"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
@@ -230,6 +259,48 @@ const ResetPassword = () => {
           </motion.button>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center"
+              >
+                <svg 
+                  className="w-8 h-8 text-white" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M5 13l4 4L19 7" 
+                  />
+                </svg>
+              </motion.div>
+              <h3 className="text-xl font-semibold mb-2">Password Reset Successfully!</h3>
+              <p className="text-gray-400">
+                Redirecting you to login...
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
