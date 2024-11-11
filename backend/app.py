@@ -1261,38 +1261,179 @@ def get_username_by_email():
 
 def send_verification_email(to_email, code, purpose='password_reset'):
     try:
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = to_email
 
+        # Updated CSS styles with better contrast
+        styles = """
+            body { 
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #e2e8f0;  /* Lighter text color for better contrast */
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #0f172a;
+            }
+            .container {
+                background: #1e293b;  /* Solid background for better email client compatibility */
+                padding: 32px;
+                border-radius: 12px;
+                border: 1px solid #334155;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .logo {
+                font-size: 32px;
+                font-weight: bold;
+                color: #38bdf8;  /* Fallback color */
+                margin-bottom: 16px;
+            }
+            .subtitle {
+                color: #cbd5e1;  /* Lighter color for better visibility */
+                font-size: 18px;
+            }
+            .code {
+                background-color: #0f172a;  /* Darker background for contrast */
+                padding: 20px;
+                border-radius: 8px;
+                font-size: 32px;
+                font-weight: bold;
+                text-align: center;
+                letter-spacing: 8px;
+                margin: 24px 0;
+                color: #38bdf8;  /* Bright blue for emphasis */
+                border: 1px solid #334155;
+            }
+            .footer {
+                text-align: center;
+                margin-top: 32px;
+                padding-top: 24px;
+                border-top: 1px solid #334155;
+                color: #cbd5e1;  /* Lighter color for better visibility */
+                font-size: 14px;
+            }
+            .warning {
+                background-color: #0f172a;  /* Darker background for contrast */
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 16px;
+                color: #cbd5e1;  /* Lighter color for better visibility */
+                font-style: italic;
+                margin-top: 24px;
+                font-size: 14px;
+            }
+            .heading {
+                color: #38bdf8;  /* Bright blue for headings */
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 16px;
+            }
+            .signature {
+                color: #38bdf8;  /* Bright blue for signature */
+                font-weight: bold;
+            }
+            p {
+                color: #e2e8f0;  /* Ensure paragraph text is visible */
+                margin-bottom: 16px;
+            }
+        """
+
         if purpose == 'email_verification':
-            msg['Subject'] = "Whirl Watch - Verify Your Account"
-            body = f"""
-            Welcome to Whirl Watch!
-            
-            Please verify your account using the following code:
-            
-            {code}
-            
-            This code will expire in 15 minutes.
-            If you didn't create an account with Whirl Watch, please ignore this email.
-            
-            Best regards,
-            Alex Redshaw - Whirl Watch Developer
+            msg['Subject'] = "Welcome to WhirlWatch - Verify Your Account"
+            html = f"""
+            <html>
+                <head>
+                    <style>{styles}</style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo">🎬 WhirlWatch</div>
+                            <div class="subtitle">Track, Share, and Discover Together</div>
+                        </div>
+                        
+                        <div class="heading">Welcome to the Community!</div>
+                        
+                        <p>Thank you for joining WhirlWatch. To start tracking your favorite movies and TV shows, please verify your account using this code:</p>
+                        
+                        <div class="code">{code}</div>
+                        
+                        <p>This verification code will expire in 15 minutes for security purposes.</p>
+                        
+                        <div class="warning">
+                            If you didn't create an account with WhirlWatch, you can safely ignore this email.
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Best regards,<br>
+                            <span class="signature">Alex Redshaw</span><br>
+                            WhirlWatch Developer</p>
+                            <p>This is an automated message, please do not reply.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
             """
         else:  # password_reset
-            msg['Subject'] = "Whirl Watch - Password Reset Verification Code"
-            body = f"""
-            Your verification code is: {code}
-            
-            This code will expire in 15 minutes.
-            If you didn't request this code, please ignore this email.
-            
-            Best regards,
-            Alex Redshaw - Whirl Watch Developer
+            msg['Subject'] = "WhirlWatch - Password Reset Request"
+            html = f"""
+            <html>
+                <head>
+                    <style>{styles}</style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo">🎬 WhirlWatch</div>
+                            <div class="subtitle">Account Security</div>
+                        </div>
+                        
+                        <div class="heading">Password Reset Request</div>
+                        
+                        <p>We received a request to reset your WhirlWatch password. Use this verification code to complete the process:</p>
+                        
+                        <div class="code">{code}</div>
+                        
+                        <p>This verification code will expire in 15 minutes for security purposes.</p>
+                        
+                        <div class="warning">
+                            If you didn't request this password reset, please ignore this email and ensure your account is secure.
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Best regards,<br>
+                            <span class="signature">Alex Redshaw</span><br>
+                            WhirlWatch Developer</p>
+                            <p>This is an automated message, please do not reply.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
             """
 
-        msg.attach(MIMEText(body, 'plain'))
+        # Create both plain text and HTML versions
+        text_content = f"""
+        {'Welcome to WhirlWatch!' if purpose == 'email_verification' else 'WhirlWatch - Password Reset'}
+        
+        Your verification code is: {code}
+        
+        This code will expire in 15 minutes.
+        
+        If you didn't {('create an account with WhirlWatch' if purpose == 'email_verification' else 'request this password reset')}, please ignore this email.
+        
+        Best regards,
+        Alex Redshaw
+        WhirlWatch Developer
+        """
+
+        # Attach both versions
+        part1 = MIMEText(text_content, 'plain')
+        part2 = MIMEText(html, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
 
         # Gmail SMTP settings
         server = smtplib.SMTP('smtp.gmail.com', 587)

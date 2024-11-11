@@ -144,14 +144,47 @@ const CreateAccount = () => {
       }
 
       setIsVerificationSuccess(true);
-      setShowSuccessModal(true);
-      
       setTimeout(() => {
-        navigate('/login');
+        navigate('/login', { 
+          state: { 
+            message: 'Email verified successfully! You can now log in.' 
+          }
+        });
       }, 2000);
 
     } catch (err) {
       setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      
+      const response = await fetch(`${apiUrl}/api/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification code');
+      }
+
+      setError('');
+      alert('A new verification code has been sent to your email');
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -170,6 +203,14 @@ const CreateAccount = () => {
     return 'Verify Email';
   };
 
+  const getVerificationButtonClassName = () => {
+    const baseClass = "w-full py-3 rounded-lg font-semibold transition-colors duration-300";
+    if (isVerificationSuccess) {
+      return `${baseClass} bg-green-600 hover:bg-green-700`;
+    }
+    return `${baseClass} bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700`;
+  };
+
   if (verificationStep) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center px-4">
@@ -184,6 +225,7 @@ const CreateAccount = () => {
               Verify Your Email
             </h2>
             <p className="text-gray-400">Please check your email for the verification code</p>
+            <p className="text-gray-400 mt-2">Email: {userEmail}</p>
           </div>
 
           <form onSubmit={handleVerification} className="space-y-4">
@@ -207,6 +249,8 @@ const CreateAccount = () => {
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                placeholder="Enter 6-digit code"
+                maxLength={6}
                 required
               />
             </div>
@@ -216,14 +260,36 @@ const CreateAccount = () => {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={isLoading || isVerificationSuccess}
-              className={`w-full ${
-                isVerificationSuccess 
-                  ? 'bg-green-600 hover:bg-green-700' 
-                  : 'bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700'
-              } text-white py-3 rounded-lg font-semibold transition-colors duration-300 mt-6`}
+              className={getVerificationButtonClassName()}
             >
               {getVerificationButtonText()}
             </motion.button>
+
+            <div className="text-center mt-4">
+              <p className="text-gray-400">
+                Didn't receive the code?{' '}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  onClick={handleResendCode}
+                  disabled={isLoading}
+                  type="button"
+                  className="text-sky-400 hover:text-sky-300"
+                >
+                  Resend Code
+                </motion.button>
+              </p>
+            </div>
+
+            <div className="text-center mt-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                onClick={() => navigate('/login')}
+                className="text-sky-400 hover:text-sky-300"
+                type="button"
+              >
+                Back to Login
+              </motion.button>
+            </div>
           </form>
         </motion.div>
       </div>
