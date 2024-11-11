@@ -1085,8 +1085,6 @@ def update_list(list_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Add these new routes after your existing user routes
-
 @app.route('/api/user/profile', methods=['PUT'])
 @jwt_required()
 @limiter.limit("10 per hour")
@@ -1228,34 +1226,6 @@ def complete_password_reset():
         
         return jsonify({'message': 'Password reset successful'}), 200
         
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/reset-password/get-username', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
-def get_username_by_email():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        
-        if not email:
-            raise BadRequest('Email is required')
-            
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            # Use a vague error message for security
-            raise NotFound('No account found with this email address')
-            
-        return jsonify({
-            'username': user.username
-        }), 200
-        
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1453,7 +1423,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
         return False
 
 @app.route('/api/reset-password/request', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("2 per 15 minutes")
 def request_password_reset():
     try:
         data = request.get_json()
