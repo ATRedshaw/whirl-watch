@@ -1358,7 +1358,7 @@ def send_verification_email(to_email, code):
         If you didn't request this code, please ignore this email.
         
         Best regards,
-        MovieTracker Team
+        Alex Redshaw - Whirl Watch Developer
         """
         msg.attach(MIMEText(body, 'plain'))
 
