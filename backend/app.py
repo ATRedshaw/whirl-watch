@@ -20,6 +20,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import secrets
+import math
 
 # Load environment variables from .env file
 try:
@@ -391,21 +392,12 @@ def register():
             }
         }), 201
 
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Username or email already exists'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
-@limiter.limit("10 per 60 minutes")
+@limiter.limit("10 per hour")
 def login():
     try:
         data = request.get_json()
@@ -442,12 +434,6 @@ def login():
             }
         }), 200
         
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1163,50 +1149,67 @@ def delete_account():
 def get_retry_after():
     """Get the retry-after time from rate limiter based on the current endpoint's limit"""
     try:
+        print(f"Current endpoint: {request.endpoint}")  # Debug print
         # Get the current limit and reset time from the limiter
         current_limit = getattr(request.limits[0], 'limit', None)
         reset_time = getattr(request.limits[0], 'reset', None)
         
+        print(f"Current limit: {current_limit}")  # Debug print
+        print(f"Reset time: {reset_time}")  # Debug print
+        
         if reset_time:
-            # Calculate remaining time until reset
             now = datetime.utcnow().timestamp()
             return int(reset_time - now)
         
-        elif current_limit:
-            # Fallback to static duration if reset time not available
-            parts = str(current_limit).split(' ')
-            duration = int(parts[2])
-            unit = parts[3]
-
-            if unit.startswith('minute'):
-                return duration * 60
-            elif unit.startswith('hour'):
-                return duration * 3600
-            else:
-                return duration
-
-    except Exception as e:
-        print(f"Error calculating retry-after: {str(e)}")
+        # If we can't get the reset time, use endpoint-specific defaults
+        endpoint_limits = {
+            'login': 3600,        # 60 minutes
+            'register': 900,      # 15 minutes
+            'verify_email': 900,  # 15 minutes
+            'resend_verification': 900,  # 15 minutes
+            'request_password_reset': 900,  # 15 minutes
+            'verify_reset_code': 900,  # 15 minutes
+        }
         
-    # Default fallbacks based on endpoint
-    endpoint = request.endpoint
-    if endpoint == 'login':
-        return 3600  # 60 minutes
-    elif endpoint == 'register':
-        return 3600  # 1 hour
-    elif endpoint in ['get_username_by_email', 'request_password_reset']:
-        return 900  # 15 minutes
-    
-    return 900  # 15 minutes default fallback
+        retry_after = endpoint_limits.get(request.endpoint, 300)
+        print(f"Using endpoint-specific limit: {retry_after}")  # Debug print
+        return retry_after
+    except Exception as e:
+        print(f"Error in get_retry_after: {str(e)}")  # Debug print
+        return 900  # 15 minutes default fallback
 
-def format_retry_message(seconds):
-    """Format retry message with appropriate time unit"""
-    if seconds >= 3600:
-        hours = seconds // 3600
-        return f"Too many attempts. Please try again in {hours} hour{'s' if hours != 1 else ''}"
+def format_retry_message(retry_after):
+    """Format the retry message based on time remaining"""
+    if retry_after >= 3600:  # If 60 minutes or more
+        hours = math.ceil(retry_after / 3600)
+        return f"Too many attempts. Please try again in {hours} {'hour' if hours == 1 else 'hours'}"
     else:
-        minutes = max(1, seconds // 60)
-        return f"Too many attempts. Please try again in {minutes} minute{'s' if minutes != 1 else ''}"
+        minutes = math.ceil(retry_after / 60)
+        return f"Too many attempts. Please try again in {minutes} {'minute' if minutes == 1 else 'minutes'}"
+
+@app.errorhandler(RateLimitExceeded)
+def handle_ratelimit_error(e):
+    print(f"Rate limit exceeded for endpoint: {request.endpoint}")  # Debug print
+    
+    retry_after = get_retry_after()
+    reset_time = int(datetime.utcnow().timestamp() + retry_after)
+    
+    # Force 1 hour for login endpoint
+    if request.endpoint == 'login':
+        retry_after = 3600
+        reset_time = int(datetime.utcnow().timestamp() + retry_after)
+        message = "Too many login attempts. Please try again in 1 hour"
+    else:
+        message = format_retry_message(retry_after)
+    
+    print(f"Final message: {message}")  # Debug print
+    print(f"Final retry_after: {retry_after}")  # Debug print
+    
+    return jsonify({
+        'error': message,
+        'retry_after': retry_after,
+        'reset_time': reset_time
+    }), 429
 
 @app.route('/api/reset-password/complete', methods=['POST'])
 @jwt_required()
@@ -1423,7 +1426,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
         return False
 
 @app.route('/api/reset-password/request', methods=['POST'])
-@limiter.limit("2 per 15 minutes")
+@limiter.limit("5 per 15 minutes")
 def request_password_reset():
     try:
         data = request.get_json()
@@ -1434,13 +1437,12 @@ def request_password_reset():
             
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Still return 200 for security, but with a different status
             return jsonify({
                 'message': 'If an account exists with this email, a verification code will be sent',
-                'status': 'no_account'  # Add this status field
+                'status': 'no_account'
             }), 200
             
-        # Generate 6-digit alphanumeric code
+        # Generate verification code
         verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
         
         # Save verification code
@@ -1458,15 +1460,9 @@ def request_password_reset():
             
         return jsonify({
             'message': 'If an account exists with this email, a verification code will be sent',
-            'status': 'code_sent'  # Add this status field
+            'status': 'code_sent'
         }), 200
         
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1486,7 +1482,6 @@ def verify_reset_code():
         if not user:
             raise BadRequest('Invalid verification code')
             
-        # Find valid verification code
         verification = VerificationCode.query.filter_by(
             user_id=user.id,
             code=code,
@@ -1497,15 +1492,12 @@ def verify_reset_code():
         if not verification:
             raise BadRequest('Invalid verification code')
             
-        # Check if code is expired (15 minutes)
         if datetime.utcnow() - verification.created_at > timedelta(minutes=15):
             raise BadRequest('Verification code has expired')
             
-        # Mark code as used
         verification.used = True
         db.session.commit()
         
-        # Generate reset token
         reset_token = create_access_token(
             identity=user.id,
             expires_delta=timedelta(minutes=15)
@@ -1516,12 +1508,6 @@ def verify_reset_code():
             'reset_token': reset_token
         }), 200
         
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1554,12 +1540,10 @@ def verify_email():
         if datetime.utcnow() - verification.created_at > timedelta(minutes=15):
             raise BadRequest('Verification code has expired')
             
-        # Mark code as used and user as verified
         verification.used = True
         user.email_verified = True
         db.session.commit()
         
-        # Generate tokens for automatic login
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
         
@@ -1574,18 +1558,12 @@ def verify_email():
             }
         }), 200
         
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/resend-verification', methods=['POST'])
-@limiter.limit("2 per 15 minutes")  # Stricter rate limit for resending
+@limiter.limit("2 per 15 minutes")
 def resend_verification():
     try:
         data = request.get_json()
@@ -1596,15 +1574,12 @@ def resend_verification():
             
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Use a vague message for security
             return jsonify({
                 'message': 'If an account exists with this email, a verification code will be sent'
             }), 200
             
-        # Generate new verification code
         verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
         
-        # Save new verification code
         new_code = VerificationCode(
             user_id=user.id,
             code=verification_code,
@@ -1613,7 +1588,6 @@ def resend_verification():
         db.session.add(new_code)
         db.session.commit()
         
-        # Send email with purpose
         if not send_verification_email(user.email, verification_code, purpose='email_verification'):
             raise Exception("Failed to send verification email")
             
@@ -1621,12 +1595,6 @@ def resend_verification():
             'message': 'Verification code sent successfully'
         }), 200
         
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
