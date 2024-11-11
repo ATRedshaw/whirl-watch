@@ -1391,8 +1391,11 @@ def request_password_reset():
             
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Use vague message for security
-            return jsonify({'message': 'If an account exists with this email, a verification code will be sent'}), 200
+            # Still return 200 for security, but with a different status
+            return jsonify({
+                'message': 'If an account exists with this email, a verification code will be sent',
+                'status': 'no_account'  # Add this status field
+            }), 200
             
         # Generate 6-digit alphanumeric code
         verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
@@ -1411,7 +1414,8 @@ def request_password_reset():
             raise Exception("Failed to send verification email")
             
         return jsonify({
-            'message': 'If an account exists with this email, a verification code will be sent'
+            'message': 'If an account exists with this email, a verification code will be sent',
+            'status': 'code_sent'  # Add this status field
         }), 200
         
     except RateLimitExceeded:

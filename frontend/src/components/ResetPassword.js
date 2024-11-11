@@ -62,7 +62,11 @@ const ResetPassword = () => {
         throw new Error(data.error || 'Failed to send verification code');
       }
 
-      setStep(2);
+      if (data.status === 'code_sent') {
+        setStep(2);
+      } else if (data.status === 'no_account') {
+        setError('No account found with this email address');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
