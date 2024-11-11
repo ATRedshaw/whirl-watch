@@ -68,8 +68,6 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     lists = db.relationship('MediaList', backref='owner', lazy=True)
-    security_question = db.Column(db.String(50), nullable=True)
-    security_answer_hash = db.Column(db.String(200), nullable=True)
 
 class MediaList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -363,18 +361,16 @@ def register():
         if not data:
             raise BadRequest("No input data provided")
         
-        required_fields = ['username', 'email', 'password', 'security_question', 'security_answer']
+        required_fields = ['username', 'email', 'password']
         for field in required_fields:
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
         
-        # Create user with all required fields
+        # Create user without security question fields
         user = User(
             username=data['username'],
             email=data['email'],
-            password_hash=generate_password_hash(data['password']),
-            security_question=data['security_question'],
-            security_answer_hash=generate_password_hash(data['security_answer'])
+            password_hash=generate_password_hash(data['password'])
         )
         
         db.session.add(user)
@@ -385,8 +381,7 @@ def register():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email,
-                'security_question': user.security_question
+                'email': user.email
             }
         }), 201
 

@@ -80,7 +80,7 @@ const Login = () => {
           <h2 className="text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-blue-500 to-purple-600">
             Welcome Back
           </h2>
-          <p className="text-gray-400">Log in to continue your movie journey</p>
+          <p className="text-gray-400">Log in to continue your media tracking journey</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
