@@ -143,9 +143,7 @@ def api_documentation():
                     'parameters': {
                         'username': 'string (required) - 3 to 80 characters',
                         'email': 'string (required) - valid email format', 
-                        'password': 'string (required) - 6 to 128 characters',
-                        'security_question': 'string (required) - must be one of the predefined questions',
-                        'security_answer': 'string (required)'
+                        'password': 'string (required) - 6 to 128 characters'
                     },
                     'rate_limit': 'None'
                 },
@@ -174,20 +172,20 @@ def api_documentation():
                     },
                     'rate_limit': '5 per 15 minutes'
                 },
-                '/api/reset-password/get-question': {
+                '/api/reset-password/request': {
                     'method': 'POST',
-                    'description': 'Get security question for username',
+                    'description': 'Request password reset code',
                     'parameters': {
-                        'username': 'string (required)'
+                        'email': 'string (required)'
                     },
                     'rate_limit': '5 per 15 minutes'
                 },
-                '/api/reset-password/verify': {
+                '/api/reset-password/verify-code': {
                     'method': 'POST',
-                    'description': 'Verify security answer and get reset token',
+                    'description': 'Verify reset code',
                     'parameters': {
-                        'username': 'string (required)',
-                        'security_answer': 'string (required)'
+                        'email': 'string (required)',
+                        'code': 'string (required)'
                     },
                     'rate_limit': '5 per 15 minutes'
                 },
@@ -214,17 +212,6 @@ def api_documentation():
                     },
                     'DELETE_parameters': {
                         'password': 'string (required)'
-                    },
-                    'rate_limit': 'None'
-                },
-                '/api/user/security-question': {
-                    'method': 'PUT',
-                    'description': 'Update security question and answer',
-                    'authentication': 'JWT Bearer Token required',
-                    'parameters': {
-                        'currentPassword': 'string (required)',
-                        'security_question': 'string (required) - must be one of the predefined questions',
-                        'security_answer': 'string (required)'
                     },
                     'rate_limit': 'None'
                 }
@@ -673,8 +660,7 @@ def verify_token():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email,
-                'security_question': user.security_question
+                'email': user.email
             }
         }), 200
     except Exception as e:
@@ -1176,46 +1162,6 @@ def delete_account():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Add new routes for password reset
-@app.route('/api/reset-password/verify', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
-def verify_security_answer():
-    try:
-        data = request.get_json()
-        username = data.get('username')
-        
-        user = User.query.filter_by(username=username).first()
-        if not user:
-            # Use same error message for security
-            raise BadRequest('Invalid username or security answer')
-            
-        if not user.security_question:
-            raise BadRequest('No security question set up for this account')
-            
-        if not check_password_hash(user.security_answer_hash, data.get('security_answer')):
-            # Use same error message for security
-            raise BadRequest('Invalid username or security answer')
-            
-        # Generate a temporary token for password reset
-        reset_token = create_access_token(
-            identity=user.id,
-            expires_delta=timedelta(minutes=15)
-        )
-        
-        return jsonify({
-            'message': 'Security answer verified',
-            'reset_token': reset_token
-        }), 200
-        
-    except RateLimitExceeded:
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 def get_retry_after():
     """Get the retry-after time from rate limiter based on the current endpoint's limit"""
     try:
@@ -1250,8 +1196,7 @@ def get_retry_after():
         return 3600  # 60 minutes
     elif endpoint == 'register':
         return 3600  # 1 hour
-    elif endpoint in ['verify_security_answer', 'get_security_question', 
-                     'get_username_by_email', 'request_password_reset']:
+    elif endpoint in ['get_username_by_email', 'request_password_reset']:
         return 900  # 15 minutes
     
     return 900  # 15 minutes default fallback
@@ -1285,108 +1230,6 @@ def complete_password_reset():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/user/security-question', methods=['PUT'])
-@jwt_required()
-def update_security_question():
-    try:
-        current_user_id = get_jwt_identity()
-        user = User.query.get_or_404(current_user_id)
-        data = request.get_json()
-
-        # Validate required fields
-        if not data.get('security_question') or not data.get('security_answer'):
-            raise BadRequest('Security question and answer are required')
-
-        # Verify current password before making changes
-        if not check_password_hash(user.password_hash, data.get('currentPassword', '')):
-            raise BadRequest('Current password is incorrect')
-
-        user.security_question = data['security_question']
-        user.security_answer_hash = generate_password_hash(data['security_answer'])
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Security question updated',
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'security_question': user.security_question
-            }
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/reset-password/get-question', methods=['POST'])
-@limiter.limit("5 per 15 minutes")  # Add the same rate limit as verify endpoint
-def get_security_question():
-    try:
-        data = request.get_json()
-        username = data.get('username')
-        
-        if not username:
-            raise BadRequest('Username is required')
-            
-        user = User.query.filter_by(username=username).first()
-        if not user:
-            raise NotFound('User not found')
-            
-        if not user.security_question:
-            raise BadRequest('No security question set for this user')
-            
-        question_map = {
-            'childhood_hero': 'Who was your childhood hero or role model?',
-            'first_concert': 'What was the first concert you attended?',
-            'childhood_nickname': 'What was your childhood nickname?',
-            'first_job': 'What was your first paid job?',
-            'favorite_teacher': 'What was the name of your favorite teacher?',
-            'first_car': 'What was the make/model of your first car?',
-            'met_spouse': 'In what city did you meet your spouse/significant other?',
-            'grandparent_occupation': 'What was your maternal grandfather\'s occupation?',
-            'childhood_street': 'What street did you live on in third grade?',
-            'childhood_bestfriend': 'What was the name of your childhood best friend?',
-            'first_pet': 'What was the name of your first pet?',
-            'mothers_maiden': 'What is your mother\'s maiden name?',
-            'elementary_school': 'What elementary school did you attend?',
-            'birth_city': 'In what city were you born?',
-            'first_phone': 'What was your first phone number?',
-            'childhood_vacation': 'Where did you go on your first vacation?',
-            'favorite_book': 'What was your favorite book as a child?',
-            'first_movie': 'What was the first movie you saw in theaters?',
-            'sports_team': 'What was the first sports team you supported?',
-            'childhood_hobby': 'What was your favorite childhood hobby?',
-            'first_computer': 'What was your first computer or gaming console?',
-            'favorite_subject': 'What was your favorite subject in high school?',
-            'first_language': 'What was the first foreign language you studied?',
-            'childhood_dream': 'What did you want to be when you grew up?',
-            'first_award': 'What was the first award or achievement you remember winning?'
-        }
-        
-        question_text = question_map.get(user.security_question, user.security_question)
-            
-        return jsonify({
-            'security_question': question_text
-        }), 200
-        
-    except RateLimitExceeded:  # Add rate limit exceeded handler
-        retry_after = get_retry_after()
-        return jsonify({
-            'error': format_retry_message(retry_after),
-            'retry_after': retry_after
-        }), 429
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.errorhandler(429)
-def ratelimit_handler(e):
-    retry_after = get_retry_after()
-    return jsonify({
-        'error': format_retry_message(retry_after),
-        'retry_after': retry_after
-    }), 429
 
 @app.route('/api/reset-password/get-username', methods=['POST'])
 @limiter.limit("5 per 15 minutes")
