@@ -356,7 +356,7 @@ def api_documentation():
 
 # Authentication routes
 @app.route('/api/register', methods=['POST'])
-@limiter.limit("3 per hour")  # Stricter limit since this is account creation
+@limiter.limit("3 per hour")
 def register():
     try:
         data = request.get_json()
@@ -405,9 +405,10 @@ def register():
         }), 201
 
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many registration attempts. Please try again later',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except IntegrityError:
         db.session.rollback()
@@ -417,7 +418,7 @@ def register():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
-@limiter.limit("5 per 15 minutes")  # Stricter limit for login attempts
+@limiter.limit("10 per 60 minutes")
 def login():
     try:
         data = request.get_json()
@@ -455,9 +456,10 @@ def login():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many login attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1206,22 +1208,62 @@ def verify_security_answer():
         }), 200
         
     except RateLimitExceeded:
-        # Ensure rate limit responses are always JSON
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 def get_retry_after():
-    """Get the retry-after time from rate limiter"""
+    """Get the retry-after time from rate limiter based on the current endpoint's limit"""
     try:
-        # Get retry-after from headers, or use default of 15 minutes
-        retry_after = request.headers.get('Retry-After')
-        return int(retry_after) if retry_after else 900
-    except (ValueError, TypeError):
-        return 900
+        # Get the current limit and reset time from the limiter
+        current_limit = getattr(request.limits[0], 'limit', None)
+        reset_time = getattr(request.limits[0], 'reset', None)
+        
+        if reset_time:
+            # Calculate remaining time until reset
+            now = datetime.utcnow().timestamp()
+            return int(reset_time - now)
+        
+        elif current_limit:
+            # Fallback to static duration if reset time not available
+            parts = str(current_limit).split(' ')
+            duration = int(parts[2])
+            unit = parts[3]
+
+            if unit.startswith('minute'):
+                return duration * 60
+            elif unit.startswith('hour'):
+                return duration * 3600
+            else:
+                return duration
+
+    except Exception as e:
+        print(f"Error calculating retry-after: {str(e)}")
+        
+    # Default fallbacks based on endpoint
+    endpoint = request.endpoint
+    if endpoint == 'login':
+        return 3600  # 60 minutes
+    elif endpoint == 'register':
+        return 3600  # 1 hour
+    elif endpoint in ['verify_security_answer', 'get_security_question', 
+                     'get_username_by_email', 'request_password_reset']:
+        return 900  # 15 minutes
+    
+    return 900  # 15 minutes default fallback
+
+def format_retry_message(seconds):
+    """Format retry message with appropriate time unit"""
+    if seconds >= 3600:
+        hours = seconds // 3600
+        return f"Too many attempts. Please try again in {hours} hour{'s' if hours != 1 else ''}"
+    else:
+        minutes = max(1, seconds // 60)
+        return f"Too many attempts. Please try again in {minutes} minute{'s' if minutes != 1 else ''}"
 
 @app.route('/api/reset-password/complete', methods=['POST'])
 @jwt_required()
@@ -1330,18 +1372,20 @@ def get_security_question():
         }), 200
         
     except RateLimitExceeded:  # Add rate limit exceeded handler
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    retry_after = get_retry_after()
     return jsonify({
-        'error': 'Too many attempts',
-        'retry_after': get_retry_after()
+        'error': format_retry_message(retry_after),
+        'retry_after': retry_after
     }), 429
 
 @app.route('/api/reset-password/get-username', methods=['POST'])
@@ -1364,9 +1408,10 @@ def get_username_by_email():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1463,9 +1508,10 @@ def request_password_reset():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         db.session.rollback()
@@ -1517,9 +1563,10 @@ def verify_reset_code():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         db.session.rollback()
@@ -1574,9 +1621,10 @@ def verify_email():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         db.session.rollback()
@@ -1620,9 +1668,10 @@ def resend_verification():
         }), 200
         
     except RateLimitExceeded:
+        retry_after = get_retry_after()
         return jsonify({
-            'error': 'Too many attempts. Please try again later',
-            'retry_after': get_retry_after()
+            'error': format_retry_message(retry_after),
+            'retry_after': retry_after
         }), 429
     except Exception as e:
         db.session.rollback()
