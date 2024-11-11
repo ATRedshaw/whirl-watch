@@ -16,6 +16,10 @@ import random
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter import RateLimitExceeded
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import secrets
 
 # Load environment variables from .env file
 try:
@@ -40,6 +44,13 @@ if not app.config['TMDB_API_KEY']:
 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Set token expiration to 30 days
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=60)  # Refresh token lasts 60 days
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+if not app.config['MAIL_USERNAME']:
+    raise ValueError("MAIL_USERNAME not found in environment variables")
+
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+if not app.config['MAIL_PASSWORD']:
+    raise ValueError("MAIL_PASSWORD not found in environment variables")
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -89,6 +100,14 @@ class SharedList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     list_id = db.Column(db.Integer, db.ForeignKey('media_list.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class VerificationCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    code = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    purpose = db.Column(db.String(20), nullable=False)  # 'password_reset' or other purposes
+    used = db.Column(db.Boolean, default=False)
 
 # Error handlers
 @app.errorhandler(BadRequest)
@@ -1323,6 +1342,139 @@ def get_username_by_email():
             'retry_after': get_retry_after()
         }), 429
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def send_verification_email(to_email, code):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = to_email
+        msg['Subject'] = "Whirl Watch - Password Reset Verification Code"
+
+        body = f"""
+        Your verification code is: {code}
+        
+        This code will expire in 15 minutes.
+        If you didn't request this code, please ignore this email.
+        
+        Best regards,
+        MovieTracker Team
+        """
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Gmail SMTP settings
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        
+        try:
+            server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"SMTP Authentication Error: {str(e)}")
+            raise Exception("Email authentication failed - check credentials")
+            
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Email error: {str(e)}")
+        return False
+
+@app.route('/api/reset-password/request', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def request_password_reset():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            raise BadRequest('Email is required')
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Use vague message for security
+            return jsonify({'message': 'If an account exists with this email, a verification code will be sent'}), 200
+            
+        # Generate 6-digit alphanumeric code
+        verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
+        
+        # Save verification code
+        new_code = VerificationCode(
+            user_id=user.id,
+            code=verification_code,
+            purpose='password_reset'
+        )
+        db.session.add(new_code)
+        db.session.commit()
+        
+        # Send email
+        if not send_verification_email(user.email, verification_code):
+            raise Exception("Failed to send verification email")
+            
+        return jsonify({
+            'message': 'If an account exists with this email, a verification code will be sent'
+        }), 200
+        
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reset-password/verify-code', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def verify_reset_code():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        code = data.get('code')
+        
+        if not email or not code:
+            raise BadRequest('Email and verification code are required')
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            raise BadRequest('Invalid verification code')
+            
+        # Find valid verification code
+        verification = VerificationCode.query.filter_by(
+            user_id=user.id,
+            code=code,
+            purpose='password_reset',
+            used=False
+        ).order_by(VerificationCode.created_at.desc()).first()
+        
+        if not verification:
+            raise BadRequest('Invalid verification code')
+            
+        # Check if code is expired (15 minutes)
+        if datetime.utcnow() - verification.created_at > timedelta(minutes=15):
+            raise BadRequest('Verification code has expired')
+            
+        # Mark code as used
+        verification.used = True
+        db.session.commit()
+        
+        # Generate reset token
+        reset_token = create_access_token(
+            identity=user.id,
+            expires_delta=timedelta(minutes=15)
+        )
+        
+        return jsonify({
+            'message': 'Code verified successfully',
+            'reset_token': reset_token
+        }), 200
+        
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

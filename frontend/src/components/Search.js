@@ -323,28 +323,29 @@ const Search = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto"
+              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh]">
-                {/* Poster */}
-                <div className="w-full md:w-1/3 relative">
-                  {selectedDetails.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${selectedDetails.poster_path}`}
-                      alt={selectedDetails.title || selectedDetails.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full aspect-[2/3] bg-slate-700 flex items-center justify-center">
-                      <span className="text-gray-400">No poster available</span>
-                    </div>
-                  )}
-                </div>
+              {/* Scrollable Container */}
+              <div className="overflow-y-auto max-h-[80vh]">
+                <div className="flex flex-col md:flex-row">
+                  {/* Poster */}
+                  <div className="w-full md:w-1/3">
+                    {selectedDetails.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w500${selectedDetails.poster_path}`}
+                        alt={selectedDetails.title || selectedDetails.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[2/3] bg-slate-700 flex items-center justify-center">
+                        <span className="text-gray-400">No poster available</span>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Details */}
-                <div className="w-full md:w-2/3 p-6 overflow-y-auto flex flex-col max-h-[60vh] md:max-h-[80vh]">
-                  <div className="flex-1">
+                  {/* Details */}
+                  <div className="w-full md:w-2/3 p-6">
                     <h2 className="text-2xl font-bold mb-2">
                       {selectedDetails.title || selectedDetails.name}
                     </h2>
@@ -377,25 +378,27 @@ const Search = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
 
-                  {/* Action Buttons - Fixed at bottom */}
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      onClick={() => {
-                        setSelectedMedia(selectedDetails);
-                        setSelectedDetails(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-                    >
-                      Add to List
-                    </button>
-                    <button
-                      onClick={() => setSelectedDetails(null)}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-                    >
-                      Close
-                    </button>
-                  </div>
+              {/* Fixed Button Section */}
+              <div className="sticky bottom-0 p-4 bg-slate-800 border-t border-slate-700">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedMedia(selectedDetails);
+                      setSelectedDetails(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                  >
+                    Add to List
+                  </button>
+                  <button
+                    onClick={() => setSelectedDetails(null)}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </motion.div>
