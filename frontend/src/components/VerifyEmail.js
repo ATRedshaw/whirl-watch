@@ -130,6 +130,9 @@ const VerifyEmail = () => {
           </h2>
           <p className="text-gray-400">Please check your email for the verification code</p>
           <p className="text-gray-400 mt-2">Email: {email}</p>
+          <p className="text-gray-400 mt-2 text-sm italic">
+            Don't see the email? Check your spam/junk folder
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

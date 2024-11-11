@@ -220,6 +220,9 @@ const ResetPassword = () => {
             <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-4">
               <p className="text-blue-400">Verification code sent!</p>
               <p className="text-gray-300 mt-1">Please check your email for the verification code.</p>
+              <p className="text-gray-400 mt-2 text-sm italic">
+                Don't see the email? Check your spam/junk folder
+              </p>
             </div>
             
             <div>

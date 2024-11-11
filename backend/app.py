@@ -1355,7 +1355,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
                             <div class="subtitle">Track, Share, and Discover Together</div>
                         </div>
                         
-                        <div class="heading">Welcome to the Community!</div>
+                        <div class="heading">Welcome to WhirlWatch!</div>
                         
                         <p>Thank you for joining WhirlWatch. To start tracking your favorite movies and TV shows, please verify your account using this code:</p>
                         
