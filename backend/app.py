@@ -1149,33 +1149,24 @@ def delete_account():
 def get_retry_after():
     """Get the retry-after time from rate limiter based on the current endpoint's limit"""
     try:
-        print(f"Current endpoint: {request.endpoint}")  # Debug print
-        # Get the current limit and reset time from the limiter
-        current_limit = getattr(request.limits[0], 'limit', None)
-        reset_time = getattr(request.limits[0], 'reset', None)
-        
-        print(f"Current limit: {current_limit}")  # Debug print
-        print(f"Reset time: {reset_time}")  # Debug print
-        
-        if reset_time:
-            now = datetime.utcnow().timestamp()
-            return int(reset_time - now)
-        
-        # If we can't get the reset time, use endpoint-specific defaults
+        # Endpoint-specific defaults (in seconds)
         endpoint_limits = {
-            'login': 3600,        # 60 minutes
-            'register': 900,      # 15 minutes
-            'verify_email': 900,  # 15 minutes
-            'resend_verification': 900,  # 15 minutes
+            'login': 3600,              # 60 minutes
+            'update_profile': 3600,     # 60 minutes
+            'register': 3600,           # 60 minutes
+            'verify_email': 900,        # 15 minutes
+            'resend_verification': 900, # 15 minutes
             'request_password_reset': 900,  # 15 minutes
-            'verify_reset_code': 900,  # 15 minutes
+            'verify_reset_code': 900,   # 15 minutes
+            'complete_password_reset': 3600,  # 60 minutes
+            'delete_account': 3600,     # 60 minutes
         }
         
-        retry_after = endpoint_limits.get(request.endpoint, 300)
-        print(f"Using endpoint-specific limit: {retry_after}")  # Debug print
+        # Get the retry-after value for the current endpoint
+        retry_after = endpoint_limits.get(request.endpoint, 300)  # 5 minutes default
         return retry_after
     except Exception as e:
-        print(f"Error in get_retry_after: {str(e)}")  # Debug print
+        print(f"Error in get_retry_after: {str(e)}")
         return 900  # 15 minutes default fallback
 
 def format_retry_message(retry_after):
@@ -1189,21 +1180,9 @@ def format_retry_message(retry_after):
 
 @app.errorhandler(RateLimitExceeded)
 def handle_ratelimit_error(e):
-    print(f"Rate limit exceeded for endpoint: {request.endpoint}")  # Debug print
-    
     retry_after = get_retry_after()
     reset_time = int(datetime.utcnow().timestamp() + retry_after)
-    
-    # Force 1 hour for login endpoint
-    if request.endpoint == 'login':
-        retry_after = 3600
-        reset_time = int(datetime.utcnow().timestamp() + retry_after)
-        message = "Too many login attempts. Please try again in 1 hour"
-    else:
-        message = format_retry_message(retry_after)
-    
-    print(f"Final message: {message}")  # Debug print
-    print(f"Final retry_after: {retry_after}")  # Debug print
+    message = format_retry_message(retry_after)
     
     return jsonify({
         'error': message,
