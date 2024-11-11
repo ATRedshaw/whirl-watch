@@ -13,6 +13,7 @@ const Profile = () => {
   const [profileSuccess, setProfileSuccess] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [newPasswordValid, setNewPasswordValid] = useState(false);
 
   // Form states
   const [profileData, setProfileData] = useState({
@@ -85,6 +86,10 @@ const Profile = () => {
     }
   };
 
+  const validatePassword = (password) => {
+    return password.length >= 6 && password.length <= 128;
+  };
+
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -92,6 +97,14 @@ const Profile = () => {
     setPasswordSuccess('');
 
     try {
+      if (!validatePassword(passwordData.newPassword)) {
+        throw new Error('New password must be between 6 and 128 characters');
+      }
+
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        throw new Error('New passwords do not match');
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const response = await fetch(`${apiUrl}/api/user/profile`, {
         method: 'PUT',
@@ -109,7 +122,7 @@ const Profile = () => {
       
       if (!response.ok) {
         if (response.status === 429) {
-          const retryAfter = data.retry_after || 3600; // default to 1 hour
+          const retryAfter = data.retry_after || 3600;
           const minutes = Math.ceil(retryAfter / 60);
           throw new Error(
             `Too many password update attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
@@ -124,11 +137,22 @@ const Profile = () => {
         newPassword: '',
         confirmPassword: ''
       });
+      setNewPasswordValid(false);
     } catch (err) {
       setPasswordError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'newPassword') {
+      setNewPasswordValid(validatePassword(value));
+    }
+    setPasswordError('');
   };
 
   const handleDeleteAccount = async () => {
@@ -246,8 +270,9 @@ const Profile = () => {
                 <label className="block text-sm text-gray-400 mb-1">Current Password</label>
                 <input
                   type="password"
+                  name="currentPassword"
                   value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  onChange={handlePasswordChange}
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -255,25 +280,38 @@ const Profile = () => {
                 <label className="block text-sm text-gray-400 mb-1">New Password</label>
                 <input
                   type="password"
+                  name="newPassword"
                   value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                  className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                  onChange={handlePasswordChange}
+                  className={`w-full px-4 py-2 bg-slate-700/50 rounded-lg border ${
+                    passwordData.newPassword ? (newPasswordValid ? 'border-green-500' : 'border-red-500') : 'border-slate-600'
+                  } focus:outline-none focus:border-blue-500`}
                 />
+                {passwordData.newPassword && (
+                  <p className={`text-sm mt-1 ${newPasswordValid ? 'text-green-500' : 'text-red-500'}`}>
+                    {newPasswordValid ? 'Password meets requirements' : 'Password must be between 6 and 128 characters'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Confirm New Password</label>
                 <input
                   type="password"
+                  name="confirmPassword"
                   value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+                  onChange={handlePasswordChange}
+                  className={`w-full px-4 py-2 bg-slate-700/50 rounded-lg border ${
+                    passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword
+                      ? 'border-green-500'
+                      : 'border-slate-600'
+                  } focus:outline-none focus:border-blue-500`}
                 />
               </div>
               <button
                 type="submit"
-                disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                disabled={loading || !passwordData.currentPassword || !newPasswordValid || passwordData.newPassword !== passwordData.confirmPassword}
                 className={`px-6 py-2 ${
-                  loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword
+                  loading || !passwordData.currentPassword || !newPasswordValid || passwordData.newPassword !== passwordData.confirmPassword
                     ? 'bg-blue-500/50 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700'
                 } rounded-lg transition-colors duration-200`}
