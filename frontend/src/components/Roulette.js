@@ -14,6 +14,7 @@ const Roulette = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [cyclingMedia, setCyclingMedia] = useState(null);
   const [spinInterval, setSpinInterval] = useState(null);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 640);
   
   // Filters similar to ListDetails
   const [filters, setFilters] = useState({
@@ -172,6 +173,15 @@ const Roulette = () => {
       setError(err.message);
     }
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 640);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white p-4 sm:p-8">
@@ -337,12 +347,23 @@ const Roulette = () => {
                 onClick={e => e.stopPropagation()}
                 className="bg-slate-800 rounded-lg w-full max-w-xl flex flex-col max-h-[90vh]"
               >
-                <div className="p-6 overflow-y-auto flex-1">
-                  <h3 className="text-2xl font-semibold mb-6">
+                {/* Header with Title */}
+                <div className="p-6 border-b border-slate-700">
+                  <h3 className="text-2xl font-semibold mb-2">
                     {isSpinning ? "Choosing your next watch..." : "Your Next Watch"}
                   </h3>
-                  <div className="flex flex-col sm:flex-row gap-6 mb-6">
-                    <div className="w-full sm:w-1/3 flex-shrink-0">
+                  {!isSpinning && (
+                    <h4 className="text-xl text-gray-200 sm:hidden">
+                      {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
+                    </h4>
+                  )}
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="p-6 overflow-y-auto flex-1">
+                  <div className="flex flex-col sm:flex-row gap-6">
+                    {/* Poster */}
+                    <div className="sm:w-1/3 flex-shrink-0">
                       <div className="aspect-[2/3] rounded-lg overflow-hidden">
                         <img
                           src={`https://image.tmdb.org/t/p/w342${(cyclingMedia || selectedMedia).poster_path}`}
@@ -354,36 +375,51 @@ const Roulette = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Details - Hidden on mobile during spinning */}
                     <div className="flex-1">
-                      <h4 className="text-xl font-semibold mb-3">
-                        {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
-                      </h4>
-                      <p className="text-gray-400 mb-4">
-                        {(cyclingMedia || selectedMedia).overview}
-                      </p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-yellow-500">⭐</span>
-                        <span className="font-medium">
-                          {(cyclingMedia || selectedMedia).vote_average.toFixed(1)}
-                        </span>
-                      </div>
-                      {(cyclingMedia || selectedMedia).release_date && (
-                        <div className="text-sm text-gray-400">
-                          Released: {new Date((cyclingMedia || selectedMedia).release_date).getFullYear()}
-                        </div>
+                      {(!isSpinning || isDesktop) && (
+                        <>
+                          <h4 className="text-xl font-semibold mb-3">
+                            {(cyclingMedia || selectedMedia).title || (cyclingMedia || selectedMedia).name}
+                          </h4>
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-500">⭐</span>
+                              <span className="font-medium">
+                                {(cyclingMedia || selectedMedia).vote_average.toFixed(1)}
+                              </span>
+                            </div>
+                            {(cyclingMedia || selectedMedia).release_date && (
+                              <div className="text-sm text-gray-400">
+                                Released: {new Date((cyclingMedia || selectedMedia).release_date).getFullYear()}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-gray-400 mb-6">
+                            {(cyclingMedia || selectedMedia).overview}
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>
                 </div>
 
+                {/* Button Section */}
                 {!isSpinning && (
-                  <div className="p-6 border-t border-slate-700">
-                    <div className="flex gap-4">
+                  <div className="p-4 border-t border-slate-700">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <button
                         onClick={handleAddToInProgress}
                         className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 font-medium"
                       >
                         Start Watching
+                      </button>
+                      <button
+                        onClick={handleSpin}
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 rounded-lg transition-colors duration-200 font-medium"
+                      >
+                        Respin
                       </button>
                       <button
                         onClick={() => setShowResultModal(false)}
