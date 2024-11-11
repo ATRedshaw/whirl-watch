@@ -88,25 +88,9 @@ const Profile = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    
-    if (!validateUsername(profileData.username)) {
-      setProfileError('Username can only contain letters, numbers, underscore (_) and hyphen (-)');
-      return;
-    }
-
-    if (profileData.username.length > 30) {
-      setProfileError('Username must be 30 characters or less');
-      return;
-    }
-
-    if (profileData.username.length < 1) {
-      setProfileError('Username is required');
-      return;
-    }
-
     setLoading(true);
-    setProfileError(null);
-    setProfileSuccess(null);
+    setProfileError('');
+    setProfileSuccess('');
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
@@ -120,11 +104,14 @@ const Profile = () => {
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
-        if (response.status === 401) {
-          logout();
-          navigate('/login');
-          throw new Error('Session expired. Please log in again.');
+        if (response.status === 429) {
+          const retryAfter = data.retry_after || 3600; // default to 1 hour
+          const minutes = Math.ceil(retryAfter / 60);
+          throw new Error(
+            `Too many update attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+          );
         }
         throw new Error(data.error || 'Failed to update profile');
       }
@@ -140,25 +127,9 @@ const Profile = () => {
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
-    
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long');
-      return;
-    }
-
-    if (passwordData.newPassword.length > 128) {
-      setPasswordError('New password must be 128 characters or less');
-      return;
-    }
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
-      return;
-    }
-
     setLoading(true);
-    setPasswordError(null);
-    setPasswordSuccess(null);
+    setPasswordError('');
+    setPasswordSuccess('');
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
@@ -175,11 +146,14 @@ const Profile = () => {
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
-        if (response.status === 401) {
-          logout();
-          navigate('/login');
-          throw new Error('Session expired. Please log in again.');
+        if (response.status === 429) {
+          const retryAfter = data.retry_after || 3600; // default to 1 hour
+          const minutes = Math.ceil(retryAfter / 60);
+          throw new Error(
+            `Too many password update attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+          );
         }
         throw new Error(data.error || 'Failed to update password');
       }

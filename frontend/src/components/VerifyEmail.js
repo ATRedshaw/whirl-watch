@@ -1,26 +1,24 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-const Login = () => {
+const VerifyEmail = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
+  const location = useLocation();
+  const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-    setError('');
-  };
+  useEffect(() => {
+    // Get email from location state (passed during navigation)
+    const emailFromState = location.state?.email;
+    if (!emailFromState) {
+      navigate('/login');
+      return;
+    }
+    setEmail(emailFromState);
+  }, [location.state, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,36 +27,65 @@ const Login = () => {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const response = await fetch(`${apiUrl}/api/login`, {
+      
+      const response = await fetch(`${apiUrl}/api/verify-email`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: formData.username,
-          password: formData.password
+          email: email,
+          code: verificationCode
         })
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
-        if (response.status === 429) {
-          const retryAfter = data.retry_after || 900;
-          const minutes = Math.ceil(retryAfter / 60);
-          throw new Error(
-            `Too many login attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
-          );
-        }
-        if (response.status === 403 && data.requires_verification) {
-          navigate('/verify-email', { state: { email: data.email } });
-          return;
-        }
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || 'Verification failed');
       }
 
-      await login(formData.username, formData.password);
-      navigate('/hub');
+      // Show success message and redirect
+      setTimeout(() => {
+        navigate('/login', { 
+          state: { 
+            message: 'Email verified successfully! You can now log in.' 
+          }
+        });
+      }, 2000);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      
+      const response = await fetch(`${apiUrl}/api/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification code');
+      }
+
+      setError(''); // Clear any existing errors
+      // Show success message
+      alert('A new verification code has been sent to your email');
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,9 +103,10 @@ const Login = () => {
       >
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-blue-500 to-purple-600">
-            Welcome Back
+            Verify Your Email
           </h2>
-          <p className="text-gray-400">Log in to continue your media tracking journey</p>
+          <p className="text-gray-400">Please check your email for the verification code</p>
+          <p className="text-gray-400 mt-2">Email: {email}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -93,33 +121,17 @@ const Login = () => {
           )}
 
           <div>
-            <label className="block text-gray-300 mb-1" htmlFor="username">
-              Username
+            <label className="block text-gray-300 mb-1" htmlFor="verificationCode">
+              Verification Code
             </label>
             <input
               type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              autoComplete="username"
+              id="verificationCode"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
               className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-1" htmlFor="password">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+              placeholder="Enter 6-digit code"
+              maxLength={6}
               required
             />
           </div>
@@ -129,7 +141,7 @@ const Login = () => {
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300 mt-6"
+            className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -137,33 +149,36 @@ const Login = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Logging in...
+                Verifying...
               </span>
             ) : (
-              'Log In'
+              'Verify Email'
             )}
           </motion.button>
 
-          <div className="text-center space-y-2 mt-4">
+          <div className="text-center mt-4">
             <p className="text-gray-400">
-              Don't have an account?{' '}
+              Didn't receive the code?{' '}
               <motion.button
                 whileHover={{ scale: 1.05 }}
-                onClick={() => navigate('/register')}
+                onClick={handleResendCode}
+                disabled={isLoading}
+                type="button"
                 className="text-sky-400 hover:text-sky-300"
               >
-                Create Account
+                Resend Code
               </motion.button>
             </p>
           </div>
 
-          <div className="text-center space-y-2 mt-4">
+          <div className="text-center mt-4">
             <motion.button
               whileHover={{ scale: 1.05 }}
-              onClick={() => navigate('/reset-password')}
+              onClick={() => navigate('/login')}
               className="text-sky-400 hover:text-sky-300"
+              type="button"
             >
-              Forgot Password?
+              Back to Login
             </motion.button>
           </div>
         </form>
@@ -172,4 +187,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default VerifyEmail;

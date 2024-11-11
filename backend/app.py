@@ -67,6 +67,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
+    email_verified = db.Column(db.Boolean, default=False)
     lists = db.relationship('MediaList', backref='owner', lazy=True)
 
 class MediaList(db.Model):
@@ -355,6 +356,7 @@ def api_documentation():
 
 # Authentication routes
 @app.route('/api/register', methods=['POST'])
+@limiter.limit("3 per hour")  # Stricter limit since this is account creation
 def register():
     try:
         data = request.get_json()
@@ -366,25 +368,47 @@ def register():
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
         
-        # Create user without security question fields
         user = User(
             username=data['username'],
             email=data['email'],
-            password_hash=generate_password_hash(data['password'])
+            password_hash=generate_password_hash(data['password']),
+            email_verified=False
         )
         
         db.session.add(user)
         db.session.commit()
+
+        # Generate verification code
+        verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
+        
+        # Save verification code
+        new_code = VerificationCode(
+            user_id=user.id,
+            code=verification_code,
+            purpose='email_verification'
+        )
+        db.session.add(new_code)
+        db.session.commit()
+        
+        # Send verification email
+        if not send_verification_email(user.email, verification_code, purpose='email_verification'):
+            raise Exception("Failed to send verification email")
         
         return jsonify({
-            'message': 'User created successfully',
+            'message': 'User created successfully. Please check your email for verification code.',
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
+                'requires_verification': True
             }
         }), 201
 
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many registration attempts. Please try again later',
+            'retry_after': get_retry_after()
+        }), 429
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Username or email already exists'}), 400
@@ -409,6 +433,13 @@ def login():
             
         if not check_password_hash(user.password_hash, data['password']):
             raise Unauthorized("Invalid credentials")
+
+        if not user.email_verified:
+            return jsonify({
+                'error': 'Email not verified',
+                'requires_verification': True,
+                'email': user.email
+            }), 403
             
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
@@ -419,13 +450,11 @@ def login():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email,
-                'security_question': user.security_question
+                'email': user.email
             }
         }), 200
         
     except RateLimitExceeded:
-        # Ensure rate limit responses are always JSON
         return jsonify({
             'error': 'Too many login attempts',
             'retry_after': get_retry_after()
@@ -1072,6 +1101,7 @@ def update_list(list_id):
 
 @app.route('/api/user/profile', methods=['PUT'])
 @jwt_required()
+@limiter.limit("10 per hour")
 def update_profile():
     try:
         current_user_id = get_jwt_identity()
@@ -1111,6 +1141,7 @@ def update_profile():
 
 @app.route('/api/user/profile', methods=['DELETE'])
 @jwt_required()
+@limiter.limit("3 per hour")
 def delete_account():
     try:
         current_user_id = get_jwt_identity()
@@ -1194,6 +1225,7 @@ def get_retry_after():
 
 @app.route('/api/reset-password/complete', methods=['POST'])
 @jwt_required()
+@limiter.limit("3 per hour")
 def complete_password_reset():
     try:
         current_user_id = get_jwt_identity()
@@ -1339,22 +1371,39 @@ def get_username_by_email():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def send_verification_email(to_email, code):
+def send_verification_email(to_email, code, purpose='password_reset'):
     try:
         msg = MIMEMultipart()
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = to_email
-        msg['Subject'] = "Whirl Watch - Password Reset Verification Code"
 
-        body = f"""
-        Your verification code is: {code}
-        
-        This code will expire in 15 minutes.
-        If you didn't request this code, please ignore this email.
-        
-        Best regards,
-        Alex Redshaw - Whirl Watch Developer
-        """
+        if purpose == 'email_verification':
+            msg['Subject'] = "Whirl Watch - Verify Your Account"
+            body = f"""
+            Welcome to Whirl Watch!
+            
+            Please verify your account using the following code:
+            
+            {code}
+            
+            This code will expire in 15 minutes.
+            If you didn't create an account with Whirl Watch, please ignore this email.
+            
+            Best regards,
+            Alex Redshaw - Whirl Watch Developer
+            """
+        else:  # password_reset
+            msg['Subject'] = "Whirl Watch - Password Reset Verification Code"
+            body = f"""
+            Your verification code is: {code}
+            
+            This code will expire in 15 minutes.
+            If you didn't request this code, please ignore this email.
+            
+            Best regards,
+            Alex Redshaw - Whirl Watch Developer
+            """
+
         msg.attach(MIMEText(body, 'plain'))
 
         # Gmail SMTP settings
@@ -1470,6 +1519,109 @@ def verify_reset_code():
     except RateLimitExceeded:
         return jsonify({
             'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/verify-email', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def verify_email():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        code = data.get('code')
+        
+        if not email or not code:
+            raise BadRequest('Email and verification code are required')
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            raise BadRequest('Invalid verification code')
+            
+        verification = VerificationCode.query.filter_by(
+            user_id=user.id,
+            code=code,
+            purpose='email_verification',
+            used=False
+        ).order_by(VerificationCode.created_at.desc()).first()
+        
+        if not verification:
+            raise BadRequest('Invalid verification code')
+            
+        if datetime.utcnow() - verification.created_at > timedelta(minutes=15):
+            raise BadRequest('Verification code has expired')
+            
+        # Mark code as used and user as verified
+        verification.used = True
+        user.email_verified = True
+        db.session.commit()
+        
+        # Generate tokens for automatic login
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+        
+        return jsonify({
+            'message': 'Email verified successfully',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            }
+        }), 200
+        
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many attempts',
+            'retry_after': get_retry_after()
+        }), 429
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/resend-verification', methods=['POST'])
+@limiter.limit("2 per 15 minutes")  # Stricter rate limit for resending
+def resend_verification():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            raise BadRequest('Email is required')
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Use a vague message for security
+            return jsonify({
+                'message': 'If an account exists with this email, a verification code will be sent'
+            }), 200
+            
+        # Generate new verification code
+        verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
+        
+        # Save new verification code
+        new_code = VerificationCode(
+            user_id=user.id,
+            code=verification_code,
+            purpose='email_verification'
+        )
+        db.session.add(new_code)
+        db.session.commit()
+        
+        # Send email with purpose
+        if not send_verification_email(user.email, verification_code, purpose='email_verification'):
+            raise Exception("Failed to send verification email")
+            
+        return jsonify({
+            'message': 'Verification code sent successfully'
+        }), 200
+        
+    except RateLimitExceeded:
+        return jsonify({
+            'error': 'Too many attempts. Please try again later',
             'retry_after': get_retry_after()
         }), 429
     except Exception as e:

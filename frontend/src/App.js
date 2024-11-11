@@ -19,6 +19,7 @@ import Rankings from './components/Rankings';
 import Profile from './components/Profile';
 import History from './components/History';
 import ResetPassword from './components/ResetPassword';
+import VerifyEmail from './components/VerifyEmail';
 
 function App() {
   return (
@@ -29,6 +30,14 @@ function App() {
           <div className="pt-16">
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route 
+                path="/verify-email" 
+                element={
+                  <PublicOnlyRoute>
+                    <VerifyEmail />
+                  </PublicOnlyRoute>
+                } 
+              />
               <Route 
                 path="/register" 
                 element={
