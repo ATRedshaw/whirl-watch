@@ -8,6 +8,7 @@ const VerifyEmail = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -45,7 +46,8 @@ const VerifyEmail = () => {
         throw new Error(data.error || 'Verification failed');
       }
 
-      // Show success message and redirect
+      setIsSuccess(true);
+      // Keep loading state true during redirect
       setTimeout(() => {
         navigate('/login', { 
           state: { 
@@ -56,7 +58,6 @@ const VerifyEmail = () => {
 
     } catch (err) {
       setError(err.message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -91,6 +92,28 @@ const VerifyEmail = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getButtonText = () => {
+    if (isSuccess) return 'Verification Successful!';
+    if (isLoading) return (
+      <span className="flex items-center justify-center">
+        <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        Verifying...
+      </span>
+    );
+    return 'Verify Email';
+  };
+
+  const getButtonClassName = () => {
+    const baseClass = "w-full py-3 rounded-lg font-semibold transition-colors duration-300";
+    if (isSuccess) {
+      return `${baseClass} bg-green-600 hover:bg-green-700`;
+    }
+    return `${baseClass} bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700`;
   };
 
   return (
@@ -140,20 +163,10 @@ const VerifyEmail = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300"
+            disabled={isLoading || isSuccess}
+            className={getButtonClassName()}
           >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Verifying...
-              </span>
-            ) : (
-              'Verify Email'
-            )}
+            {getButtonText()}
           </motion.button>
 
           <div className="text-center mt-4">
