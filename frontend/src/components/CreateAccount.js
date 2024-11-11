@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,7 +18,6 @@ const CreateAccount = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordValid, setPasswordValid] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -422,48 +421,6 @@ const CreateAccount = () => {
             </motion.button>
           </p>
         </form>
-
-        <AnimatePresence>
-          {showSuccessModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-            >
-              <motion.div
-                initial={{ scale: 0.95 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.95 }}
-                className="bg-slate-800 rounded-lg p-6 max-w-md w-full text-center"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center"
-                >
-                  <svg 
-                    className="w-8 h-8 text-white" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M5 13l4 4L19 7" 
-                    />
-                  </svg>
-                </motion.div>
-                <h3 className="text-xl font-semibold mb-2">Account Created Successfully!</h3>
-                <p className="text-gray-400">
-                  Redirecting you to login...
-                </p>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );
