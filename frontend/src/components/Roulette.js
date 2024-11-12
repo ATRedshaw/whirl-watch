@@ -21,7 +21,11 @@ const Roulette = () => {
     mediaType: 'all',
     watchStatus: 'not_watched',
     minRating: 0,
+    addedBy: 'all'
   });
+
+  // Add a new state for tracking the complete loading state
+  const [isLoadingComplete, setIsLoadingComplete] = useState(false);
 
   // Fetch user's lists on component mount
   useEffect(() => {
@@ -41,38 +45,45 @@ const Roulette = () => {
         setError(err.message);
       } finally {
         setLoading(false);
+        setIsLoadingComplete(true);
       }
     };
 
     fetchLists();
   }, []);
 
-  // Fetch list details when a list is selected
-  useEffect(() => {
-    const fetchListDetails = async () => {
-      if (!selectedList?.id) return;
-      
-      try {
-        setLoading(true);
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${apiUrl}/api/lists/${selectedList.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-        setSelectedListDetails(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Update the list selection handler
+  const handleListSelect = async (listId) => {
+    if (!listId) {
+      setSelectedList(null);
+      setSelectedListDetails(null);
+      setIsLoadingComplete(true);
+      return;
+    }
 
-    fetchListDetails();
-  }, [selectedList?.id]);
+    setIsLoadingComplete(false);
+    const selectedList = lists.find(l => l.id === Number(listId));
+    
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/lists/${listId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      
+      setSelectedList(selectedList);
+      setSelectedListDetails(data);
+      setFilters(prev => ({ ...prev, addedBy: 'all' }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoadingComplete(true);
+    }
+  };
 
   const getFilteredMedia = () => {
     if (!selectedListDetails?.media_items) return [];
@@ -81,8 +92,9 @@ const Roulette = () => {
       const matchesType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
       const matchesStatus = filters.watchStatus === 'all' || media.watch_status === filters.watchStatus;
       const matchesRating = !filters.minRating || media.vote_average >= filters.minRating;
+      const matchesUser = filters.addedBy === 'all' || media.added_by?.id === parseInt(filters.addedBy);
       
-      return matchesType && matchesStatus && matchesRating;
+      return matchesType && matchesStatus && matchesRating && matchesUser;
     });
   };
 
@@ -212,7 +224,7 @@ const Roulette = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* List Selection - First column, emphasized */}
             <div className="sm:col-span-2 lg:col-span-1">
               <label className="block text-sm font-semibold text-blue-400 mb-1">
@@ -220,7 +232,7 @@ const Roulette = () => {
               </label>
               <select
                 value={selectedList?.id || ''}
-                onChange={(e) => setSelectedList(lists.find(l => l.id === Number(e.target.value)))}
+                onChange={(e) => handleListSelect(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-500/50"
               >
                 <option value="">Select a list</option>
@@ -273,6 +285,31 @@ const Roulette = () => {
                 ))}
               </select>
             </div>
+
+            {/* Added By Filter */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Added By</label>
+              <select
+                value={filters.addedBy}
+                onChange={(e) => setFilters(prev => ({ ...prev, addedBy: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Users</option>
+                {selectedListDetails?.media_items
+                  ?.reduce((users, item) => {
+                    if (item.added_by && !users.some(u => u.id === item.added_by.id)) {
+                      users.push(item.added_by);
+                    }
+                    return users;
+                  }, [])
+                  .sort((a, b) => a.username.localeCompare(b.username))
+                  .map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
         </motion.div>
 
@@ -302,7 +339,22 @@ const Roulette = () => {
 
         {/* Simple Button Section */}
         <div className="flex justify-center py-8">
-          {selectedList && getFilteredMedia().length > 0 ? (
+          {!isLoadingComplete ? (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+            </div>
+          ) : !selectedList ? (
+            <div className="text-center">
+              <div className="text-gray-400">
+                <h3 className="text-xl font-semibold mb-2">
+                  Select a list to begin
+                </h3>
+                <p className="text-gray-500">
+                  Choose a list from above to start the roulette
+                </p>
+              </div>
+            </div>
+          ) : getFilteredMedia().length > 0 ? (
             <button
               onClick={handleSpin}
               disabled={isSpinning}
@@ -315,15 +367,13 @@ const Roulette = () => {
               {isSpinning ? 'Choosing...' : 'Pick Something Random!'}
             </button>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center">
               <div className="text-gray-400">
                 <h3 className="text-xl font-semibold mb-2">
-                  {!selectedList ? 'Select a list to begin' : 'No media matches your filters'}
+                  No media matches your filters
                 </h3>
                 <p className="text-gray-500">
-                  {!selectedList
-                    ? 'Choose a list from above to start the roulette'
-                    : 'Try adjusting your filters to include more options'}
+                  Try adjusting your filters to include more options
                 </p>
               </div>
             </div>
