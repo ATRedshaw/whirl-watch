@@ -1156,7 +1156,7 @@ def get_retry_after():
             'register': 3600,           # 60 minutes
             'verify_email': 900,        # 15 minutes
             'resend_verification': 900, # 15 minutes
-            'request_password_reset': 900,  # 15 minutes
+            'request_password_reset': 3600,  # 60 minutes
             'verify_reset_code': 900,   # 15 minutes
             'complete_password_reset': 3600,  # 60 minutes
             'delete_account': 3600,     # 60 minutes
@@ -1405,7 +1405,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
         return False
 
 @app.route('/api/reset-password/request', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("3 per 60 minutes")
 def request_password_reset():
     try:
         data = request.get_json()

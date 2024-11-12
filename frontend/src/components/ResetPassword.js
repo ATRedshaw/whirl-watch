@@ -168,6 +168,45 @@ const ResetPassword = () => {
     }
   };
 
+  // Add this new function after your existing handlers
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const response = await fetch(`${apiUrl}/api/reset-password/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = data.retry_after || 900;
+          const minutes = Math.ceil(retryAfter / 60);
+          throw new Error(
+            `Too many attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+          );
+        }
+        throw new Error(data.error || 'Failed to resend verification code');
+      }
+
+      // Show success message
+      setError('New verification code sent!');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center px-4">
       <motion.div
@@ -223,6 +262,14 @@ const ResetPassword = () => {
               <p className="text-gray-400 mt-2 text-sm italic">
                 Don't see the email? Check your spam/junk folder
               </p>
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={isLoading}
+                className="text-blue-400 hover:text-blue-300 text-sm mt-2 transition-colors duration-200"
+              >
+                Resend verification code
+              </button>
             </div>
             
             <div>
