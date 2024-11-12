@@ -53,6 +53,9 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 if not app.config['MAIL_PASSWORD']:
     raise ValueError("MAIL_PASSWORD not found in environment variables")
 
+# Add this constant near the top with other configurations
+MAX_USERS_PER_LIST = 8
+
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
@@ -513,6 +516,7 @@ def get_lists():
         
         # Process owned lists
         for lst in owned_lists:
+            user_count = get_list_user_count(lst.id)  # Get user count
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
@@ -527,11 +531,14 @@ def get_lists():
                     'media_type': item.media_type,
                     'watch_status': item.watch_status,
                     'rating': item.rating
-                } for item in lst.media_items]
+                } for item in lst.media_items],
+                'user_count': user_count,  # Add user count
+                'max_users': MAX_USERS_PER_LIST  # Add max users
             })
         
         # Process shared lists
         for lst in shared_lists:
+            user_count = get_list_user_count(lst.id)  # Get user count
             all_lists.append({
                 'id': lst.id,
                 'name': lst.name,
@@ -550,7 +557,9 @@ def get_lists():
                     'media_type': item.media_type,
                     'watch_status': item.watch_status,
                     'rating': item.rating
-                } for item in lst.media_items]
+                } for item in lst.media_items],
+                'user_count': user_count,  # Add user count
+                'max_users': MAX_USERS_PER_LIST  # Add max users
             })
         
         return jsonify({'lists': all_lists}), 200
@@ -920,6 +929,17 @@ def delete_media_by_tmdb(list_id, tmdb_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+# Add this helper function with other helper functions
+def get_list_user_count(list_id):
+    """Get total number of users with access to a list (owner + shared users)"""
+    try:
+        media_list = MediaList.query.get_or_404(list_id)
+        shared_count = SharedList.query.filter_by(list_id=list_id).count()
+        return shared_count + 1  # +1 for the owner
+    except Exception as e:
+        print(f"Error counting list users: {str(e)}")
+        return 0
+
 @app.route('/api/lists/join', methods=['POST'])
 @jwt_required()
 def join_list():
@@ -930,20 +950,17 @@ def join_list():
         if not data or 'share_code' not in data:
             raise BadRequest("Share code is required")
             
-        share_code = data['share_code'].upper()  # Convert to uppercase
+        share_code = data['share_code'].upper()
         
-        # Find the list with the given share code
         media_list = MediaList.query.filter(
             func.upper(MediaList.share_code) == share_code
         ).first()
         if not media_list:
             raise NotFound("Invalid share code")
             
-        # Check if user already owns the list
         if media_list.owner_id == current_user_id:
             raise BadRequest("You cannot join your own list")
             
-        # Check if user already has access to the list
         existing_share = SharedList.query.filter_by(
             list_id=media_list.id,
             user_id=current_user_id
@@ -951,8 +968,12 @@ def join_list():
         
         if existing_share:
             raise BadRequest("You already have access to this list")
+        
+        # Check user limit
+        current_user_count = get_list_user_count(media_list.id)
+        if current_user_count >= MAX_USERS_PER_LIST:
+            raise BadRequest(f"This list has reached its maximum capacity of {MAX_USERS_PER_LIST} users")
             
-        # Create new shared access
         new_share = SharedList(
             list_id=media_list.id,
             user_id=current_user_id
@@ -963,11 +984,11 @@ def join_list():
         
         return jsonify({
             'message': 'Successfully joined list',
-            'list_id': media_list.id
+            'list_id': media_list.id,
+            'user_count': current_user_count + 1,
+            'max_users': MAX_USERS_PER_LIST
         }), 200
         
-    except (BadRequest, NotFound) as e:
-        return jsonify({'error': str(e)}), e.code
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

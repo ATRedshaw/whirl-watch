@@ -424,6 +424,7 @@ const Lists = () => {
 
                   <div className="space-y-4">
                     <div className="flex flex-col gap-1 text-sm text-gray-400">
+                      <span>{list.user_count} users</span>
                       <span>Films & TV Shows: {list.media_items?.length || 0}</span>
                       <span>{list.is_owner ? 'Owner: ' : 'Shared by: '}<span className="text-blue-400">{list.is_owner ? 'You' : list.owner.username}</span></span>
                     </div>
@@ -639,9 +640,12 @@ const Lists = () => {
                 {/* Share Code Section */}
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold mb-2">Share Code</h4>
-                  <div className="bg-slate-700 p-3 rounded-lg text-center">
+                  <div className="bg-slate-700 p-3 rounded-lg text-center mb-2">
                     <span className="font-mono">{managingList.share_code}</span>
                   </div>
+                  <p className="text-sm text-gray-400">
+                    Up to {managingList.max_users} users are able to collaborate on a list
+                  </p>
                 </div>
 
                 {/* Users Section */}
