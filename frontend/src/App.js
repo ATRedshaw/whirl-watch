@@ -25,9 +25,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="App">
+        <div className="App min-h-screen">
           <Navbar />
-          <div className="pt-16">
+          <div className="pt-16 flex-grow">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route 

@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix mobile viewport issues */
+html, body {
+  @apply min-h-screen overflow-x-hidden bg-black;
+  overscroll-behavior: none;
+}
+
+#root {
+  @apply min-h-screen flex flex-col bg-gradient-to-b from-slate-900 to-black;
+  overscroll-behavior: none;
+}
+
+.App {
+  @apply flex flex-col flex-grow;
+}

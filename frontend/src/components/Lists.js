@@ -431,7 +431,7 @@ const Lists = () => {
                     <div className="flex flex-col gap-1 text-sm text-gray-400">
                       <span>Films & TV Shows: {list.media_items?.length || 0}</span>
                       <span>{list.is_owner ? 'Owner: ' : 'Shared by: '}<span className="text-blue-400">{list.is_owner ? 'You' : list.owner.username}</span></span>
-                      <span>{list.user_count} users</span>
+                      <span>{list.user_count === 1 ? '1 user' : `${list.user_count} users`}</span>
                     </div>
 
                     <div className="flex gap-2">
