@@ -22,6 +22,8 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
+frontend/.env
+
 # backend
 backend/venv
 backend/instance
