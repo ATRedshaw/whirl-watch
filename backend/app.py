@@ -91,6 +91,8 @@ class MediaInList(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
     rating = db.Column(db.Integer, nullable=True)
+    added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    added_by = db.relationship('User', backref='added_media_items')
 
     __table_args__ = (
         db.Index('idx_list_media', 'list_id', 'tmdb_id', 'media_type', unique=True),
@@ -681,7 +683,8 @@ def add_media_to_list(list_id):
             media_type=data['media_type'],
             watch_status=data.get('watch_status', 'not_watched'),
             rating=data.get('rating'),
-            added_date=datetime.utcnow()
+            added_date=datetime.utcnow(),
+            added_by_id=current_user_id
         )
         
         # Update the list's last_updated timestamp
@@ -690,7 +693,14 @@ def add_media_to_list(list_id):
         db.session.add(new_media)
         db.session.commit()
         
-        return jsonify({'message': 'Media added successfully', 'id': new_media.id}), 201
+        return jsonify({
+            'message': 'Media added successfully', 
+            'id': new_media.id,
+            'added_by': {
+                'id': current_user_id,
+                'username': User.query.get(current_user_id).username
+            }
+        }), 201
         
     except Exception as e:
         db.session.rollback()
@@ -803,6 +813,11 @@ def get_list(list_id):
                     'rating': item.rating,
                     'added_date': item.added_date.isoformat(),
                     'last_updated': item.last_updated.isoformat(),
+                    # Add added_by information
+                    'added_by': {
+                        'id': item.added_by_id,
+                        'username': item.added_by.username
+                    },
                     # TMDB data
                     'title': tmdb_data.get('title') or tmdb_data.get('name'),
                     'poster_path': tmdb_data.get('poster_path'),
@@ -818,7 +833,12 @@ def get_list(list_id):
                     'tmdb_id': item.tmdb_id,
                     'media_type': item.media_type,
                     'watch_status': item.watch_status,
-                    'rating': item.rating
+                    'rating': item.rating,
+                    # Add added_by information even in error case
+                    'added_by': {
+                        'id': item.added_by_id,
+                        'username': item.added_by.username
+                    }
                 })
         
         return jsonify({
@@ -1114,34 +1134,37 @@ def update_profile():
 @app.route('/api/user/profile', methods=['DELETE'])
 @jwt_required()
 @limiter.limit("3 per hour")
-def delete_account():
+def delete_profile():
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get_or_404(current_user_id)
         data = request.get_json()
-
-        # Verify password before deletion
+        
         if not data or 'password' not in data:
-            raise BadRequest('Password is required to delete account')
-
+            raise BadRequest("Password is required to delete account")
+            
+        user = User.query.get_or_404(current_user_id)
+        
         if not check_password_hash(user.password_hash, data['password']):
-            raise BadRequest('Invalid password')
+            raise Unauthorized("Invalid password")
 
-        # Remove user from shared lists
+        # Delete all media items added by the user
+        MediaInList.query.filter_by(added_by_id=current_user_id).delete()
+        
+        # Delete all shared lists for this user
         SharedList.query.filter_by(user_id=current_user_id).delete()
-
-        # Delete user's lists and their contents
-        for lst in user.lists:
-            MediaInList.query.filter_by(list_id=lst.id).delete()
-            SharedList.query.filter_by(list_id=lst.id).delete()
-            db.session.delete(lst)
-
-        # Delete the user
+        
+        # Delete all verification codes for this user
+        VerificationCode.query.filter_by(user_id=current_user_id).delete()
+        
+        # Delete all lists owned by the user
+        MediaList.query.filter_by(owner_id=current_user_id).delete()
+        
+        # Finally, delete the user
         db.session.delete(user)
         db.session.commit()
-
+        
         return jsonify({'message': 'Account deleted successfully'}), 200
-
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

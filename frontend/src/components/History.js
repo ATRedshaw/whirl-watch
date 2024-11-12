@@ -398,6 +398,7 @@ const History = () => {
                     <div className="mb-2">
                       <h3 className="font-medium text-base line-clamp-1">{media.title || media.name}</h3>
                       <p className="text-sm text-gray-400">From: {media.listName}</p>
+                      <p className="text-xs text-gray-500">Added by: {media.added_by?.username || 'Unknown'}</p>
                     </div>
 
                     {/* Dates */}
@@ -498,6 +499,7 @@ const History = () => {
                 <div className="flex-1 pr-4">
                   <h3 className="text-xl font-semibold">{selectedMedia.title}</h3>
                   <p className="text-sm text-gray-400">From: {selectedMedia.listName}</p>
+                  <p className="text-xs text-gray-500">Added by: {selectedMedia.added_by?.username || 'Unknown'}</p>
                 </div>
                 <button
                   onClick={() => setSelectedMedia(null)}

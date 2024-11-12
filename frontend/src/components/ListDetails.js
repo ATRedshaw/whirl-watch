@@ -11,7 +11,8 @@ const ListDetails = () => {
   const [mediaToDelete, setMediaToDelete] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
-    mediaType: 'all'
+    mediaType: 'all',
+    addedBy: 'all'
   });
   const [sortBy, setSortBy] = useState('added_date_desc');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -139,8 +140,9 @@ const ListDetails = () => {
       .filter(media => {
         const matchesSearch = media.title.toLowerCase().includes(filters.search.toLowerCase());
         const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
+        const matchesAddedBy = filters.addedBy === 'all' || media.added_by?.id === parseInt(filters.addedBy);
         
-        return matchesSearch && matchesMediaType;
+        return matchesSearch && matchesMediaType && matchesAddedBy;
       })
       .sort((a, b) => {
         switch (sortBy) {
@@ -169,6 +171,12 @@ const ListDetails = () => {
         }
       });
   };
+
+  useEffect(() => {
+    if (list) {
+      console.log('List data:', list);
+    }
+  }, [list]);
 
   if (loading) {
     return (
@@ -291,6 +299,32 @@ const ListDetails = () => {
               </select>
             </div>
 
+            {/* Added By Filter */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Added By</label>
+              <select
+                value={filters.addedBy}
+                onChange={(e) => setFilters(prev => ({ ...prev, addedBy: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Users</option>
+                {list.media_items
+                  ?.reduce((users, item) => {
+                    if (item.added_by && !users.some(u => u.id === item.added_by.id)) {
+                      users.push(item.added_by);
+                    }
+                    return users;
+                  }, [])
+                  .sort((a, b) => a.username.localeCompare(b.username))
+                  .map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+
             {/* Sort By */}
             <div>
               <label className="block text-sm text-gray-400 mb-1">Sort By</label>
@@ -316,7 +350,7 @@ const ListDetails = () => {
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  setFilters({ search: '', mediaType: 'all' });
+                  setFilters({ search: '', mediaType: 'all', addedBy: 'all' });
                   setSortBy('added_date_desc');
                 }}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
@@ -398,6 +432,9 @@ const ListDetails = () => {
                   <h3 className="text-lg font-semibold mb-1 line-clamp-1">
                     {media.title}
                   </h3>
+                  <p className="text-sm text-gray-400 mb-2">
+                    Added by {media.added_by?.username || 'Unknown'}
+                  </p>
                   <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
                     <span>{media.release_date?.split('-')[0]}</span>
                     {media.vote_average && (
