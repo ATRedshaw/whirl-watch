@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { validatePassword } from '../utils/passwordValidation';
 
 const validateUsername = (username) => {
   const regex = /^[a-zA-Z0-9_-]+$/;
@@ -17,11 +18,14 @@ const CreateAccount = () => {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [passwordValid, setPasswordValid] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isVerificationSuccess, setIsVerificationSuccess] = useState(false);
+
+  const doPasswordsMatch = () => {
+    return formData.password === formData.confirmPassword && formData.confirmPassword !== '';
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,17 +40,18 @@ const CreateAccount = () => {
       [name]: value
     });
     setError('');
-
-    if (name === 'password') {
-      const isValid = value.length >= 6 && value.length <= 128;
-      setPasswordValid(isValid);
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+
+    if (!validatePassword(formData.password).isValid) {
+      setError('Password must meet all complexity requirements');
+      return;
+    }
+
+    setIsLoading(true);
 
     if (!validateUsername(formData.username)) {
       setError('Username can only contain letters, numbers, underscore (_) and hyphen (-)');
@@ -368,14 +373,20 @@ const CreateAccount = () => {
               value={formData.password}
               onChange={handleChange}
               className={`w-full bg-slate-800/50 border ${
-                formData.password ? (passwordValid ? 'border-green-500' : 'border-red-500') : 'border-slate-700'
+                formData.password 
+                  ? (validatePassword(formData.password).isValid ? 'border-green-500' : 'border-red-500') 
+                  : 'border-slate-700'
               } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
               required
             />
             {formData.password && (
-              <p className={`text-sm ${passwordValid ? 'text-green-500' : 'text-red-500'}`}>
-                {passwordValid ? 'Password meets requirements' : 'Password must be between 6 and 128 characters'}
-              </p>
+              <div className="mt-2 space-y-1">
+                {validatePassword(formData.password).requirements.map((req, index) => (
+                  <p key={index} className={`text-sm ${req.met ? 'text-green-500' : 'text-red-500'}`}>
+                    {req.met ? '✓' : '•'} {req.text}
+                  </p>
+                ))}
+              </div>
             )}
           </div>
 
@@ -389,9 +400,16 @@ const CreateAccount = () => {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+              className={`w-full bg-slate-800/50 border ${
+                formData.confirmPassword 
+                  ? (doPasswordsMatch() ? 'border-green-500' : 'border-red-500') 
+                  : 'border-slate-700'
+              } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
               required
             />
+            {formData.confirmPassword && !doPasswordsMatch() && (
+              <p className="text-sm text-red-500 mt-1">Passwords do not match</p>
+            )}
           </div>
 
           <motion.button
@@ -399,7 +417,9 @@ const CreateAccount = () => {
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-sky-700 hover:to-blue-700 transition-colors duration-300 mt-6"
+            className={`w-full bg-gradient-to-r from-sky-600 to-blue-600 text-white py-3 rounded-lg font-semibold transition-colors duration-300 mt-6 ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:from-sky-700 hover:to-blue-700'
+            }`}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">

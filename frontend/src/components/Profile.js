@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { validatePassword } from '../utils/passwordValidation';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -86,10 +87,6 @@ const Profile = () => {
     }
   };
 
-  const validatePassword = (password) => {
-    return password.length >= 6 && password.length <= 128;
-  };
-
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -150,7 +147,7 @@ const Profile = () => {
     setPasswordData(prev => ({ ...prev, [name]: value }));
     
     if (name === 'newPassword') {
-      setNewPasswordValid(validatePassword(value));
+      setNewPasswordValid(validatePassword(value).isValid);
     }
     setPasswordError('');
   };
@@ -284,13 +281,19 @@ const Profile = () => {
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
                   className={`w-full px-4 py-2 bg-slate-700/50 rounded-lg border ${
-                    passwordData.newPassword ? (newPasswordValid ? 'border-green-500' : 'border-red-500') : 'border-slate-600'
+                    passwordData.newPassword 
+                      ? (validatePassword(passwordData.newPassword).isValid ? 'border-green-500' : 'border-red-500') 
+                      : 'border-slate-600'
                   } focus:outline-none focus:border-blue-500`}
                 />
                 {passwordData.newPassword && (
-                  <p className={`text-sm mt-1 ${newPasswordValid ? 'text-green-500' : 'text-red-500'}`}>
-                    {newPasswordValid ? 'Password meets requirements' : 'Password must be between 6 and 128 characters'}
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    {validatePassword(passwordData.newPassword).requirements.map((req, index) => (
+                      <p key={index} className={`text-sm ${req.met ? 'text-green-500' : 'text-red-500'}`}>
+                        {req.met ? '✓' : '•'} {req.text}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
               <div>

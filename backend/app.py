@@ -433,6 +433,13 @@ def register():
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
         
+        # Check if username or email already exists
+        if User.query.filter_by(username=data['username']).first():
+            raise BadRequest('Username already exists')
+            
+        if User.query.filter_by(email=data['email']).first():
+            raise BadRequest('Email already exists')
+        
         user = User(
             username=data['username'],
             email=data['email'],
@@ -440,8 +447,13 @@ def register():
             email_verified=False
         )
         
-        db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            # This is a fallback in case the above checks missed something
+            raise BadRequest('Username or email already exists')
 
         # Generate verification code
         verification_code = ''.join(secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
@@ -456,7 +468,7 @@ def register():
         db.session.commit()
         
         # Send verification email
-        if not send_verification_email(user.email, verification_code, purpose='email_verification'):
+        if not send_verification_email(user.email, verification_code, user.username, purpose='email_verification'):
             raise Exception("Failed to send verification email")
         
         return jsonify({
@@ -469,6 +481,8 @@ def register():
             }
         }), 201
 
+    except BadRequest as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1363,7 +1377,7 @@ def complete_password_reset():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def send_verification_email(to_email, code, purpose='password_reset'):
+def send_verification_email(to_email, code, username, purpose='password_reset'):
     try:
         msg = MIMEMultipart('alternative')
         msg['From'] = app.config['MAIL_USERNAME']
@@ -1446,7 +1460,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
         """
 
         if purpose == 'email_verification':
-            msg['Subject'] = "Welcome to WhirlWatch - Verify Your Account"
+            msg['Subject'] = f"Welcome to WhirlWatch, {username}! - Verify Your Account"
             html = f"""
             <html>
                 <head>
@@ -1459,7 +1473,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
                             <div class="subtitle">Track, Share, and Discover Together</div>
                         </div>
                         
-                        <div class="heading">Welcome to WhirlWatch!</div>
+                        <div class="heading">Welcome, {username}!</div>
                         
                         <p>Thank you for joining WhirlWatch. To start tracking your favorite movies and TV shows, please verify your account using this code:</p>
                         
@@ -1482,7 +1496,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
             </html>
             """
         else:  # password_reset
-            msg['Subject'] = "WhirlWatch - Password Reset Request"
+            msg['Subject'] = f"WhirlWatch - Password Reset Request for {username}"
             html = f"""
             <html>
                 <head>
@@ -1495,7 +1509,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
                             <div class="subtitle">Account Security</div>
                         </div>
                         
-                        <div class="heading">Password Reset Request</div>
+                        <div class="heading">Password Reset Request for {username}</div>
                         
                         <p>We received a request to reset your WhirlWatch password. Use this verification code to complete the process:</p>
                         
@@ -1520,7 +1534,7 @@ def send_verification_email(to_email, code, purpose='password_reset'):
 
         # Create both plain text and HTML versions
         text_content = f"""
-        {'Welcome to WhirlWatch!' if purpose == 'email_verification' else 'WhirlWatch - Password Reset'}
+        {'Welcome to WhirlWatch, ' + username + '!' if purpose == 'email_verification' else 'WhirlWatch - Password Reset for ' + username}
         
         Your verification code is: {code}
         
@@ -1586,7 +1600,7 @@ def request_password_reset():
         db.session.commit()
         
         # Send email
-        if not send_verification_email(user.email, verification_code):
+        if not send_verification_email(user.email, verification_code, user.username):
             raise Exception("Failed to send verification email")
             
         return jsonify({
@@ -1719,7 +1733,7 @@ def resend_verification():
         db.session.add(new_code)
         db.session.commit()
         
-        if not send_verification_email(user.email, verification_code, purpose='email_verification'):
+        if not send_verification_email(user.email, verification_code, user.username, purpose='email_verification'):
             raise Exception("Failed to send verification email")
             
         return jsonify({

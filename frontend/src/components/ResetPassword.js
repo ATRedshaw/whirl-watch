@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { validatePassword } from '../utils/passwordValidation';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ const ResetPassword = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resetToken, setResetToken] = useState('');
-  const [passwordValid, setPasswordValid] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleChange = (e) => {
@@ -24,11 +24,6 @@ const ResetPassword = () => {
       [name]: value
     }));
     setError('');
-
-    if (name === 'newPassword') {
-      const isValid = value.length >= 6 && value.length <= 128;
-      setPasswordValid(isValid);
-    }
   };
 
   // Step 1: Request verification code
@@ -120,14 +115,8 @@ const ResetPassword = () => {
     setIsLoading(true);
     setError('');
 
-    if (formData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.newPassword.length > 128) {
-      setError('Password must be 128 characters or less');
+    if (!validatePassword(formData.newPassword).isValid) {
+      setError('Password must meet all complexity requirements');
       setIsLoading(false);
       return;
     }
@@ -205,6 +194,11 @@ const ResetPassword = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add this helper function near the top with other functions
+  const doPasswordsMatch = () => {
+    return formData.newPassword === formData.confirmPassword && formData.confirmPassword !== '';
   };
 
   return (
@@ -312,14 +306,20 @@ const ResetPassword = () => {
                 value={formData.newPassword}
                 onChange={handleChange}
                 className={`w-full bg-slate-800/50 border ${
-                  formData.newPassword ? (passwordValid ? 'border-green-500' : 'border-red-500') : 'border-slate-700'
+                  formData.newPassword 
+                    ? (validatePassword(formData.newPassword).isValid ? 'border-green-500' : 'border-red-500') 
+                    : 'border-slate-700'
                 } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
                 required
               />
               {formData.newPassword && (
-                <p className={`text-sm ${passwordValid ? 'text-green-500' : 'text-red-500'}`}>
-                  {passwordValid ? 'Password meets requirements' : 'Password must be between 6 and 128 characters'}
-                </p>
+                <div className="mt-2 space-y-1">
+                  {validatePassword(formData.newPassword).requirements.map((req, index) => (
+                    <p key={index} className={`text-sm ${req.met ? 'text-green-500' : 'text-red-500'}`}>
+                      {req.met ? '✓' : '•'} {req.text}
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
             
@@ -334,9 +334,16 @@ const ResetPassword = () => {
                 autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50"
+                className={`w-full bg-slate-800/50 border ${
+                  formData.confirmPassword 
+                    ? (doPasswordsMatch() ? 'border-green-500' : 'border-red-500') 
+                    : 'border-slate-700'
+                } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50`}
                 required
               />
+              {formData.confirmPassword && !doPasswordsMatch() && (
+                <p className="text-sm text-red-500 mt-1">Passwords do not match</p>
+              )}
             </div>
 
             <motion.button
