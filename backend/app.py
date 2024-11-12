@@ -152,7 +152,16 @@ def api_documentation():
                         'email': 'string (required) - valid email format', 
                         'password': 'string (required) - 6 to 128 characters'
                     },
-                    'rate_limit': 'None'
+                    'response': {
+                        'message': 'string',
+                        'user': {
+                            'id': 'integer',
+                            'username': 'string',
+                            'email': 'string',
+                            'requires_verification': 'boolean'
+                        }
+                    },
+                    'rate_limit': '3 per hour'
                 },
                 '/api/login': {
                     'method': 'POST',
@@ -161,13 +170,57 @@ def api_documentation():
                         'username': 'string (required)',
                         'password': 'string (required)'
                     },
-                    'rate_limit': '5 per 15 minutes'
+                    'response': {
+                        'access_token': 'string',
+                        'refresh_token': 'string',
+                        'user': {
+                            'id': 'integer',
+                            'username': 'string',
+                            'email': 'string'
+                        }
+                    },
+                    'rate_limit': '10 per hour'
                 },
                 '/api/refresh': {
                     'method': 'POST', 
                     'description': 'Get new access token using refresh token',
                     'authentication': 'JWT Refresh Token required',
+                    'response': {
+                        'access_token': 'string'
+                    },
                     'rate_limit': 'None'
+                }
+            },
+            'email_verification': {
+                '/api/verify-email': {
+                    'method': 'POST',
+                    'description': 'Verify email address with code',
+                    'parameters': {
+                        'email': 'string (required)',
+                        'code': 'string (required) - 6 characters'
+                    },
+                    'response': {
+                        'message': 'string',
+                        'access_token': 'string',
+                        'refresh_token': 'string',
+                        'user': {
+                            'id': 'integer',
+                            'username': 'string',
+                            'email': 'string'
+                        }
+                    },
+                    'rate_limit': '5 per 15 minutes'
+                },
+                '/api/resend-verification': {
+                    'method': 'POST',
+                    'description': 'Resend email verification code',
+                    'parameters': {
+                        'email': 'string (required)'
+                    },
+                    'response': {
+                        'message': 'string'
+                    },
+                    'rate_limit': '2 per 15 minutes'
                 }
             },
             'password_reset': {
@@ -185,7 +238,7 @@ def api_documentation():
                     'parameters': {
                         'email': 'string (required)'
                     },
-                    'rate_limit': '5 per 15 minutes'
+                    'rate_limit': '3 per 60 minutes'
                 },
                 '/api/reset-password/verify-code': {
                     'method': 'POST',
@@ -193,6 +246,10 @@ def api_documentation():
                     'parameters': {
                         'email': 'string (required)',
                         'code': 'string (required)'
+                    },
+                    'response': {
+                        'message': 'string',
+                        'reset_token': 'string'
                     },
                     'rate_limit': '5 per 15 minutes'
                 },
@@ -232,6 +289,10 @@ def api_documentation():
                         'name': 'string (required) - 1 to 80 characters',
                         'description': 'string (optional) - up to 100 characters'
                     },
+                    'limits': {
+                        'max_lists_per_user': MAX_LISTS_PER_USER,
+                        'max_users_per_list': MAX_USERS_PER_LIST
+                    },
                     'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>': {
@@ -260,12 +321,26 @@ def api_documentation():
                     'parameters': {
                         'share_code': 'string (required) - 8 character code'
                     },
+                    'limits': {
+                        'max_lists_per_user': MAX_LISTS_PER_USER,
+                        'max_users_per_list': MAX_USERS_PER_LIST
+                    },
                     'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>/users': {
                     'method': 'GET',
                     'description': 'Get users with access to list',
                     'authentication': 'JWT Bearer Token required',
+                    'response': {
+                        'owner': {
+                            'id': 'integer',
+                            'username': 'string'
+                        },
+                        'shared_users': [{
+                            'id': 'integer',
+                            'username': 'string'
+                        }]
+                    },
                     'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>/users/<user_id>': {
@@ -291,7 +366,7 @@ def api_documentation():
                         'type': 'string (optional, default: movie) - movie or tv',
                         'page': 'integer (optional, default: 1)'
                     },
-                    'rate_limit': '200 per day, 50 per hour'
+                    'rate_limit': 'None'
                 },
                 '/api/<media_type>/<media_id>': {
                     'method': 'GET',
@@ -301,7 +376,7 @@ def api_documentation():
                         'media_type': 'string (required) - movie or tv',
                         'media_id': 'integer (required) - TMDB ID'
                     },
-                    'rate_limit': '200 per day, 50 per hour'
+                    'rate_limit': 'None'
                 },
                 '/api/lists/<list_id>/media': {
                     'methods': ['GET', 'POST'],
@@ -332,10 +407,6 @@ def api_documentation():
             'header': 'Authorization: Bearer <token>',
             'access_token_expiry': '30 days',
             'refresh_token_expiry': '60 days'
-        },
-        'rate_limits': {
-            'default': '200 per day, 50 per hour',
-            'auth_endpoints': '5 per 15 minutes'
         },
         'errors': {
             '400': 'Bad Request - Invalid input parameters',
