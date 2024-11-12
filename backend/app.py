@@ -55,6 +55,7 @@ if not app.config['MAIL_PASSWORD']:
 
 # Add this constant near the top with other configurations
 MAX_USERS_PER_LIST = 8
+MAX_LISTS_PER_USER = 10
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -463,6 +464,11 @@ def create_list():
         if not data or 'name' not in data:
             raise BadRequest("List name is required")
         
+        # Check user's list limit
+        current_list_count = get_user_list_count(current_user_id)
+        if current_list_count >= MAX_LISTS_PER_USER:
+            raise BadRequest(f"You can only be associated with up to {MAX_LISTS_PER_USER} lists")
+            
         # Generate an 8-character share code using uppercase letters and numbers
         share_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         
@@ -929,7 +935,7 @@ def delete_media_by_tmdb(list_id, tmdb_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Add this helper function with other helper functions
+# Add these helper functions after the models but before the routes
 def get_list_user_count(list_id):
     """Get total number of users with access to a list (owner + shared users)"""
     try:
@@ -938,6 +944,16 @@ def get_list_user_count(list_id):
         return shared_count + 1  # +1 for the owner
     except Exception as e:
         print(f"Error counting list users: {str(e)}")
+        return 0
+
+def get_user_list_count(user_id):
+    """Get total number of lists a user is associated with (owned + shared)"""
+    try:
+        owned_count = MediaList.query.filter_by(owner_id=user_id).count()
+        shared_count = SharedList.query.filter_by(user_id=user_id).count()
+        return owned_count + shared_count
+    except Exception as e:
+        print(f"Error counting user lists: {str(e)}")
         return 0
 
 @app.route('/api/lists/join', methods=['POST'])
@@ -949,6 +965,11 @@ def join_list():
         
         if not data or 'share_code' not in data:
             raise BadRequest("Share code is required")
+            
+        # Check user's list limit
+        current_list_count = get_user_list_count(current_user_id)
+        if current_list_count >= MAX_LISTS_PER_USER:
+            raise BadRequest(f"You can only be associated with up to {MAX_LISTS_PER_USER} lists")
             
         share_code = data['share_code'].upper()
         
@@ -969,7 +990,7 @@ def join_list():
         if existing_share:
             raise BadRequest("You already have access to this list")
         
-        # Check user limit
+        # Check user limit for the list
         current_user_count = get_list_user_count(media_list.id)
         if current_user_count >= MAX_USERS_PER_LIST:
             raise BadRequest(f"This list has reached its maximum capacity of {MAX_USERS_PER_LIST} users")

@@ -153,7 +153,7 @@ const Lists = () => {
         throw new Error(data.error);
       }
 
-      // Get the updated list details to get the correct media count
+      // Get the updated list details
       const listResponse = await fetch(`${apiUrl}/api/lists/${managingList.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -162,15 +162,20 @@ const Lists = () => {
       const listData = await listResponse.json();
       if (!listResponse.ok) throw new Error(listData.error);
 
-      // Update both the lists state and managing list state with new media count
+      // Update both the lists state and managing list state
       setLists(prevLists => prevLists.map(list => 
         list.id === managingList.id 
-          ? { ...list, media_items: listData.media_items }
+          ? { 
+              ...list, 
+              media_items: listData.media_items,
+              user_count: list.user_count - 1 // Decrement user count
+            }
           : list
       ));
       setManagingList(prevList => ({
         ...prevList,
-        media_items: listData.media_items
+        media_items: listData.media_items,
+        user_count: prevList.user_count - 1 // Decrement user count
       }));
 
       // Refresh the users list
