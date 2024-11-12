@@ -1017,7 +1017,13 @@ def remove_user_from_list(list_id, user_id):
         if media_list.owner_id != current_user_id:
             raise Forbidden("Not authorized to remove users from this list")
             
-        # Find and delete the shared access
+        # Delete all media items added by this user
+        MediaInList.query.filter_by(
+            list_id=list_id,
+            added_by_id=user_id
+        ).delete()
+        
+        # Delete the shared access
         shared_access = SharedList.query.filter_by(
             list_id=list_id,
             user_id=user_id
@@ -1026,7 +1032,9 @@ def remove_user_from_list(list_id, user_id):
         db.session.delete(shared_access)
         db.session.commit()
         
-        return jsonify({'message': 'User removed successfully'}), 200
+        return jsonify({
+            'message': 'User removed successfully. All media items added by this user have been removed from the list.'
+        }), 200
         
     except Exception as e:
         db.session.rollback()
@@ -1043,6 +1051,12 @@ def leave_list(list_id):
         if media_list.owner_id == current_user_id:
             raise BadRequest("Cannot leave a list you own")
             
+        # Delete all media items added by this user
+        MediaInList.query.filter_by(
+            list_id=list_id,
+            added_by_id=current_user_id
+        ).delete()
+        
         # Find and delete the shared access
         shared_access = SharedList.query.filter_by(
             list_id=list_id,
@@ -1052,7 +1066,9 @@ def leave_list(list_id):
         db.session.delete(shared_access)
         db.session.commit()
         
-        return jsonify({'message': 'Successfully left the list'}), 200
+        return jsonify({
+            'message': 'Successfully left the list. All media items you added have been removed.'
+        }), 200
         
     except Exception as e:
         db.session.rollback()

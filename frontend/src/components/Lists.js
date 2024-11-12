@@ -153,6 +153,26 @@ const Lists = () => {
         throw new Error(data.error);
       }
 
+      // Get the updated list details to get the correct media count
+      const listResponse = await fetch(`${apiUrl}/api/lists/${managingList.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const listData = await listResponse.json();
+      if (!listResponse.ok) throw new Error(listData.error);
+
+      // Update both the lists state and managing list state with new media count
+      setLists(prevLists => prevLists.map(list => 
+        list.id === managingList.id 
+          ? { ...list, media_items: listData.media_items }
+          : list
+      ));
+      setManagingList(prevList => ({
+        ...prevList,
+        media_items: listData.media_items
+      }));
+
       // Refresh the users list
       await fetchListUsers(managingList.id);
       setShowRemoveUserModal(false);
@@ -462,7 +482,10 @@ const Lists = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowDeleteModal(false)}
+            onClick={() => {
+              setShowDeleteModal(false);
+              setDeletingList(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.95 }}
@@ -472,7 +495,12 @@ const Lists = () => {
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
               <h3 className="text-xl font-semibold mb-4">Delete List</h3>
-              <p className="text-gray-400 mb-6">Are you sure you want to delete this list? This action cannot be undone.</p>
+              <p className="text-gray-300 mb-2">
+                Are you sure you want to delete this list?
+              </p>
+              <p className="text-red-400 text-sm mb-6">
+                This will permanently remove the list and all media items within it. This action cannot be undone.
+              </p>
               <div className="flex gap-3">
                 <button
                   onClick={handleDelete}
@@ -686,7 +714,10 @@ const Lists = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowLeaveModal(false)}
+            onClick={() => {
+              setShowLeaveModal(false);
+              setLeavingList(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.95 }}
@@ -696,7 +727,12 @@ const Lists = () => {
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
               <h3 className="text-xl font-semibold mb-4">Leave List</h3>
-              <p className="text-gray-400 mb-6">Are you sure you want to leave this list? You'll need a new share code to rejoin.</p>
+              <p className="text-gray-300 mb-2">
+                Are you sure you want to leave this list?
+              </p>
+              <p className="text-red-400 text-sm mb-6">
+                All media items you've added to this list will be removed. You'll need a new share code to rejoin.
+              </p>
               <div className="flex gap-3">
                 <button
                   onClick={handleLeaveList}
@@ -719,7 +755,7 @@ const Lists = () => {
         )}
       </AnimatePresence>
 
-      {/* Remove User Confirmation Modal */}
+      {/* Update the Remove User confirmation modal */}
       <AnimatePresence>
         {showRemoveUserModal && userToRemove && (
           <motion.div
@@ -740,8 +776,11 @@ const Lists = () => {
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
             >
               <h3 className="text-xl font-semibold mb-4">Remove User</h3>
-              <p className="text-gray-400 mb-6">
-                Are you sure you want to remove {userToRemove.username} from this list? They will need a new share code to rejoin.
+              <p className="text-gray-300 mb-2">
+                Are you sure you want to remove {userToRemove.username} from this list?
+              </p>
+              <p className="text-red-400 text-sm mb-6">
+                All media items they've added to this list will be removed. They will need a new share code to rejoin.
               </p>
               <div className="flex gap-3">
                 <button
