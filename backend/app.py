@@ -33,7 +33,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///movietracker.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///whirlwatch.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 if not app.config['JWT_SECRET_KEY']:
@@ -1748,6 +1748,6 @@ if __name__ == '__main__':
     try:
         with app.app_context():
             db.create_all()
-        app.run(debug=True)
+        app.run(debug=False)
     except Exception as e:
         print(f"Failed to start application: {str(e)}")
