@@ -28,3 +28,5 @@ frontend/.env
 backend/venv
 backend/instance
 backend/.env
+backend/__pycache__/groq.cpython-310.pyc
+backend/__pycache__/suggestions.cpython-310.pyc
