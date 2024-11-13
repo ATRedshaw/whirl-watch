@@ -163,4 +163,9 @@ if __name__ == "__main__":
     input = input("Enter a prompt: ")
     suggestions, status_code = get_suggestions(input)
     for suggestion in suggestions['results']:
-        print(suggestion['title'])
+        # Use title for movies, name for TV shows
+        title_field = 'title' if suggestion['media_type'] == 'movie' else 'name'
+        print(suggestion[title_field])
+
+# Considering prompt construction: I have watched [list of titles], my favourite shows are []. 
+# I am looking for [] genre. Based on this, recommend me 10 relevant [movies, tv shows, movies & tv shows]
