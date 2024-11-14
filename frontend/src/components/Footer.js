@@ -7,14 +7,6 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto text-sm text-gray-400">
         <div className="flex flex-col items-center justify-center gap-y-2 md:flex-row md:gap-x-8">
           <div className="flex items-center w-full justify-center md:w-auto">
-            <button
-              onClick={scrollToFAQ}
-              className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
-            >
-              FAQs
-            </button>
-          </div>
-          <div className="flex items-center w-full justify-center md:w-auto">
             Developed by{' '}
             <a
               href="https://github.com/ATRedshaw"
@@ -44,6 +36,14 @@ const Footer = () => {
             >
               Email Whirlwatch
             </a>
+          </div>
+          <div className="flex items-center w-full justify-center md:w-auto">
+            <button
+              onClick={scrollToFAQ}
+              className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+            >
+              FAQs
+            </button>
           </div>
         </div>
       </div>
