@@ -13,6 +13,26 @@ const HomePage = () => {
     setIsVisible(true);
   }, []);
 
+  useEffect(() => {
+    setIsVisible(true);
+    
+    if (window.location.hash === '#faq-section') {
+      setTimeout(() => {
+        const faqSection = document.getElementById('faq-section');
+        if (faqSection) {
+          const headerOffset = 80;
+          const elementPosition = faqSection.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+  }, []);
+
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
@@ -95,6 +115,7 @@ const HomePage = () => {
           variants={fadeIn}
           transition={{ duration: 0.8, delay: 0.6 }}
           className="space-y-6"
+          id="faq-section"
         >
           <h2 className="text-3xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">
             Frequently Asked Questions
