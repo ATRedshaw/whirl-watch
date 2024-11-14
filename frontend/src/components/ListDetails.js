@@ -394,99 +394,195 @@ const ListDetails = () => {
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden flex flex-col"
+                className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden"
               >
-                {/* Media Poster with Type Badge and Delete Button */}
-                <div className="relative w-full aspect-[2/3]">
-                  {media.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
-                      alt={media.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-slate-700 flex items-center justify-center">
-                      <span className="text-gray-400 text-sm">No poster</span>
-                    </div>
-                  )}
-                  {/* Media Type Badge */}
-                  <span className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded-md text-xs font-medium capitalize">
-                    {media.media_type}
-                  </span>
-                  {/* Delete Button - Update the condition to allow shared users to delete */}
-                  {(list.is_owner || list.shared_with_me) && (
-                    <button
-                      onClick={() => setMediaToDelete(media)}
-                      className="absolute top-2 right-2 p-1 bg-black/60 rounded-full hover:bg-red-500/80 transition-colors duration-200"
-                      title="Remove from list"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-
-                {/* Media Info */}
-                <div className="p-4 flex flex-col flex-grow">
-                  <h3 className="text-lg font-semibold mb-1 line-clamp-1">
-                    {media.title}
-                  </h3>
-                  <p className="text-sm text-gray-400 mb-2">
-                    Added by {media.added_by?.username || 'Unknown'}
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
-                    <span>{media.release_date?.split('-')[0]}</span>
-                    {media.vote_average && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        {media.vote_average.toFixed(1)}
-                      </span>
+                {/* Mobile Layout (Horizontal Card) */}
+                <div className="sm:hidden flex gap-4 p-4">
+                  {/* Left side - Poster */}
+                  <div className="relative w-24 h-36 shrink-0">
+                    {media.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                        alt={media.title}
+                        className="w-full h-full object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-700 rounded flex items-center justify-center">
+                        <span className="text-gray-400 text-xs">No poster</span>
+                      </div>
                     )}
+                    <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs font-medium capitalize">
+                      {media.media_type}
+                    </span>
                   </div>
 
-                  {/* Watch Status - Also update these conditions for consistency */}
-                  <div className="mb-3">
-                    <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
+                  {/* Right side - Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <h3 className="font-medium text-base line-clamp-1">{media.title}</h3>
+                        <p className="text-xs text-gray-400">Added by {media.added_by?.username || 'Unknown'}</p>
+                      </div>
+                      {/* Delete Button */}
+                      {(list.is_owner || list.shared_with_me) && (
+                        <button
+                          onClick={() => setMediaToDelete(media)}
+                          className="text-gray-400 hover:text-red-500 p-1"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Info Row */}
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 mb-2">
+                      <span>{media.release_date?.split('-')[0]}</span>
+                      {media.vote_average && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          {media.vote_average.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Watch Status */}
                     <select
                       value={media.watch_status}
                       onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm bg-slate-700 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={!(list.is_owner || list.shared_with_me)}
                     >
                       <option value="not_watched">Not Watched</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                     </select>
+
+                    {/* Rating Input - Always show but disable when not completed */}
+                    <div>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        step="0.1"
+                        value={media.rating || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                            handleUpdateStatus(media.id, { rating: value ? Number(value) : null });
+                          }
+                        }}
+                        placeholder="1.0-10.0"
+                        className={`w-full px-2 py-1 text-sm bg-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500
+                          ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                      />
+                      {media.watch_status !== 'completed' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Complete watching to rate
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Layout (Original Vertical Card) */}
+                <div className="hidden sm:flex sm:flex-col">
+                  {/* Media Poster with Type Badge and Delete Button */}
+                  <div className="relative w-full aspect-[2/3]">
+                    {media.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
+                        alt={media.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-700 flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">No poster</span>
+                      </div>
+                    )}
+                    {/* Media Type Badge */}
+                    <span className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded-md text-xs font-medium capitalize">
+                      {media.media_type}
+                    </span>
+                    {/* Delete Button - Update the condition to allow shared users to delete */}
+                    {(list.is_owner || list.shared_with_me) && (
+                      <button
+                        onClick={() => setMediaToDelete(media)}
+                        className="absolute top-2 right-2 p-1 bg-black/60 rounded-full hover:bg-red-500/80 transition-colors duration-200"
+                        title="Remove from list"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
-                  {/* Rating - Update these conditions as well */}
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      step="0.1"
-                      value={media.rating || ''}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                          handleUpdateStatus(media.id, { rating: value ? Number(value) : null });
-                        }
-                      }}
-                      placeholder="1.0-10.0"
-                      className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
-                        ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
-                    />
-                    {media.watch_status !== 'completed' && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Complete watching to rate
-                      </p>
-                    )}
+                  {/* Media Info */}
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="text-lg font-semibold mb-1 line-clamp-1">
+                      {media.title}
+                    </h3>
+                    <p className="text-sm text-gray-400 mb-2">
+                      Added by {media.added_by?.username || 'Unknown'}
+                    </p>
+                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                      <span>{media.release_date?.split('-')[0]}</span>
+                      {media.vote_average && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          {media.vote_average.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Watch Status - Also update these conditions for consistency */}
+                    <div className="mb-3">
+                      <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
+                      <select
+                        value={media.watch_status}
+                        onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!(list.is_owner || list.shared_with_me)}
+                      >
+                        <option value="not_watched">Not Watched</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+
+                    {/* Rating - Update these conditions as well */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        step="0.1"
+                        value={media.rating || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                            handleUpdateStatus(media.id, { rating: value ? Number(value) : null });
+                          }
+                        }}
+                        placeholder="1.0-10.0"
+                        className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
+                          ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                      />
+                      {media.watch_status !== 'completed' && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Complete watching to rate
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>
