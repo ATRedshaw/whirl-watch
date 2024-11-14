@@ -20,12 +20,13 @@ import Profile from './components/Profile';
 import History from './components/History';
 import ResetPassword from './components/ResetPassword';
 import VerifyEmail from './components/VerifyEmail';
+import Footer from './components/Footer';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="App min-h-screen">
+        <div className="App min-h-screen flex flex-col bg-gradient-to-b from-slate-900 to-black">
           <Navbar />
           <div className="pt-16 flex-grow">
             <Routes>
@@ -145,6 +146,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
+          <Footer />
         </div>
       </AuthProvider>
     </BrowserRouter>
