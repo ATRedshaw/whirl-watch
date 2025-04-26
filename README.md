@@ -1,6 +1,6 @@
 ## Solving the Streaming Struggle: Whirlwatch
 
-Let's be honest, we've all been there. You settle in for a cosy evening with your significant other, popcorn at the ready, only to be met with the dreaded question: "So, what shall we watch?" What follows is often a frustrating back-and-forth, scrolling endlessly through streaming services, debating genres, and ultimately wasting precious relaxation time. This very scenario, played out far too many times in my own household, was the spark that ignited the creation of **Whirlwatch**!
+Let's be honest, we've all been there. You settle in for a cosy evening with your significant other, popcorn at the ready, only to be met with the dreaded question: "So, what shall we watch?" What follows is often a frustrating back-and-forth, scrolling endlessly through streaming services, debating genres, and ultimately wasting precious relaxation time. This was the spark that ignited the creation of **Whirlwatch**!
 
 After countless evenings lost to the "what to watch" vortex, my girlfriend and I decided enough was enough. We needed a better way to manage our shared viewing preferences and make those all-important decisions without the usual hassle. The result? [Whirlwatch](https://whirlwatch.onrender.com/), a media tracker designed to streamline viewing choices and get to the good stuff faster.
 
