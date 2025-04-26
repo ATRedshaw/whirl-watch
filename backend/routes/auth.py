@@ -40,11 +40,16 @@ def register():
         if User.query.filter_by(email=data["email"]).first():
             raise BadRequest("Email already exists")
 
+        # Check if this is the first user (id=1)
+        is_first_user = User.query.count() == 0
+
         user = User(
             username=data["username"],
             email=data["email"],
             password_hash=generate_password_hash(data["password"]),
             email_verified=False,
+            is_admin=is_first_user,  # First user is admin
+            is_privilege=is_first_user,  # First user is privileged
         )
 
         try:
@@ -82,6 +87,8 @@ def register():
                         "username": user.username,
                         "email": user.email,
                         "requires_verification": True,
+                        "is_admin": user.is_admin,
+                        "is_privilege": user.is_privilege,
                     },
                 }
             ),
@@ -128,7 +135,13 @@ def login():
                 {
                     "access_token": access_token,
                     "refresh_token": refresh_token,
-                    "user": {"id": user.id, "username": user.username, "email": user.email},
+                    "user": {
+                        "id": user.id, 
+                        "username": user.username, 
+                        "email": user.email,
+                        "is_admin": user.is_admin,
+                        "is_privilege": user.is_privilege
+                    },
                 }
             ),
             200,
@@ -159,7 +172,13 @@ def verify_token():
         user = User.query.get_or_404(current_user_id)
         return (
             jsonify(
-                {"user": {"id": user.id, "username": user.username, "email": user.email}}
+                {"user": {
+                    "id": user.id, 
+                    "username": user.username, 
+                    "email": user.email,
+                    "is_admin": user.is_admin,
+                    "is_privilege": user.is_privilege
+                }}
             ),
             200,
         )
