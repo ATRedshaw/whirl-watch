@@ -94,11 +94,15 @@ def get_media_details(media_type, media_id):
 def get_media_suggestions():
     try:
         current_user_id = get_jwt_identity()
-        query = request.args.get("query", "Give me a completely random selection of movies and TV shows")
+        query = request.args.get("query", "Give me a completely random selection of media")
         genre_hint = request.args.get("genre", "Any")
         max_items = int(request.args.get("max_items", 10))
         language = request.args.get("language", "English")
         media_type = request.args.get("media_type", "Any")
+
+        # Set to default if the query string is empty
+        if query == "":
+            query = "Give me a completely random selection of media"
         
         # Call the get_suggestions function from suggestions.py
         response_dict, status_code = get_suggestions(

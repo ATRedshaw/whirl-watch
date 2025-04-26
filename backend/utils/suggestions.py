@@ -49,7 +49,7 @@ Context variables
 """
 
 def call_groq(
-    user_query: str = "Give me a completely random selection of movies and TV shows",
+    user_query: str = "Give me a completely random selection of media",
     genre_hint: str = "Any",
     max_items: int = 10,
     language: str = "English",
@@ -130,7 +130,7 @@ def call_groq(
         return error_msg
 
 def get_suggestions(
-    query: str = "Give me a completely random selection of movies and TV shows", 
+    query: str = "Give me a completely random selection of media", 
     genre_hint: str = "Any",
     max_items: int = 10,
     language: str = "English",
