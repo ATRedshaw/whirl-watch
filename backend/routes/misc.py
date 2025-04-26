@@ -24,7 +24,7 @@ def api_documentation():
     KEEP THIS UP-TO-DATE whenever a new blueprint or route is added.
     """
     return jsonify({
-        "version": "1.0",
+        "version": "1.1",
         "description": "WhirlWatch · collaborative movie / TV tracking API",
         "endpoints": {
             # ───────────────────────── AUTH ───────────────────────── #
