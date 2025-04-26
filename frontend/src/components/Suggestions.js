@@ -11,7 +11,7 @@ const genreOptions = [
 ];
 
 // Media type options
-const mediaTypeOptions = ["Any", "Film", "TV"];
+const mediaTypeOptions = ["Any", "Movie", "TV"];
 
 // Language options
 const languageOptions = ["English", "Spanish", "French", "German", "Japanese", "Korean", "Chinese", "Italian", "Any"];
@@ -214,6 +214,18 @@ const Suggestions = () => {
           Hey {user.username}, tell us what you're in the mood for and we'll find the perfect watch for you
         </p>
 
+        {/* Warning about AI-generated content */}
+        <div className="bg-amber-500/10 border border-amber-500/50 rounded-lg p-3 mb-6">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-amber-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-sm text-amber-200">
+              <span className="font-semibold">⚠️ AI-Generated Content:</span> Suggestions may include inaccuracies or hallucinations, and in rare cases may link to an incorrect TMDb entry due to name overlaps — please verify before acting.
+            </p>
+          </div>
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-slate-800/50 rounded-lg border border-slate-700 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -362,6 +374,10 @@ const Suggestions = () => {
                         <span className="text-gray-400 text-xs">No poster</span>
                       </div>
                     )}
+                    {/* Media Type Badge */}
+                    <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs font-medium capitalize">
+                      {media.media_type}
+                    </span>
                   </div>
 
                   {/* Content */}
@@ -417,6 +433,10 @@ const Suggestions = () => {
                         <span className="text-gray-400 text-sm">No poster</span>
                       </div>
                     )}
+                    {/* Media Type Badge */}
+                    <span className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded-md text-xs font-medium capitalize">
+                      {media.media_type}
+                    </span>
                   </div>
 
                   {/* Media Info */}
@@ -500,6 +520,9 @@ const Suggestions = () => {
                           {selectedDetails.vote_average.toFixed(1)}
                         </span>
                       )}
+                      <span className="px-2 py-1 bg-blue-500/20 rounded text-xs font-medium text-blue-300 uppercase">
+                        {selectedDetails.media_type}
+                      </span>
                     </div>
 
                     <p className="text-gray-300 mb-6 leading-relaxed">

@@ -22,18 +22,18 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # System prompt template
-SYSTEM_PROMPT_TEMPLATE = """You are MovieSage, a strictly-focused film & TV recommendation engine.
+SYSTEM_PROMPT_TEMPLATE = """You are MovieSage, a strictly-focused Movie & TV recommendation engine.
 Your ONLY job is to return 1-{max_items} recommendations that address the user's request.
 Output format (and nothing else):
 
 [
-  {{"Name": "<Title 1>", "Type": "Film" | "TV"}},
+  {{"Name": "<Title 1>", "Type": "Movie" | "TV"}},
   ...
 ]
 
 Hard rules
 1. Reply with VALID JSON only. No markdown, no keys other than "Name" & "Type", no comments, no trailing commas, no text before/after the array.
-2. "Type" must be exactly "Film" or "TV".
+2. "Type" must be exactly "Movie" or "TV".
 3. Language: {language} (default: English).
 4. Max chars for each Name: 100.
 5. If user request is outside recommending movies/TV, refuse by returning an empty array: [].
@@ -194,7 +194,7 @@ def get_suggestions(
                 logger.warning(f"Skipping invalid recommendation item: {item}")
                 continue
                 
-            media_type = "movie" if item["Type"] == "Film" else "tv"
+            media_type = "movie" if item["Type"] == "Movie" else "tv"
             
             try:
                 # Call TMDB search API
