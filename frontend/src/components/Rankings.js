@@ -423,113 +423,181 @@ const Ratings = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto"
             onClick={() => setSelectedMedia(null)}
           >
             <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative flex flex-col"
+              onClick={e => e.stopPropagation()}
             >
-              {/* Modal Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 pr-4">
-                  <h3 className="text-xl font-semibold">{selectedMedia.title}</h3>
-                  <p className="text-sm text-gray-400">From: {selectedMedia.listName}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedMedia(null)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+              {/* Close button */}
+              <button 
+                onClick={() => setSelectedMedia(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200 z-10"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
 
-              {/* Watch Status */}
-              <div className="mb-4">
-                <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
-                <select
-                  value={selectedMedia.watch_status || 'not_started'}
-                  onChange={(e) => handleUpdateStatus(selectedMedia.id, { watch_status: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="not_started">Not Started</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
+              {/* Scrollable Container */}
+              <div className="overflow-y-auto max-h-[80vh]">
+                <div className="flex flex-col md:flex-row">
+                  {/* Poster */}
+                  <div className="w-full md:w-1/3">
+                    {selectedMedia.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w500${selectedMedia.poster_path}`}
+                        alt={selectedMedia.title || selectedMedia.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[2/3] bg-slate-700 flex items-center justify-center">
+                        <span className="text-gray-400">No poster available</span>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Rating */}
-              <div className="mb-6">
-                <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="0.1"
-                  value={selectedMedia.rating || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                      handleUpdateStatus(selectedMedia.id, { rating: value ? Number(value) : null });
-                    }
-                  }}
-                  placeholder="1.0-10.0"
-                  className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
-                    ${selectedMedia.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={selectedMedia.watch_status !== 'completed'}
-                />
-                {selectedMedia.watch_status !== 'completed' && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Complete watching to rate
-                  </p>
-                )}
-              </div>
+                  {/* Details */}
+                  <div className="w-full md:w-2/3 p-6">
+                    <h2 className="text-2xl font-bold mb-2">
+                      {selectedMedia.title || selectedMedia.name}
+                    </h2>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                {!showDeleteConfirm ? (
-                  <>
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
-                    >
-                      Remove from List
-                    </button>
-                    <button
-                      onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
-                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-                    >
-                      View List
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex-1 space-y-2">
-                      <p className="text-sm text-red-400 mb-2">
-                        Are you sure you want to remove this from '{selectedMedia.listName}'?
+                    <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                      <span>{(selectedMedia.release_date || selectedMedia.first_air_date)?.split('-')[0]}</span>
+                      {selectedMedia.vote_average && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          {selectedMedia.vote_average?.toFixed(1)}
+                        </span>
+                      )}
+                      <span className="px-2 py-1 bg-blue-500/20 rounded text-xs font-medium text-blue-300 uppercase">
+                        {selectedMedia.media_type}
+                      </span>
+                    </div>
+
+                    {/* Overview */}
+                    <div className="mb-5">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Overview</h4>
+                      <p className="text-gray-300 leading-relaxed">
+                        {selectedMedia.overview || 'No overview available.'}
                       </p>
-                      <div className="flex gap-2">
+                    </div>
+
+                    {/* Status */}
+                    <div className="mb-5">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Watch Status</h4>
+                      <select
+                        value={selectedMedia.watch_status || 'not_watched'}
+                        onChange={(e) => handleUpdateStatus(selectedMedia.id, { watch_status: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="not_watched">Not Started</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+
+                    {/* Rating */}
+                    <div className="mb-5">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Your Rating</h4>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        step="0.1"
+                        value={selectedMedia.rating || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                            handleUpdateStatus(selectedMedia.id, { rating: value ? Number(value) : null });
+                          }
+                        }}
+                        placeholder="1.0-10.0"
+                        className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
+                          ${selectedMedia.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={selectedMedia.watch_status !== 'completed'}
+                      />
+                      {selectedMedia.watch_status !== 'completed' && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Complete watching to rate
+                        </p>
+                      )}
+                    </div>
+
+                    {/* List Information */}
+                    <div className="mb-5">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-2">List Information</h4>
+                      <div className="flex items-center justify-between">
+                        <p className="text-gray-200">{selectedMedia.listName}</p>
                         <button
-                          onClick={() => handleDeleteMedia(selectedMedia.id)}
-                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                          onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200"
                         >
-                          Yes, Remove
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition-colors duration-200"
-                        >
-                          Cancel
+                          View List
                         </button>
                       </div>
                     </div>
-                  </>
-                )}
+
+                    {/* Added/Updated Dates */}
+                    {selectedMedia.added_date && (
+                      <div className="mb-5">
+                        <h4 className="text-sm font-semibold text-blue-400 mb-2">Added On</h4>
+                        <p className="text-gray-200">{new Date(selectedMedia.added_date).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}</p>
+                      </div>
+                    )}
+                    {selectedMedia.last_updated && (
+                      <div className="mb-5">
+                        <h4 className="text-sm font-semibold text-blue-400 mb-2">Last Updated</h4>
+                        <p className="text-gray-200">{new Date(selectedMedia.last_updated).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}</p>
+                      </div>
+                    )}
+
+                    {/* Remove from List Button */}
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 mt-2"
+                      >
+                        Remove from List
+                      </button>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-sm text-red-400 mb-2">
+                          Are you sure you want to remove this from '{selectedMedia.listName}'?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDeleteMedia(selectedMedia.id)}
+                            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                          >
+                            Yes, Remove
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition-colors duration-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
