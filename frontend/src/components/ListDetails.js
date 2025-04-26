@@ -9,6 +9,7 @@ const ListDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mediaToDelete, setMediaToDelete] = useState(null);
+  const [selectedMediaInfo, setSelectedMediaInfo] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     mediaType: 'all',
@@ -416,7 +417,10 @@ const ListDetails = () => {
                 {/* Mobile Layout (Horizontal Card) */}
                 <div className="sm:hidden flex gap-4 p-4">
                   {/* Left side - Poster */}
-                  <div className="relative w-24 h-36 shrink-0">
+                  <div 
+                    className="relative w-24 h-36 shrink-0 cursor-pointer"
+                    onClick={() => setSelectedMediaInfo(media)}
+                  >
                     {media.poster_path ? (
                       <img
                         src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
@@ -436,14 +440,20 @@ const ListDetails = () => {
                   {/* Right side - Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2">
-                      <div>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => setSelectedMediaInfo(media)}
+                      >
                         <h3 className="font-medium text-base line-clamp-1">{media.title}</h3>
                         <p className="text-xs text-gray-400">Added by {media.added_by?.username || 'Unknown'}</p>
                       </div>
                       {/* Delete Button */}
                       {(list.is_owner || list.shared_with_me) && (
                         <button
-                          onClick={() => setMediaToDelete(media)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMediaToDelete(media);
+                          }}
                           className="text-gray-400 hover:text-red-500 p-1"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,7 +464,10 @@ const ListDetails = () => {
                     </div>
 
                     {/* Info Row */}
-                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 mb-2">
+                    <div 
+                      className="flex items-center gap-2 text-xs text-gray-400 mt-1 mb-2 cursor-pointer"
+                      onClick={() => setSelectedMediaInfo(media)}
+                    >
                       <span>{media.release_date?.split('-')[0]}</span>
                       {media.vote_average && (
                         <span className="flex items-center gap-1">
@@ -472,6 +485,7 @@ const ListDetails = () => {
                       onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
                       className="w-full px-2 py-1 text-sm bg-slate-700 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={!(list.is_owner || list.shared_with_me)}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <option value="not_watched">Not Watched</option>
                       <option value="in_progress">In Progress</option>
@@ -496,6 +510,7 @@ const ListDetails = () => {
                         className={`w-full px-2 py-1 text-sm bg-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500
                           ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       {media.watch_status !== 'completed' && (
                         <p className="text-xs text-gray-500 mt-1">
@@ -509,7 +524,10 @@ const ListDetails = () => {
                 {/* Desktop Layout (Original Vertical Card) */}
                 <div className="hidden sm:flex sm:flex-col">
                   {/* Media Poster with Type Badge and Delete Button */}
-                  <div className="relative w-full aspect-[2/3]">
+                  <div 
+                    className="relative w-full aspect-[2/3] cursor-pointer"
+                    onClick={() => setSelectedMediaInfo(media)}
+                  >
                     {media.poster_path ? (
                       <img
                         src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
@@ -528,7 +546,10 @@ const ListDetails = () => {
                     {/* Delete Button - Update the condition to allow shared users to delete */}
                     {(list.is_owner || list.shared_with_me) && (
                       <button
-                        onClick={() => setMediaToDelete(media)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMediaToDelete(media);
+                        }}
                         className="absolute top-2 right-2 p-1 bg-black/60 rounded-full hover:bg-red-500/80 transition-colors duration-200"
                         title="Remove from list"
                       >
@@ -541,22 +562,27 @@ const ListDetails = () => {
 
                   {/* Media Info */}
                   <div className="p-4 flex flex-col flex-grow">
-                    <h3 className="text-lg font-semibold mb-1 line-clamp-1">
-                      {media.title}
-                    </h3>
-                    <p className="text-sm text-gray-400 mb-2">
-                      Added by {media.added_by?.username || 'Unknown'}
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
-                      <span>{media.release_date?.split('-')[0]}</span>
-                      {media.vote_average && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                          {media.vote_average.toFixed(1)}
-                        </span>
-                      )}
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => setSelectedMediaInfo(media)}
+                    >
+                      <h3 className="text-lg font-semibold mb-1 line-clamp-1">
+                        {media.title}
+                      </h3>
+                      <p className="text-sm text-gray-400 mb-2">
+                        Added by {media.added_by?.username || 'Unknown'}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                        <span>{media.release_date?.split('-')[0]}</span>
+                        {media.vote_average && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                            {media.vote_average.toFixed(1)}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Watch Status - Also update these conditions for consistency */}
@@ -567,6 +593,7 @@ const ListDetails = () => {
                         onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
                         className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         disabled={!(list.is_owner || list.shared_with_me)}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <option value="not_watched">Not Watched</option>
                         <option value="in_progress">In Progress</option>
@@ -593,6 +620,7 @@ const ListDetails = () => {
                         className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
                           ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       {media.watch_status !== 'completed' && (
                         <p className="text-sm text-gray-500 mt-1">
@@ -659,6 +687,110 @@ const ListDetails = () => {
                 >
                   Cancel
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Media Information Modal */}
+      <AnimatePresence>
+        {selectedMediaInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+            onClick={() => setSelectedMediaInfo(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-800 rounded-lg w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden"
+            >
+              {/* Modal Header with Close Button */}
+              <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+                <h3 className="text-2xl font-semibold">{selectedMediaInfo.title || selectedMediaInfo.name}</h3>
+                <button 
+                  onClick={() => setSelectedMediaInfo(null)}
+                  className="text-gray-400 hover:text-white transition-colors duration-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="flex flex-col sm:flex-row gap-6">
+                  {/* Poster */}
+                  <div className="sm:w-1/3 flex-shrink-0">
+                    <div className="aspect-[2/3] rounded-lg overflow-hidden">
+                      <img
+                        src={`https://image.tmdb.org/t/p/w342${selectedMediaInfo.poster_path}`}
+                        alt={selectedMediaInfo.title || selectedMediaInfo.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/342x513?text=No+Image';
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-500">⭐</span>
+                        <span className="font-medium">
+                          {selectedMediaInfo.vote_average?.toFixed(1)}
+                        </span>
+                      </div>
+                      {(selectedMediaInfo.release_date || selectedMediaInfo.first_air_date) && (
+                        <div className="text-sm text-gray-400">
+                          Released: {new Date(selectedMediaInfo.release_date || selectedMediaInfo.first_air_date).getFullYear()}
+                        </div>
+                      )}
+                      <div className="px-2 py-1 bg-blue-500/20 rounded text-xs font-medium capitalize">
+                        {selectedMediaInfo.media_type}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <h4 className="text-sm text-gray-400 mb-1">Added by</h4>
+                      <p>{selectedMediaInfo.added_by?.username || 'Unknown'}</p>
+                    </div>
+
+                    <div className="mb-4">
+                      <h4 className="text-sm text-gray-400 mb-1">Status</h4>
+                      <p className="capitalize">{selectedMediaInfo.watch_status?.replace('_', ' ') || 'Not watched'}</p>
+                    </div>
+
+                    {selectedMediaInfo.rating && (
+                      <div className="mb-4">
+                        <h4 className="text-sm text-gray-400 mb-1">Your Rating</h4>
+                        <p>{selectedMediaInfo.rating} / 10</p>
+                      </div>
+                    )}
+
+                    <div className="mb-4">
+                      <h4 className="text-sm text-gray-400 mb-1">Overview</h4>
+                      <p className="text-gray-300">
+                        {selectedMediaInfo.overview || 'No overview available.'}
+                      </p>
+                    </div>
+
+                    {selectedMediaInfo.added_date && (
+                      <div>
+                        <h4 className="text-sm text-gray-400 mb-1">Added on</h4>
+                        <p>{new Date(selectedMediaInfo.added_date).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
