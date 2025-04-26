@@ -12,24 +12,26 @@ db = SQLAlchemy()
 jwt = JWTManager()
 cors = CORS()  # resources will be configured in app.create_app()
 
-# Get privileged user IDs from environment variable (comma-separated list)
-PRIVILEGED_USER_IDS = os.getenv('PRIVILEGED_USER_IDS', '1')
-privileged_users = [int(user_id.strip()) for user_id in PRIVILEGED_USER_IDS.split(',') if user_id.strip()]
-
-# Custom key function that exempts certain user IDs from rate limits
+# Custom key function that exempts privileged users from rate limits
 def get_rate_limit_key():
     try:
         # Get the current user's ID
         current_user_id = get_jwt_identity()
         
-        if current_user_id in privileged_users:
-            # Return None for privileged users to bypass rate limits completely
-            return None
+        if current_user_id:
+            # Import here to avoid circular imports
+            from models import User
+            
+            # Check if the user has privilege status in the database
+            user = User.query.get(current_user_id)
+            if user and user.is_privilege:
+                # Return None for privileged users to bypass rate limits completely
+                return None
         
         # For regular users, use IP + user ID to prevent sharing rate limits
-        return f"{get_remote_address()}:{current_user_id}"
+        return f"{get_remote_address()}:{current_user_id}" if current_user_id else get_remote_address()
     except:
-        # Fallback to IP address if user isn't authenticated
+        # Fallback to IP address if user isn't authenticated or there's an error
         return get_remote_address()
 
 # In-memory limiter with custom key function
