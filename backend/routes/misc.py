@@ -285,6 +285,19 @@ def api_documentation():
                         "media_type": "movie | tv",
                         "media_id":   "integer · TMDB ID"
                     }
+                },
+                "/api/suggestions": {
+                    "method": "GET",
+                    "description": "Get personalized media suggestions based on query parameters.",
+                    "authentication": "JWT bearer token required",
+                    "query_params": {
+                        "query": "string · optional · default: random selection",
+                        "genre": "string · optional · default: Any",
+                        "max_items": "integer · optional · default: 10",
+                        "language": "string · optional · default: English",
+                        "media_type": "string · optional · default: Any"
+                    },
+                    "rate_limit": "3 per day"
                 }
             }
         },
