@@ -12,7 +12,8 @@ const ListDetails = () => {
   const [filters, setFilters] = useState({
     search: '',
     mediaType: 'all',
-    addedBy: 'all'
+    addedBy: 'all',
+    watchStatus: 'all'
   });
   const [sortBy, setSortBy] = useState('added_date_desc');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -141,8 +142,9 @@ const ListDetails = () => {
         const matchesSearch = media.title.toLowerCase().includes(filters.search.toLowerCase());
         const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
         const matchesAddedBy = filters.addedBy === 'all' || media.added_by?.id === parseInt(filters.addedBy);
+        const matchesWatchStatus = filters.watchStatus === 'all' || media.watch_status === filters.watchStatus;
         
-        return matchesSearch && matchesMediaType && matchesAddedBy;
+        return matchesSearch && matchesMediaType && matchesAddedBy && matchesWatchStatus;
       })
       .sort((a, b) => {
         switch (sortBy) {
@@ -325,6 +327,21 @@ const ListDetails = () => {
               </select>
             </div>
 
+            {/* Watch Status Filter */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
+              <select
+                value={filters.watchStatus}
+                onChange={(e) => setFilters(prev => ({ ...prev, watchStatus: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="not_watched">Not Watched</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
             {/* Sort By */}
             <div>
               <label className="block text-sm text-gray-400 mb-1">Sort By</label>
@@ -350,7 +367,7 @@ const ListDetails = () => {
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  setFilters({ search: '', mediaType: 'all', addedBy: 'all' });
+                  setFilters({ search: '', mediaType: 'all', addedBy: 'all', watchStatus: 'all' });
                   setSortBy('added_date_desc');
                 }}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
