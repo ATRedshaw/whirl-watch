@@ -515,10 +515,10 @@ const Suggestions = () => {
               className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              {/* Close button (X) for mobile */}
+              {/* Close button (X) for all screen sizes */}
               <button 
                 onClick={() => setSelectedDetails(null)}
-                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white md:hidden"
+                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -621,13 +621,13 @@ const Suggestions = () => {
               className="bg-slate-800 rounded-lg p-6 max-w-md w-full relative"
               onClick={e => e.stopPropagation()}
             >
-              {/* Close button (X) for mobile */}
+              {/* Close button (X) for all screen sizes */}
               <button 
                 onClick={() => {
                   setSelectedMedia(null);
                   setAddToListError(null);
                 }}
-                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white md:hidden"
+                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
