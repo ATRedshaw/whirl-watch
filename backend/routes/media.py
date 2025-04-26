@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.exceptions import BadRequest
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_
-from extensions import db
+from extensions import db, limiter
 from models import MediaList, SharedList
 from utils.helpers import get_list_user_count  # not used here but kept for parity
 from utils.suggestions import get_suggestions  # Import the get_suggestions function
@@ -91,6 +91,7 @@ def get_media_details(media_type, media_id):
 # ------------------------ Media Suggestions -------------------- #
 @media_bp.route("/suggestions")
 @jwt_required()
+@limiter.limit("30 per day")
 def get_media_suggestions():
     try:
         current_user_id = get_jwt_identity()
