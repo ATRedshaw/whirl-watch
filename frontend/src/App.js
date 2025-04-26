@@ -21,11 +21,13 @@ import History from './components/History';
 import ResetPassword from './components/ResetPassword';
 import VerifyEmail from './components/VerifyEmail';
 import Footer from './components/Footer';
+import { ScrollToTop } from './utils/scrollUtils';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ScrollToTop />
         <div className="App min-h-screen flex flex-col bg-gradient-to-b from-slate-900 to-black">
           <Navbar />
           <div className="pt-16 flex-grow">

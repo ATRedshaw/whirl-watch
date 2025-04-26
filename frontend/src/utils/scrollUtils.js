@@ -1,3 +1,17 @@
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+// Utility component that scrolls to top when navigating between routes
+export const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  
+  return null;
+};
+
 export const scrollToFAQ = () => {
   const currentPath = window.location.pathname;
   
@@ -29,4 +43,4 @@ export const scrollToFAQ = () => {
       });
     }
   }
-}; 
+};
