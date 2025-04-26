@@ -324,6 +324,11 @@ const Suggestions = () => {
               'Get Suggestions'
             )}
           </button>
+          
+          {/* Rate limit footnote */}
+          <p className="text-xs text-gray-400 text-center mt-2">
+            Most users are limited to 3 suggestions requests per day.
+          </p>
         </form>
       </motion.div>
 
