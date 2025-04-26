@@ -45,7 +45,7 @@ def init_extensions(app):
         app,
         resources={
             r"/api/*": {
-                "origins": "http://localhost:3000",
+                "origins": ["http://localhost:3000", "https://whirlwatch.onrender.com"],
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization"],
             }
