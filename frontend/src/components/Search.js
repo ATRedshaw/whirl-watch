@@ -285,9 +285,16 @@ const Search = () => {
 
                 {/* Content */}
                 <div className="flex-1 p-3 min-w-0 flex flex-col">
-                  <h3 className="text-base font-semibold mb-1 line-clamp-1 group-hover:text-blue-400 transition-colors duration-200">
-                    {media.title || media.name}
-                  </h3>
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="text-base font-semibold line-clamp-1 group-hover:text-blue-400 transition-colors duration-200 mr-2">
+                      {media.title || media.name}
+                    </h3>
+                    {media.addedToLists?.length > 0 && (
+                      <div className="inline-flex bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-sm font-medium whitespace-nowrap">
+                        ✓ In Lists
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
                     <span>{(media.release_date || media.first_air_date)?.split('-')[0]}</span>
@@ -334,6 +341,13 @@ const Search = () => {
                   ) : (
                     <div className="w-full h-full bg-slate-700 flex items-center justify-center">
                       <span className="text-gray-400 text-sm">No poster</span>
+                    </div>
+                  )}
+                  
+                  {/* "In Lists" badge for desktop */}
+                  {media.addedToLists?.length > 0 && (
+                    <div className="absolute top-2 right-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-md font-medium shadow-md">
+                      In Your Lists
                     </div>
                   )}
                 </div>
