@@ -356,9 +356,16 @@ const Suggestions = () => {
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden cursor-pointer group"
-                onClick={() => handleCardClick(media)}
-              >
+                className="bg-slate-800/50 rounded-lg overflow-hidden cursor-pointer group border border-slate-700 relative"
+                onClick={() => handleCardClick(media)}>
+                
+                {/* "In Your Lists" indicator */}
+                {media.addedToLists?.length > 0 && (
+                  <div className="absolute top-2 right-2 z-10 bg-green-500/90 text-white text-xs px-2 py-1 rounded-md font-medium shadow-md">
+                    In Your Lists
+                  </div>
+                )}
+
                 {/* Mobile Layout (Horizontal Card) */}
                 <div className="flex sm:hidden">
                   {/* Poster */}
