@@ -111,7 +111,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    isAdmin: user?.is_admin || false
   };
 
   return (

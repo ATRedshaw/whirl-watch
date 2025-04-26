@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, isAdmin } = useAuth();
   const location = useLocation();
 
   // Close mobile menu when route changes
@@ -74,6 +74,20 @@ const Navbar = () => {
                     </motion.span>
                     <span className={`absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-sky-400 to-blue-500 transform transition-transform ${location.pathname === '/profile' ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`} />
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="relative"
+                    >
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-gray-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium bg-gradient-to-r from-purple-500/20 to-indigo-600/20 hover:from-purple-500/30 hover:to-indigo-600/30 border border-purple-500/30"
+                      >
+                        Admin
+                      </motion.div>
+                    </Link>
+                  )}
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -165,6 +179,19 @@ const Navbar = () => {
                       Account Management
                     </motion.span>
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="block relative group"
+                    >
+                      <motion.span
+                        whileHover={{ x: 10 }}
+                        className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium bg-gradient-to-r from-purple-500/20 to-indigo-600/20 hover:from-purple-500/30 hover:to-indigo-600/30 border border-purple-500/30"
+                      >
+                        Admin Dashboard
+                      </motion.span>
+                    </Link>
+                  )}
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={logout}

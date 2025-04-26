@@ -12,6 +12,7 @@ import NotFound from './components/NotFound';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
 import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
+import AdminRoute from './components/routes/AdminRoute';
 import Search from './components/Search';
 import Suggestions from './components/Suggestions';
 import JoinList from './components/JoinList';
@@ -22,6 +23,7 @@ import History from './components/History';
 import ResetPassword from './components/ResetPassword';
 import VerifyEmail from './components/VerifyEmail';
 import Footer from './components/Footer';
+import Admin from './components/Admin';
 import { ScrollToTop } from './utils/scrollUtils';
 
 function App() {
@@ -80,6 +82,14 @@ function App() {
                   <ProtectedRoute>
                     <Search />
                   </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <AdminRoute>
+                    <Admin />
+                  </AdminRoute>
                 } 
               />
               <Route 

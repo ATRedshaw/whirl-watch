@@ -9,6 +9,7 @@ def register_blueprints(app):
     from .user import user_bp
     from .media import media_bp
     from .lists import lists_bp
+    from .admin import admin_bp
 
     # Note: url_prefix for every BP is '/api' inside each module
     app.register_blueprint(misc_bp)
@@ -18,4 +19,5 @@ def register_blueprints(app):
     app.register_blueprint(user_bp)
     app.register_blueprint(media_bp)
     app.register_blueprint(lists_bp)
+    app.register_blueprint(admin_bp)
 
