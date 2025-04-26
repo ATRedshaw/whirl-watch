@@ -247,7 +247,7 @@ const Suggestions = () => {
             {/* Genre dropdown */}
             <div>
               <label htmlFor="genre" className="block text-sm font-medium text-gray-300 mb-2">
-                Genre
+                Preferred Genre
               </label>
               <select
                 id="genre"
@@ -264,7 +264,7 @@ const Suggestions = () => {
             {/* Media type dropdown */}
             <div>
               <label htmlFor="mediaType" className="block text-sm font-medium text-gray-300 mb-2">
-                Media Type
+                Preferred Media Type
               </label>
               <select
                 id="mediaType"
@@ -281,7 +281,7 @@ const Suggestions = () => {
             {/* Language dropdown */}
             <div>
               <label htmlFor="language" className="block text-sm font-medium text-gray-300 mb-2">
-                Language
+                Preferred Language
               </label>
               <select
                 id="language"
