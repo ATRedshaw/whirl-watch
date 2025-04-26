@@ -43,7 +43,6 @@ Hard rules
 Context variables
 • user_request = {request}
 • genre_hint   = {genre_hint}
-• similar_to   = {similar_to}
 • max_items    = {max_items}
 • language     = {language}
 • media_type   = {media_type}
@@ -52,7 +51,6 @@ Context variables
 def call_groq(
     user_query: str = "Give me a completely random selection of movies and TV shows",
     genre_hint: str = "Any",
-    similar_to: str = "Any",
     max_items: int = 10,
     language: str = "English",
     media_type: str = "Any"
@@ -64,7 +62,6 @@ def call_groq(
     Args:
         user_query (str): The user's query for movie/TV recommendations
         genre_hint (str, optional): Genre hint for recommendations. Defaults to "Any".
-        similar_to (str, optional): Title to find similar content to. Defaults to "Any".
         max_items (int, optional): Maximum number of recommendations. Defaults to 10.
         language (str, optional): Language for recommendations. Defaults to "English".
         media_type (str, optional): Type of media to recommend (Movie/TV/Any). Defaults to "Any".
@@ -81,7 +78,6 @@ def call_groq(
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
         request=user_query,
         genre_hint=genre_hint,
-        similar_to=similar_to,
         max_items=max_items,
         language=language,
         media_type=media_type
@@ -136,7 +132,6 @@ def call_groq(
 def get_suggestions(
     query: str = "Give me a completely random selection of movies and TV shows", 
     genre_hint: str = "Any",
-    similar_to: str = "Any",
     max_items: int = 10,
     language: str = "English",
     media_type: str = "Any"
@@ -147,7 +142,6 @@ def get_suggestions(
     Args:
         query (str): The user's recommendation request
         genre_hint (str, optional): Genre hint for recommendations. Defaults to "Any".
-        similar_to (str, optional): Title to find similar content to. Defaults to "Any".
         max_items (int, optional): Maximum number of recommendations. Defaults to 10.
         language (str, optional): Language for recommendations. Defaults to "English".
         media_type (str, optional): Type of media to recommend (Movie/TV/Any). Defaults to "Any".
@@ -172,7 +166,6 @@ def get_suggestions(
         groq_response = call_groq(
             user_query=query,
             genre_hint=genre_hint,
-            similar_to=similar_to,
             max_items=max_items,
             language=language,
             media_type=media_type

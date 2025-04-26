@@ -28,10 +28,6 @@ const Suggestions = () => {
   const [language, setLanguage] = useState('English');
   const [maxItems, setMaxItems] = useState(10);
   
-  // Similar titles multiselect
-  const [similarTitles, setSimilarTitles] = useState([]);
-  const [availableTitles, setAvailableTitles] = useState([]);
-  
   // UI states
   const [results, setResults] = useState([]);
   const [lists, setLists] = useState([]);
@@ -43,9 +39,9 @@ const Suggestions = () => {
   const [processingLists, setProcessingLists] = useState(new Set());
   const [formSubmitted, setFormSubmitted] = useState(false);
 
-  // Fetch user's lists and collect unique media titles
+  // Fetch user's lists
   useEffect(() => {
-    const fetchListsAndTitles = async () => {
+    const fetchLists = async () => {
       try {
         const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
         const token = localStorage.getItem('token');
@@ -61,23 +57,13 @@ const Suggestions = () => {
         
         const data = await response.json();
         setLists(data.lists);
-        
-        // Extract unique titles from all lists
-        const uniqueTitles = new Set();
-        data.lists.forEach(list => {
-          list.media_items.forEach(item => {
-            uniqueTitles.add(item.title || item.name);
-          });
-        });
-        
-        setAvailableTitles(Array.from(uniqueTitles).sort());
       } catch (err) {
         setError('Failed to fetch lists');
         console.error(err);
       }
     };
 
-    fetchListsAndTitles();
+    fetchLists();
   }, []);
 
   // Function to fetch suggestions
@@ -97,11 +83,6 @@ const Suggestions = () => {
       params.append('media_type', mediaType);
       params.append('language', language);
       params.append('max_items', maxItems);
-      
-      // Add similar_to as comma-separated list
-      if (similarTitles.length > 0) {
-        params.append('similar_to', similarTitles.join(', '));
-      }
       
       const response = await fetch(
         `${apiUrl}/api/suggestions?${params.toString()}`,
@@ -144,15 +125,6 @@ const Suggestions = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     fetchSuggestions();
-  };
-
-  // Handle similar titles select
-  const handleSimilarTitleToggle = (title) => {
-    if (similarTitles.includes(title)) {
-      setSimilarTitles(similarTitles.filter(t => t !== title));
-    } else {
-      setSimilarTitles([...similarTitles, title]);
-    }
   };
 
   // Handle list toggling (add/remove media from list)
@@ -325,39 +297,6 @@ const Suggestions = () => {
                 onChange={(e) => setMaxItems(parseInt(e.target.value))}
                 className="w-full accent-blue-500"
               />
-            </div>
-
-            {/* Similar titles multiselect */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Find Similar To (Select from your lists)
-              </label>
-              <div className="bg-slate-700 border border-slate-600 rounded-lg p-2 max-h-52 overflow-y-auto">
-                {availableTitles.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {availableTitles.map(title => (
-                      <div key={title} className="flex items-center">
-                        <input
-                          id={`title-${title}`}
-                          type="checkbox"
-                          checked={similarTitles.includes(title)}
-                          onChange={() => handleSimilarTitleToggle(title)}
-                          className="mr-2 accent-blue-500"
-                        />
-                        <label 
-                          htmlFor={`title-${title}`}
-                          className="text-sm truncate hover:text-blue-400 cursor-pointer"
-                          title={title}
-                        >
-                          {title}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 text-sm p-2">No titles in your lists yet</p>
-                )}
-              </div>
             </div>
           </div>
 

@@ -96,7 +96,6 @@ def get_media_suggestions():
         current_user_id = get_jwt_identity()
         query = request.args.get("query", "Give me a completely random selection of movies and TV shows")
         genre_hint = request.args.get("genre", "Any")
-        similar_to = request.args.get("similar_to", "Any")
         max_items = int(request.args.get("max_items", 10))
         language = request.args.get("language", "English")
         media_type = request.args.get("media_type", "Any")
@@ -105,7 +104,6 @@ def get_media_suggestions():
         response_dict, status_code = get_suggestions(
             query=query,
             genre_hint=genre_hint,
-            similar_to=similar_to,
             max_items=max_items,
             language=language,
             media_type=media_type
