@@ -511,6 +511,17 @@ const Suggestions = () => {
               className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative flex flex-col"
               onClick={e => e.stopPropagation()}
             >
+              {/* Close button (X) for mobile */}
+              <button 
+                onClick={() => setSelectedDetails(null)}
+                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white md:hidden"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
               {/* Scrollable Container */}
               <div className="overflow-y-auto max-h-[80vh]">
                 <div className="flex flex-col md:flex-row">
@@ -571,23 +582,15 @@ const Suggestions = () => {
 
               {/* Fixed Button Section */}
               <div className="sticky bottom-0 p-4 bg-slate-800 border-t border-slate-700">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setSelectedMedia(selectedDetails);
-                      setSelectedDetails(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
-                  >
-                    Add to List
-                  </button>
-                  <button
-                    onClick={() => setSelectedDetails(null)}
-                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-                  >
-                    Close
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    setSelectedMedia(selectedDetails);
+                    setSelectedDetails(null);
+                  }}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  Add to List
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -611,9 +614,23 @@ const Suggestions = () => {
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.9 }}
-              className="bg-slate-800 rounded-lg p-6 max-w-md w-full"
+              className="bg-slate-800 rounded-lg p-6 max-w-md w-full relative"
               onClick={e => e.stopPropagation()}
             >
+              {/* Close button (X) for mobile */}
+              <button 
+                onClick={() => {
+                  setSelectedMedia(null);
+                  setAddToListError(null);
+                }}
+                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 text-white md:hidden"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
               <h3 className="text-xl font-semibold mb-4">
                 Add "{selectedMedia.title || selectedMedia.name}" to List
               </h3>
@@ -689,22 +706,12 @@ const Suggestions = () => {
                       setSelectedMedia(null);
                       navigate('/lists/create');
                     }}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                    className="w-full px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
                   >
                     Create a List
                   </button>
                 </div>
               )}
-
-              <button
-                onClick={() => {
-                  setSelectedMedia(null);
-                  setAddToListError(null);
-                }}
-                className="mt-4 w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
-              >
-                Close
-              </button>
             </motion.div>
           </motion.div>
         )}
