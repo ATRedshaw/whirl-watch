@@ -13,6 +13,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/routes/ProtectedRoute';
 import PublicOnlyRoute from './components/routes/PublicOnlyRoute';
 import Search from './components/Search';
+import Suggestions from './components/Suggestions';
 import JoinList from './components/JoinList';
 import Roulette from './components/Roulette';
 import Rankings from './components/Rankings';
@@ -144,6 +145,14 @@ function App() {
                     <History />
                   </ProtectedRoute>
                 }
+              />
+              <Route 
+                path="/suggestions" 
+                element={
+                  <ProtectedRoute>
+                    <Suggestions />
+                  </ProtectedRoute>
+                } 
               />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -9,6 +9,7 @@ from sqlalchemy import or_
 from extensions import db
 from models import MediaList, SharedList
 from utils.helpers import get_list_user_count  # not used here but kept for parity
+from utils.suggestions import get_suggestions  # Import the get_suggestions function
 
 media_bp = Blueprint("media_bp", __name__, url_prefix="/api")
 
@@ -83,5 +84,52 @@ def get_media_details(media_type, media_id):
 
     except requests.RequestException as e:
         return jsonify({"error": f"TMDB API error: {str(e)}"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ------------------------ Media Suggestions -------------------- #
+@media_bp.route("/suggestions")
+@jwt_required()
+def get_media_suggestions():
+    try:
+        current_user_id = get_jwt_identity()
+        query = request.args.get("query", "Give me a completely random selection of movies and TV shows")
+        genre_hint = request.args.get("genre", "Any")
+        similar_to = request.args.get("similar_to", "Any")
+        max_items = int(request.args.get("max_items", 10))
+        language = request.args.get("language", "English")
+        media_type = request.args.get("media_type", "Any")
+        
+        # Call the get_suggestions function from suggestions.py
+        response_dict, status_code = get_suggestions(
+            query=query,
+            genre_hint=genre_hint,
+            similar_to=similar_to,
+            max_items=max_items,
+            language=language,
+            media_type=media_type
+        )
+        
+        # Get the user's lists to check if suggested media is already added
+        if status_code == 200 and "results" in response_dict:
+            user_lists = MediaList.query.filter(
+                or_(MediaList.owner_id == current_user_id,
+                    MediaList.shared_with.any(user_id=current_user_id))).all()
+
+            media_in_lists = {}
+            for lst in user_lists:
+                for item in lst.media_items:
+                    media_in_lists.setdefault((item.media_type, item.tmdb_id), []).append(lst.id)
+
+            # Add information about which lists each media item is in
+            for result in response_dict["results"]:
+                media_type = result.get("media_type")
+                tmdb_id = result.get("id")
+                if media_type and tmdb_id:
+                    result["addedToLists"] = media_in_lists.get((media_type, tmdb_id), [])
+        
+        return jsonify(response_dict), status_code
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500

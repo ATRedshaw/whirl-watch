@@ -17,6 +17,7 @@ const Navbar = () => {
     ? [
         { name: 'Hub', path: '/hub' },
         { name: 'Search', path: '/search'},
+        { name: 'Suggestions', path: '/suggestions'},
         { name: 'My Lists', path: '/lists' },
       ]
     : [
