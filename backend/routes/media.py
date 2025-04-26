@@ -96,6 +96,8 @@ def get_media_suggestions():
     try:
         current_user_id = get_jwt_identity()
         query = request.args.get("query", "Give me a completely random selection of media")
+        # Limit query to 80 characters
+        query = query[:80]
         genre_hint = request.args.get("genre", "Any")
         max_items = int(request.args.get("max_items", 10))
         language = request.args.get("language", "English")
