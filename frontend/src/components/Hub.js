@@ -46,6 +46,11 @@ const Hub = () => {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Reset pagination when selectedView changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedView]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
