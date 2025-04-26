@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotFound from '../NotFound';
 
@@ -10,12 +10,8 @@ const AdminRoute = ({ children }) => {
     return <div>Loading...</div>;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // Show 404 page instead of redirecting for non-admin users
-  if (!user.is_admin) {
+  // Show 404 page for both non-authenticated users and non-admin users
+  if (!isAuthenticated || !user?.is_admin) {
     return <NotFound />;
   }
 
