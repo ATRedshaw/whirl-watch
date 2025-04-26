@@ -91,7 +91,7 @@ def get_media_details(media_type, media_id):
 # ------------------------ Media Suggestions -------------------- #
 @media_bp.route("/suggestions")
 @jwt_required()
-@limiter.limit("30 per day")
+@limiter.limit("3 per day")
 def get_media_suggestions():
     try:
         current_user_id = get_jwt_identity()
