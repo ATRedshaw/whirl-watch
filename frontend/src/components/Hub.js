@@ -30,6 +30,7 @@ const Hub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [mediaItems, setMediaItems] = useState([]);
+  const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -62,76 +63,54 @@ const Hub = () => {
           return;
         }
 
-        // Fetch lists
-        const listsResponse = await fetch(`${apiUrl}/api/lists`, {
+        // Fetch user's media
+        const userMediaResponse = await fetch(`${apiUrl}/api/user/media`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
           }
         });
 
-        if (!listsResponse.ok) {
-          throw new Error('Failed to fetch lists');
+        if (!userMediaResponse.ok) {
+          throw new Error('Failed to fetch user media');
         }
 
-        const listsData = await listsResponse.json();
-        const lists = Array.isArray(listsData) ? listsData : listsData.lists;
+        const userMediaData = await userMediaResponse.json();
+        setMediaItems(userMediaData.media_items || []);
 
-        // Fetch all media items from each list
-        const allMedia = [];
-        let totalRating = 0;
-        let ratedCount = 0;
-
-        // Process media items and calculate ratings
-        const processMediaItems = (mediaItems, listName, listId) => {
-          const processedItems = mediaItems.map(item => ({
-            ...item,
-            listName,
-            listId
-          }));
-
-          processedItems.forEach(item => {
-            if (item.rating) {
-              totalRating += item.rating;
-              ratedCount++;
-            }
-          });
-
-          return processedItems;
-        };
-
-        for (const list of lists) {
-          const listResponse = await fetch(`${apiUrl}/api/lists/${list.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          });
-
-          if (listResponse.ok) {
-            const listData = await listResponse.json();
-            const processedMedia = processMediaItems(
-              listData.media_items || [],
-              list.name,
-              list.id
-            );
-            allMedia.push(...processedMedia);
+        // Fetch feed
+        const feedResponse = await fetch(`${apiUrl}/api/user/feed`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
           }
+        });
+
+        if (feedResponse.ok) {
+          const feedData = await feedResponse.json();
+          setFeedItems(feedData.feed_items || []);
         }
 
-        setMediaItems(allMedia);
-
-        // Calculate stats
-        const completed = allMedia.filter(item => item.watch_status === 'completed').length;
-        const inProgress = allMedia.filter(item => item.watch_status === 'in_progress').length;
-        const notWatched = allMedia.filter(item => item.watch_status === 'not_watched').length;
+        // Calculate stats from user media data
+        const completed = userMediaData.media_items?.filter(item => item.watch_status === 'completed').length || 0;
+        const inProgress = userMediaData.media_items?.filter(item => item.watch_status === 'in_progress').length || 0;
+        const notWatched = userMediaData.media_items?.filter(item => item.watch_status === 'not_watched').length || 0;
+        
+        // Calculate average rating from completed items with ratings
+        const ratedItems = userMediaData.media_items?.filter(item => 
+          item.watch_status === 'completed' && item.rating != null
+        ) || [];
+        
+        const averageRating = ratedItems.length > 0
+          ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
+          : 0;
 
         setStats({
-          totalMedia: allMedia.length,
+          totalMedia: userMediaData.media_items?.length || 0,
           completed,
           inProgress,
           notWatched,
-          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+          averageRating
         });
 
       } catch (err) {
@@ -157,7 +136,7 @@ const Hub = () => {
   }, [isStatusDropdownOpen]);
 
   const chartData = {
-    labels: ['Completed', 'In Progress', 'Not Watched'],
+    labels: ['Completed', 'In Progress', 'Not Started'],
     datasets: [{
       data: [stats.completed, stats.inProgress, stats.notWatched],
       backgroundColor: [
@@ -174,7 +153,7 @@ const Hub = () => {
     }]
   };
 
-  const handleStatusUpdate = async (mediaId, listId, newStatus) => {
+  const handleStatusUpdate = async (mediaId, newStatus) => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
@@ -184,7 +163,7 @@ const Hub = () => {
         rating: newStatus !== 'completed' ? null : undefined
       };
       
-      const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
+      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -216,14 +195,13 @@ const Hub = () => {
         const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
 
         // Recalculate average rating
-        let totalRating = 0;
-        let ratedCount = 0;
-        updatedMedia.forEach(item => {
-          if (item.rating) {
-            totalRating += item.rating;
-            ratedCount++;
-          }
-        });
+        const ratedItems = updatedMedia.filter(item => 
+          item.watch_status === 'completed' && item.rating !== null
+        );
+        
+        const averageRating = ratedItems.length 
+          ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
+          : 0;
 
         // Update stats
         setStats(prev => ({
@@ -231,7 +209,7 @@ const Hub = () => {
           completed,
           inProgress,
           notWatched,
-          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+          averageRating
         }));
 
         return updatedMedia;
@@ -243,12 +221,12 @@ const Hub = () => {
     }
   };
 
-  const handleRatingUpdate = async (mediaId, listId, newRating) => {
+  const handleRatingUpdate = async (mediaId, newRating) => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaId}`, {
+      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -261,31 +239,31 @@ const Hub = () => {
         throw new Error('Failed to update rating');
       }
 
-      // Update local state without changing last_updated
+      // Update local state
       setMediaItems(prev => {
         const updatedItems = prev.map(item => 
           item.id === mediaId 
             ? { 
                 ...item, 
-                rating: newRating ? Number(newRating) : null
+                rating: newRating ? Number(newRating) : null,
+                last_updated: new Date().toISOString()
               }
             : item
         );
 
         // Recalculate average rating
-        let totalRating = 0;
-        let ratedCount = 0;
-        updatedItems.forEach(item => {
-          if (item.rating) {
-            totalRating += item.rating;
-            ratedCount++;
-          }
-        });
+        const ratedItems = updatedItems.filter(item => 
+          item.watch_status === 'completed' && item.rating !== null
+        );
+        
+        const averageRating = ratedItems.length 
+          ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
+          : 0;
 
         // Update stats
         setStats(prevStats => ({
           ...prevStats,
-          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+          averageRating
         }));
 
         return updatedItems;
@@ -337,7 +315,7 @@ const Hub = () => {
       .slice(0, 3);
   };
 
-  // Add these helper functions at the top with other functions
+  // Get top rated media from user's own ratings
   const getTopRatedMedia = () => {
     if (!mediaItems) return [];
     
@@ -347,6 +325,7 @@ const Hub = () => {
       .slice(0, 5); // Take top 5
   };
 
+  // Get lowest rated media from user's own ratings
   const getLowestRatedMedia = () => {
     if (!mediaItems) return [];
     
@@ -372,7 +351,7 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -425,12 +404,13 @@ const Hub = () => {
 
         if (updates.rating !== undefined) {
           // Recalculate average rating
-          const allRatings = mediaItems
+          const ratedItems = mediaItems
+            .filter(item => item.id !== mediaId || updates.rating !== null)
             .map(item => item.id === mediaId ? updates.rating : item.rating)
             .filter(rating => rating !== null && rating !== undefined);
           
-          updatedStats.averageRating = allRatings.length 
-            ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
+          updatedStats.averageRating = ratedItems.length 
+            ? (ratedItems.reduce((a, b) => a + b, 0) / ratedItems.length).toFixed(1)
             : 0;
         }
 
@@ -446,7 +426,7 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -467,14 +447,13 @@ const Hub = () => {
         const notWatched = updatedItems.filter(item => item.watch_status === 'not_watched').length;
         
         // Calculate new average rating
-        let totalRating = 0;
-        let ratedCount = 0;
-        updatedItems.forEach(item => {
-          if (item.rating) {
-            totalRating += item.rating;
-            ratedCount++;
-          }
-        });
+        const ratedItems = updatedItems.filter(item => 
+          item.watch_status === 'completed' && item.rating !== null
+        );
+        
+        const averageRating = ratedItems.length 
+          ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
+          : 0;
 
         // Update stats
         setStats({
@@ -482,7 +461,7 @@ const Hub = () => {
           completed,
           inProgress,
           notWatched,
-          averageRating: ratedCount ? (totalRating / ratedCount).toFixed(1) : 0
+          averageRating
         });
 
         return updatedItems;
@@ -586,6 +565,165 @@ const Hub = () => {
           <p className="text-2xl font-bold text-yellow-500">⭐ {stats.averageRating}</p>
         </div>
       </motion.div>
+
+      {/* Watch Progress (Full Width) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 mb-8"
+      >
+        <h3 className="text-xl font-semibold mb-6">Watch Progress</h3>
+        <div className="h-64">
+          {stats.totalMedia > 0 ? (
+            <Doughnut
+              data={chartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      color: 'rgb(156, 163, 175)'
+                    }
+                  }
+                }
+              }}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+              <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-center">No watch progress yet</p>
+              <p className="text-sm text-gray-500 mt-2">Add media to your lists to track progress</p>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Activity Updates - 2 Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Recent Updates (User's own updates) */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Your Recent Updates</h3>
+          <div className="space-y-3">
+            {getRecentlyUpdatedMedia().map(media => (
+              <div
+                key={media.id}
+                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
+                onClick={() => setSelectedMedia(media)}
+              >
+                <div className="flex items-center gap-3">
+                  {media.poster_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
+                      alt={media.title}
+                      className="w-8 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
+                      <span className="text-xs text-gray-400">No img</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium line-clamp-1">{media.title}</p>
+                    <p className="text-sm text-gray-400">In: {media.list_name}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded text-sm ${
+                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {media.watch_status === 'completed' ? 'Completed' :
+                   media.watch_status === 'in_progress' ? 'In Progress' :
+                   'Not Started'}
+                </span>
+              </div>
+            ))}
+            {mediaItems.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-center">No media items found</p>
+                <p className="text-sm text-gray-500 mt-2">Add media to your lists to see updates here</p>
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={() => navigate('/history')}
+            className="w-full text-center mt-4 text-sm text-gray-400 hover:text-white transition-colors duration-200"
+          >
+            View full history →
+          </button>
+        </motion.div>
+
+        {/* Feed (Recent updates in user's lists) */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
+        >
+          <h3 className="text-xl font-semibold mb-4">Activity Feed</h3>
+          <div className="space-y-3">
+            {feedItems.slice(0, 3).map((item, index) => (
+              <div
+                key={index}
+                className="flex items-start p-3 bg-slate-700/30 rounded-lg"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-blue-400">{item.user_name}</span>
+                    <span className="text-gray-400 text-sm">
+                      {item.action}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {item.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w45${item.poster_path}`}
+                        alt={item.media_title}
+                        className="w-8 h-12 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
+                        <span className="text-xs text-gray-400">No img</span>
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium line-clamp-1">{item.media_title}</p>
+                      <p className="text-sm text-gray-400">In: {item.list_name}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {new Date(item.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {feedItems.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <p className="text-center">No activity to show</p>
+                <p className="text-sm text-gray-500 mt-2">Join lists with others to see their activity</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
 
       {/* Media Status Section */}
       <motion.div
@@ -692,13 +830,13 @@ const Hub = () => {
                   <h4 
                     className="font-semibold line-clamp-1 hover:text-blue-400"
                   >{media.title}</h4>
-                  <p className="text-sm text-gray-400 mb-2">From: {media.listName}</p>
+                  <p className="text-sm text-gray-400 mb-2">In: {media.list_name}</p>
                   
                   {/* Stop propagation on select to prevent modal from opening */}
                   <select
                     className="w-full bg-slate-600 text-sm rounded px-2 py-1 mb-2"
                     value={media.watch_status}
-                    onChange={(e) => handleStatusUpdate(media.id, media.listId, e.target.value)}
+                    onChange={(e) => handleStatusUpdate(media.id, e.target.value)}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <option value="in_progress">In Progress</option>
@@ -712,11 +850,12 @@ const Hub = () => {
                         type="number"
                         min="1"
                         max="10"
+                        step="0.1"
                         value={media.rating || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                            handleRatingUpdate(media.id, media.listId, value);
+                            handleRatingUpdate(media.id, value);
                           }
                         }}
                         placeholder="1.0-10.0"
@@ -793,139 +932,6 @@ const Hub = () => {
         )}
       </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
-      >
-        <button
-          onClick={() => navigate('/search')}
-          className="p-4 bg-gradient-to-r from-sky-600/20 to-blue-600/20 rounded-lg border border-sky-500/30 hover:from-sky-600/30 hover:to-blue-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Find Media</h3>
-          <p className="text-sm text-gray-400">Search and discover new titles</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists')}
-          className="p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Manage Lists</h3>
-          <p className="text-sm text-gray-400">Create and organize your collections</p>
-        </button>
-
-        <button
-          onClick={() => navigate('/lists/join')}
-          className="p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all duration-300"
-        >
-          <h3 className="text-lg font-semibold mb-2">Join Lists</h3>
-          <p className="text-sm text-gray-400">Connect with friends' collections</p>
-        </button>
-      </motion.div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Watch Progress</h3>
-          <div className="h-64">
-            {stats.totalMedia > 0 ? (
-              <Doughnut
-                data={chartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: {
-                        color: 'rgb(156, 163, 175)'
-                      }
-                    }
-                  }
-                }}
-              />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-center">No watch progress yet</p>
-                <p className="text-sm text-gray-500 mt-2">Add media to your lists to track progress</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-4">Recently Updated</h3>
-          <div className="space-y-3">
-            {getRecentlyUpdatedMedia().map(media => (
-              <div
-                key={media.id}
-                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
-                onClick={() => setSelectedMedia(media)}
-              >
-                <div className="flex items-center gap-3">
-                  {media.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
-                      alt={media.title}
-                      className="w-8 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
-                      <span className="text-xs text-gray-400">No img</span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium line-clamp-1">{media.title}</p>
-                    <p className="text-sm text-gray-400">From: {media.listName}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {media.watch_status === 'completed' ? 'Completed' :
-                   media.watch_status === 'in_progress' ? 'In Progress' :
-                   'Not Started'}
-                </span>
-              </div>
-            ))}
-            {mediaItems.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-center">No media items found</p>
-                <p className="text-sm text-gray-500 mt-2">Add media to your lists to see updates here</p>
-              </div>
-            )}
-          </div>
-          <button 
-            onClick={() => navigate('/history')}
-            className="w-full text-center mt-4 text-sm text-gray-400 hover:text-white transition-colors duration-200"
-          >
-            View full history →
-          </button>
-        </motion.div>
-      </div>
-
       {/* Ratings Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Top Rated */}
@@ -955,7 +961,7 @@ const Hub = () => {
                     {media.title || media.name}
                   </p>
                   <p className="text-sm text-gray-400 line-clamp-1">
-                    From: {media.listName}
+                    In: {media.list_name}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded">
@@ -976,7 +982,7 @@ const Hub = () => {
             )}
           </div>
           <button 
-            onClick={() => navigate('/ratings', { state: { initialTab: 'highest' }})}
+            onClick={() => navigate('/rankings', { state: { initialTab: 'highest' }})}
             className="w-full text-center mt-4 text-sm text-gray-400 hover:text-white transition-colors duration-200"
           >
             View all-time ratings →
@@ -1010,7 +1016,7 @@ const Hub = () => {
                     {media.title || media.name}
                   </p>
                   <p className="text-sm text-gray-400 line-clamp-1">
-                    From: {media.listName}
+                    In: {media.list_name}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 bg-red-500/20 px-2 py-1 rounded">
@@ -1031,7 +1037,7 @@ const Hub = () => {
             )}
           </div>
           <button 
-            onClick={() => navigate('/ratings', { state: { initialTab: 'lowest' }})}
+            onClick={() => navigate('/rankings', { state: { initialTab: 'lowest' }})}
             className="w-full text-center mt-4 text-sm text-gray-400 hover:text-white transition-colors duration-200"
           >
             View all-time ratings →
@@ -1159,9 +1165,9 @@ const Hub = () => {
                     <div className="mb-5">
                       <h4 className="text-sm font-semibold text-blue-400 mb-2">List Information</h4>
                       <div className="flex items-center justify-between">
-                        <p className="text-gray-200">{selectedMedia.listName}</p>
+                        <p className="text-gray-200">{selectedMedia.list_name}</p>
                         <button
-                          onClick={() => navigate(`/lists/${selectedMedia.listId}`)}
+                          onClick={() => navigate(`/lists/${selectedMedia.list_id}`)}
                           className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200"
                         >
                           View List
@@ -1202,7 +1208,7 @@ const Hub = () => {
                     ) : (
                       <div className="mt-2 space-y-2">
                         <p className="text-sm text-red-400 mb-2">
-                          Are you sure you want to remove this from '{selectedMedia.listName}'?
+                          Are you sure you want to remove this from '{selectedMedia.list_name}'?
                         </p>
                         <div className="flex gap-2">
                           <button
