@@ -7,7 +7,7 @@ from werkzeug.exceptions import BadRequest
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_
 from extensions import db, limiter
-from models import MediaList, SharedList
+from models import MediaList, SharedList, Media, MediaInList
 from utils.helpers import get_list_user_count  # not used here but kept for parity
 from utils.suggestions import get_suggestions  # Import the get_suggestions function
 
@@ -40,17 +40,54 @@ def search_media():
         resp.raise_for_status()
         data = resp.json()
 
-        # which of the user's lists already include each TMDB id?
+        # Get all lists the user has access to
         user_lists = MediaList.query.filter(
             or_(MediaList.owner_id == current_user_id,
-                MediaList.shared_with.any(user_id=current_user_id))).all()
-
+                MediaList.id.in_(
+                    db.session.query(SharedList.list_id).filter(SharedList.user_id == current_user_id)
+                )
+            )
+        ).all()
+        
+        # Find media items in those lists that match the search results
         media_in_lists = {}
-        for lst in user_lists:
-            for item in lst.media_items:
-                if item.media_type == media_type:
-                    media_in_lists.setdefault(item.tmdb_id, []).append(lst.id)
+        
+        # Get the TMDB IDs from the search results
+        tmdb_ids = [result["id"] for result in data["results"]]
+        
+        # Query for media items in the database with these TMDB IDs
+        if tmdb_ids:
+            # Find Media records with matching TMDB IDs and media type
+            media_records = Media.query.filter(
+                Media.tmdb_id.in_(tmdb_ids),
+                Media.media_type == media_type
+            ).all()
+            
+            # Create a mapping of TMDB ID to Media ID
+            tmdb_to_media_id = {media.tmdb_id: media.id for media in media_records}
+            
+            # Find which lists contain these media items
+            if media_records:
+                media_ids = [media.id for media in media_records]
+                
+                media_list_entries = db.session.query(
+                    MediaInList.media_id, MediaInList.list_id
+                ).filter(
+                    MediaInList.media_id.in_(media_ids),
+                    MediaInList.list_id.in_([lst.id for lst in user_lists])
+                ).all()
+                
+                # Create mapping from media ID to list IDs
+                media_id_to_lists = {}
+                for media_id, list_id in media_list_entries:
+                    media_id_to_lists.setdefault(media_id, []).append(list_id)
+                
+                # Map TMDB IDs to list IDs
+                for tmdb_id, media_id in tmdb_to_media_id.items():
+                    if media_id in media_id_to_lists:
+                        media_in_lists[tmdb_id] = media_id_to_lists[media_id]
 
+        # Add the list information to each search result
         for result in data["results"]:
             result["addedToLists"] = media_in_lists.get(result["id"], [])
 
@@ -59,6 +96,7 @@ def search_media():
     except requests.RequestException as e:
         return jsonify({"error": f"TMDB API error: {str(e)}"}), 503
     except Exception as e:
+        current_app.logger.error(f"Search error: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -120,13 +158,54 @@ def get_media_suggestions():
         if status_code == 200 and "results" in response_dict:
             user_lists = MediaList.query.filter(
                 or_(MediaList.owner_id == current_user_id,
-                    MediaList.shared_with.any(user_id=current_user_id))).all()
-
+                    MediaList.id.in_(
+                        db.session.query(SharedList.list_id).filter(SharedList.user_id == current_user_id)
+                    ))
+            ).all()
+            
+            # Get all the unique media types and IDs from the suggestions
+            tmdb_info = []
+            for result in response_dict["results"]:
+                if "media_type" in result and "id" in result:
+                    tmdb_info.append((result["media_type"], result["id"]))
+            
+            # Find media IDs for these TMDB IDs
+            media_records = {}
+            if tmdb_info:
+                unique_types = set(media_type for media_type, _ in tmdb_info)
+                for media_type in unique_types:
+                    tmdb_ids = [tmdb_id for m_type, tmdb_id in tmdb_info if m_type == media_type]
+                    if tmdb_ids:
+                        records = Media.query.filter(
+                            Media.tmdb_id.in_(tmdb_ids),
+                            Media.media_type == media_type
+                        ).all()
+                        for record in records:
+                            media_records[(record.media_type, record.tmdb_id)] = record.id
+            
+            # Find which lists contain these media items
             media_in_lists = {}
-            for lst in user_lists:
-                for item in lst.media_items:
-                    media_in_lists.setdefault((item.media_type, item.tmdb_id), []).append(lst.id)
-
+            if media_records:
+                media_ids = list(media_records.values())
+                list_ids = [lst.id for lst in user_lists]
+                
+                media_list_entries = db.session.query(
+                    MediaInList.media_id, MediaInList.list_id
+                ).filter(
+                    MediaInList.media_id.in_(media_ids),
+                    MediaInList.list_id.in_(list_ids)
+                ).all()
+                
+                # Map media IDs to list IDs
+                media_id_to_lists = {}
+                for media_id, list_id in media_list_entries:
+                    media_id_to_lists.setdefault(media_id, []).append(list_id)
+                
+                # Map TMDB info to list IDs
+                for key, media_id in media_records.items():
+                    if media_id in media_id_to_lists:
+                        media_in_lists[key] = media_id_to_lists[media_id]
+            
             # Add information about which lists each media item is in
             for result in response_dict["results"]:
                 media_type = result.get("media_type")
@@ -137,4 +216,5 @@ def get_media_suggestions():
         return jsonify(response_dict), status_code
 
     except Exception as e:
+        current_app.logger.error(f"Suggestions error: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
