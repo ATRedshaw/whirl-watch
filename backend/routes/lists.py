@@ -496,29 +496,39 @@ def add_media_to_list(list_id):
             )
             db.session.add(list_entry)
         
-        # Create or update the current user's rating
-        user_rating = None
+        # Get existing user rating - important to do this first to preserve existing ratings
+        user_rating = UserMediaRating.query.filter_by(
+            user_id=current_user_id, media_id=media.id
+        ).first()
+        
+        # Only create a new rating or update the existing rating if explicitly provided in request
         if "watch_status" in data or "rating" in data:
+            # Explicit rating/status provided in request
             user_rating = update_user_rating(
                 current_user_id, 
                 media.id,
                 watch_status=data.get("watch_status"),
                 rating=data.get("rating")
             )
-        else:
-            # Ensure the user adding the media has a rating record
+        elif not user_rating:
+            # No rating exists yet - create a new one with default values
             user_rating = get_or_create_user_rating(current_user_id, media.id)
+        # Else: Rating exists but no new values provided - we preserve the existing rating
         
         # Create default rating records for all other users with access to this list
         # First, get the list owner if not the current user
         if lst.owner_id != current_user_id:
-            get_or_create_user_rating(lst.owner_id, media.id)
+            # Only create if doesn't exist
+            if not UserMediaRating.query.filter_by(user_id=lst.owner_id, media_id=media.id).first():
+                get_or_create_user_rating(lst.owner_id, media.id)
             
         # Then all shared list users
         shared_users = SharedList.query.filter_by(list_id=list_id).all()
         for shared_user in shared_users:
             if shared_user.user_id != current_user_id:  # Skip the current user
-                get_or_create_user_rating(shared_user.user_id, media.id)
+                # Only create if doesn't exist
+                if not UserMediaRating.query.filter_by(user_id=shared_user.user_id, media_id=media.id).first():
+                    get_or_create_user_rating(shared_user.user_id, media.id)
         
         lst.last_updated = datetime.utcnow()
         db.session.commit()

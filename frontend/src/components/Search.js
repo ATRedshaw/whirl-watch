@@ -140,8 +140,7 @@ const Search = () => {
         ...(isRemoving ? {} : {
           body: JSON.stringify({
             tmdb_id: selectedMedia.id,
-            media_type: activeTab,
-            watch_status: 'not_watched'
+            media_type: activeTab
           })
         })
       });
