@@ -133,7 +133,7 @@ function App() {
                 }
               />
               <Route 
-                path="/ratings"
+                path="/rankings"
                 element={
                   <ProtectedRoute>
                     <Rankings />

@@ -751,3 +751,64 @@ def get_user_ratings():
         return jsonify({"ratings": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ----------------- Get average ratings for list ----------------- #
+@lists_bp.route("/lists/<int:list_id>/average_ratings", methods=["GET"])
+@jwt_required()
+def get_list_average_ratings(list_id):
+    try:
+        current_user_id = get_jwt_identity()
+        lst = MediaList.query.get_or_404(list_id)
+        
+        # Check user has access to the list
+        is_shared = SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first() is not None
+        if lst.owner_id != current_user_id and not is_shared:
+            raise Forbidden("Not authorized to view this list")
+            
+        # Get all media items in this list
+        media_items = MediaInList.query.filter_by(list_id=list_id).all()
+        
+        average_ratings = []
+        for list_item in media_items:
+            # Get the Media record
+            media = Media.query.get(list_item.media_id)
+            
+            # Get the average rating
+            avg_rating = get_average_rating(list_item.media_id, list_id)
+            
+            # Only include media with at least one rating
+            if avg_rating["count"] > 0:
+                try:
+                    # Get TMDB details
+                    tmdb_resp = requests.get(
+                        f"https://api.themoviedb.org/3/{media.media_type}/{media.tmdb_id}",
+                        params={"api_key": current_app.config["TMDB_API_KEY"], "language": "en-US"},
+                        timeout=5,
+                    )
+                    tmdb_data = tmdb_resp.json()
+                    
+                    average_ratings.append({
+                        "tmdb_id": media.tmdb_id,
+                        "media_type": media.media_type,
+                        "average_rating": avg_rating["average"],
+                        "rating_count": avg_rating["count"],
+                        "title": tmdb_data.get("title") or tmdb_data.get("name"),
+                        "poster_path": tmdb_data.get("poster_path"),
+                        "overview": tmdb_data.get("overview"),
+                        "release_date": tmdb_data.get("release_date") or tmdb_data.get("first_air_date"),
+                        "vote_average": tmdb_data.get("vote_average"),
+                    })
+                except Exception as e:
+                    current_app.logger.error(f"TMDB fetch error: {e}")
+                    # Include basic info even if TMDB fetch fails
+                    average_ratings.append({
+                        "tmdb_id": media.tmdb_id,
+                        "media_type": media.media_type,
+                        "average_rating": avg_rating["average"],
+                        "rating_count": avg_rating["count"],
+                    })
+        
+        return jsonify({"average_ratings": average_ratings}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
