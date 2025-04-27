@@ -15,7 +15,6 @@ const Rankings = () => {
   const [selectedList, setSelectedList] = useState('all');
   const [ratingMode, setRatingMode] = useState('personal'); // 'personal' or 'list_average'
   const [filters, setFilters] = useState({
-    search: '',
     mediaType: 'all'
   });
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -162,11 +161,14 @@ const Rankings = () => {
 
   // Handle rating mode change
   const handleRatingModeChange = async (mode) => {
+    // Set loading immediately to prevent flicker
+    setLoading(true);
     setRatingMode(mode);
     setSelectedList('all'); // Reset list selection
     
     if (mode === 'personal') {
       // We already fetched personal ratings in the main useEffect
+      // This will trigger the useEffect due to ratingMode change
     } else if (mode === 'list_average') {
       // Reset the media items array to avoid showing stale data
       setMediaItems([]);
@@ -176,10 +178,8 @@ const Rankings = () => {
   const getFilteredAndSortedMedia = () => {
     return mediaItems
       .filter(media => {
-        const matchesSearch = media.title?.toLowerCase().includes(filters.search.toLowerCase());
         const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
-        
-        return matchesSearch && matchesMediaType;
+        return matchesMediaType;
       })
       .sort((a, b) => {
         // For personal ratings
@@ -478,18 +478,6 @@ const Rankings = () => {
           className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Search Input */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Search</label>
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                placeholder="Search titles..."
-                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
             {/* Media Type Filter */}
             <div>
               <label className="block text-sm text-gray-400 mb-1">Media Type</label>
@@ -507,7 +495,7 @@ const Rankings = () => {
             {/* Clear Filters Button */}
             <div className="flex items-end">
               <button
-                onClick={() => setFilters({ search: '', mediaType: 'all' })}
+                onClick={() => setFilters({ mediaType: 'all' })}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
               >
                 Clear Filters
@@ -831,7 +819,7 @@ const Rankings = () => {
                                   {rating.rating && (
                                     <div className="flex items-center gap-1">
                                       <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 01-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                                       </svg>
                                       <span className="font-medium">{rating.rating}</span>
                                     </div>
