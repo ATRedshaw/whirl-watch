@@ -36,7 +36,22 @@ const History = () => {
           return;
         }
 
-        // Fetch lists
+        // Fetch user's media directly from the user/media endpoint
+        const userMediaResponse = await fetch(`${apiUrl}/api/user/media`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!userMediaResponse.ok) {
+          throw new Error('Failed to fetch user media');
+        }
+
+        const userMediaData = await userMediaResponse.json();
+        setMediaItems(userMediaData.media_items || []);
+
+        // Fetch lists for filtering
         const listsResponse = await fetch(`${apiUrl}/api/lists`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -52,36 +67,9 @@ const History = () => {
         const lists = Array.isArray(listsData) ? listsData : listsData.lists;
         setLists(lists);
 
-        // Fetch all media items from each list
-        const allMedia = [];
-
-        for (const list of lists) {
-          const listResponse = await fetch(`${apiUrl}/api/lists/${list.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          });
-
-          if (listResponse.ok) {
-            const listData = await listResponse.json();
-            const processedMedia = listData.media_items.map(item => ({
-              ...item,
-              listName: list.name,
-              listId: list.id
-            }));
-            allMedia.push(...processedMedia);
-          }
-        }
-
-        // Sort by last_updated
-        const sortedMedia = allMedia.sort((a, b) => 
-          new Date(b.last_updated) - new Date(a.last_updated)
-        );
-        setMediaItems(sortedMedia);
-
       } catch (err) {
         setError(err.message);
+        console.error('Error fetching history data:', err);
       } finally {
         setLoading(false);
       }
@@ -100,7 +88,7 @@ const History = () => {
         const matchesSearch = media.title.toLowerCase().includes(filters.search.toLowerCase());
         const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
         const matchesWatchStatus = filters.watchStatus === 'all' || media.watch_status === filters.watchStatus;
-        const matchesList = selectedList === 'all' || media.listId === parseInt(selectedList);
+        const matchesList = selectedList === 'all' || media.list_id === parseInt(selectedList);
         
         return matchesSearch && matchesMediaType && matchesWatchStatus && matchesList;
       })
@@ -139,13 +127,15 @@ const History = () => {
         updates.rating = null;
       }
 
+      // Add last_updated timestamp
       const now = new Date().toISOString();
       updates.last_updated = now;
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+      // Use the correct endpoint pattern that matches the backend
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -154,13 +144,21 @@ const History = () => {
         body: JSON.stringify(updates)
       });
 
-      if (!response.ok) throw new Error('Failed to update media');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update media');
+      }
 
       // Update local state
       setMediaItems(prevItems => 
         prevItems.map(item => 
           item.id === mediaId 
-            ? { ...item, ...updates, last_updated: now }
+            ? { 
+                ...item, 
+                ...updates,
+                last_updated: now,
+                lastUpdatedDate: new Date(now) // Add for sorting purposes
+              }
             : item
         )
       );
@@ -169,10 +167,66 @@ const History = () => {
       setSelectedMedia(prev => ({
         ...prev,
         ...updates,
-        last_updated: now
+        last_updated: now,
+        lastUpdatedDate: new Date(now)
       }));
     } catch (error) {
       console.error('Error updating media:', error);
+      setError('Failed to update media: ' + error.message);
+    }
+  };
+
+  const handleRatingUpdate = async (mediaId, newRating) => {
+    try {
+      if (!selectedMedia) return;
+      
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      // Construct the update object
+      const updates = {
+        rating: newRating ? Number(newRating) : null,
+        last_updated: new Date().toISOString()
+      };
+      
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update rating');
+      }
+
+      // Update local state
+      setMediaItems(prevItems => 
+        prevItems.map(item => 
+          item.id === mediaId 
+            ? { 
+                ...item, 
+                rating: newRating ? Number(newRating) : null,
+                last_updated: updates.last_updated,
+                lastUpdatedDate: new Date(updates.last_updated)
+              }
+            : item
+        )
+      );
+
+      // Update selected media state
+      setSelectedMedia(prev => ({
+        ...prev,
+        rating: newRating ? Number(newRating) : null,
+        last_updated: updates.last_updated,
+        lastUpdatedDate: new Date(updates.last_updated)
+      }));
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      setError('Failed to update rating: ' + error.message);
     }
   };
 
@@ -181,19 +235,25 @@ const History = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.listId}/media/${mediaId}`, {
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) throw new Error('Failed to delete media');
+      if (!response.ok) {
+        throw new Error('Failed to delete media');
+      }
 
+      // Update local state by removing the deleted media
       setMediaItems(prevItems => prevItems.filter(item => item.id !== mediaId));
       setSelectedMedia(null);
+      setShowDeleteConfirm(false);
+      
     } catch (error) {
       console.error('Error deleting media:', error);
+      setError('Failed to delete media: ' + error.message);
     }
   };
 
@@ -202,16 +262,24 @@ const History = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white p-8 flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
     </div>
   );
 
   if (error) return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white p-8">
-      <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4">
-        <h3 className="text-red-500 font-semibold">Error loading history</h3>
-        <p className="text-red-400">{error}</p>
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-red-500/20 border border-red-500/50 p-4 rounded-lg">
+          <h2 className="text-xl font-semibold text-red-400 mb-2">Error Loading History</h2>
+          <p className="text-gray-300">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -578,7 +646,7 @@ const History = () => {
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                            handleUpdateStatus(selectedMedia.id, { rating: value ? Number(value) : null });
+                            handleRatingUpdate(selectedMedia.id, value);
                           }
                         }}
                         placeholder="1.0-10.0"

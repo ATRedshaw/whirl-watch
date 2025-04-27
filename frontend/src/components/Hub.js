@@ -837,7 +837,7 @@ const Hub = () => {
           transition={{ delay: 0.3 }}
           className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
         >
-          <h3 className="text-xl font-semibold mb-4">Recent Collaborator Activity</h3>
+          <h3 className="text-xl font-semibold mb-4">Recent Activity in Shared Lists</h3>
           <div className="space-y-4">
             {feedItems.slice(0, 3).map((item, index) => (
               <motion.div
