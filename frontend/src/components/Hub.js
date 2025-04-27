@@ -1374,7 +1374,7 @@ const Hub = () => {
 
                     {/* Status - Now second */}
                     <div className="mb-5">
-                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Watch Status</h4>
+                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Your Watch Status</h4>
                       <select
                         value={selectedMedia.watch_status || 'not_watched'}
                         onChange={(e) => handleUpdateStatus(selectedMedia.id, { watch_status: e.target.value })}
