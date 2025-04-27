@@ -161,7 +161,12 @@ def get_user_media():
                     "rating": user_rating.rating if user_rating else None,
                     "last_updated": (user_rating.updated_at if user_rating else media_in_list.last_updated).isoformat(),
                     "list_id": media_in_list.list_id,
-                    "list_name": list_id_to_name.get(media_in_list.list_id, "Unknown List")
+                    "list_name": list_id_to_name.get(media_in_list.list_id, "Unknown List"),
+                    # Include release date fields from TMDB
+                    "release_date": tmdb_data.get("release_date"),
+                    "first_air_date": tmdb_data.get("first_air_date"),
+                    # Include TMDB rating
+                    "vote_average": tmdb_data.get("vote_average")
                 }
                 media_items.append(item)
                 
