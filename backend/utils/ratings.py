@@ -44,9 +44,15 @@ def update_user_rating(user_id, media_id, watch_status=None, rating=None):
         if watch_status != 'completed':
             user_rating.rating = None
     
-    # Only apply rating if explicitly provided and watch_status is 'completed'
-    if rating is not None and (user_rating.watch_status == 'completed'):
-        user_rating.rating = rating
+    # Handle rating updates - rating parameter being None means explicitly set to null
+    if rating is not None:
+        # Only allow setting non-null ratings if the status is completed
+        if user_rating.watch_status == 'completed':
+            user_rating.rating = rating
+    elif rating is None and watch_status is None:
+        # If rating is explicitly passed as None/null and no watch_status change
+        # This handles the case when a user clears the rating by backspacing
+        user_rating.rating = None
     
     user_rating.updated_at = datetime.utcnow()
     return user_rating

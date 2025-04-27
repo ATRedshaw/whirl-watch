@@ -78,6 +78,11 @@ const ListDetails = () => {
         updates.rating = null;
       }
 
+      // When the empty string is passed for rating, explicitly set to null
+      if (updates.rating === '') {
+        updates.rating = null;
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       const response = await fetch(`${apiUrl}/api/lists/${id}/media/${mediaId}`, {
@@ -117,6 +122,10 @@ const ListDetails = () => {
             const sum = validRatings.reduce((total, r) => total + r.rating, 0);
             updatedAvgRating = sum / validRatings.length;
             ratingCount = validRatings.length;
+          } else {
+            // Explicitly set average rating to null when there are no valid ratings
+            updatedAvgRating = null;
+            ratingCount = 0;
           }
           
           // Update the media ratings state if viewing this media
@@ -138,14 +147,12 @@ const ListDetails = () => {
                 user_rating: {
                   ...item.user_rating,
                   watch_status: updates.watch_status || item.user_rating.watch_status,
-                  // If changing to anything but completed, explicitly set rating to null
-                  rating: updates.watch_status && updates.watch_status !== 'completed' 
-                    ? null 
-                    : updates.rating !== undefined ? updates.rating : item.user_rating.rating
+                  // Update rating based on the updates object, handling null values properly
+                  rating: updates.rating !== undefined ? updates.rating : item.user_rating.rating
                 },
-                // Update average rating if we got a new one
-                avg_rating: updatedAvgRating !== null ? updatedAvgRating : item.avg_rating,
-                rating_count: updatedAvgRating !== null ? ratingCount : item.rating_count
+                // Always update average rating with the latest value from the server
+                avg_rating: updatedAvgRating,
+                rating_count: ratingCount
               }
             : item
         )
@@ -158,14 +165,12 @@ const ListDetails = () => {
           user_rating: {
             ...prevSelected.user_rating,
             watch_status: updates.watch_status || prevSelected.user_rating?.watch_status,
-            // If changing to anything but completed, explicitly set rating to null
-            rating: updates.watch_status && updates.watch_status !== 'completed'
-              ? null
-              : updates.rating !== undefined ? updates.rating : prevSelected.user_rating?.rating
+            // Update rating based on the updates object, handling null values properly
+            rating: updates.rating !== undefined ? updates.rating : prevSelected.user_rating?.rating
           },
-          // Update average rating if we got a new one
-          avg_rating: updatedAvgRating !== null ? updatedAvgRating : prevSelected.avg_rating,
-          rating_count: updatedAvgRating !== null ? ratingCount : prevSelected.rating_count
+          // Always update average rating with the latest value from the server
+          avg_rating: updatedAvgRating,
+          rating_count: ratingCount
         }));
       }
       
