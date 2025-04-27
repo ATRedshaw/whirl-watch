@@ -223,6 +223,38 @@ const ListDetails = () => {
       }
       
       const data = await response.json();
+      
+      // Make sure all list members have a rating record
+      if (data.ratings && list && list.owner) {
+        // First, collect all user IDs that should have access to this list
+        const listMemberIds = new Set();
+        
+        // Add the owner
+        listMemberIds.add(list.owner.id);
+        
+        // Add all users who rated this media
+        data.ratings.forEach(rating => {
+          listMemberIds.add(rating.user.id);
+        });
+        
+        // Create a ratings record for the current user if none exists
+        const currentUserId = localStorage.getItem('userId');
+        const hasCurrentUserRating = data.ratings.some(r => r.user.id === parseInt(currentUserId));
+        
+        if (!hasCurrentUserRating && currentUserId) {
+          // If current user doesn't have a rating record yet, add a default one
+          const currentUserName = localStorage.getItem('username') || 'You';
+          data.ratings.push({
+            user: {
+              id: parseInt(currentUserId),
+              username: currentUserName
+            },
+            watch_status: 'not_watched',
+            rating: null
+          });
+        }
+      }
+      
       setMediaRatings(data);
     } catch (err) {
       console.error('Error fetching media ratings:', err);

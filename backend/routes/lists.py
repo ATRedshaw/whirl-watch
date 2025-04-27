@@ -178,7 +178,15 @@ def join_list():
         if get_list_user_count(lst.id) >= MAX_USERS_PER_LIST:
             raise BadRequest(f"This list has reached its maximum capacity of {MAX_USERS_PER_LIST} users")
 
+        # Create the SharedList entry - add the user to the list
         db.session.add(SharedList(list_id=lst.id, user_id=current_user_id))
+        
+        # Create UserMediaRating records for all media in the list
+        media_in_list = MediaInList.query.filter_by(list_id=lst.id).all()
+        for item in media_in_list:
+            # Get or create a user rating record for each media item in the list
+            get_or_create_user_rating(current_user_id, item.media_id)
+        
         db.session.commit()
 
         return jsonify({
@@ -435,7 +443,7 @@ def add_media_to_list(list_id):
             )
             db.session.add(list_entry)
         
-        # Create or update the user's rating
+        # Create or update the current user's rating
         user_rating = None
         if "watch_status" in data or "rating" in data:
             user_rating = update_user_rating(
@@ -444,6 +452,20 @@ def add_media_to_list(list_id):
                 watch_status=data.get("watch_status"),
                 rating=data.get("rating")
             )
+        else:
+            # Ensure the user adding the media has a rating record
+            user_rating = get_or_create_user_rating(current_user_id, media.id)
+        
+        # Create default rating records for all other users with access to this list
+        # First, get the list owner if not the current user
+        if lst.owner_id != current_user_id:
+            get_or_create_user_rating(lst.owner_id, media.id)
+            
+        # Then all shared list users
+        shared_users = SharedList.query.filter_by(list_id=list_id).all()
+        for shared_user in shared_users:
+            if shared_user.user_id != current_user_id:  # Skip the current user
+                get_or_create_user_rating(shared_user.user_id, media.id)
         
         lst.last_updated = datetime.utcnow()
         db.session.commit()

@@ -661,16 +661,6 @@ const Hub = () => {
                         )}
                       </div>
                       
-                      {media.rating && (
-                        <div className="mt-2 flex items-center">
-                          <div className="flex items-center bg-yellow-500/10 px-2 py-1 rounded-md">
-                            <span className="text-yellow-500 mr-1">★</span>
-                            <span className="text-yellow-400 font-medium">{media.rating}</span>
-                            <span className="text-yellow-600 text-xs">/10</span>
-                          </div>
-                        </div>
-                      )}
-                      
                       <div className="flex justify-between items-center mt-2">
                         <p className="text-xs text-gray-500">
                           {new Date(media.last_updated).toLocaleString(undefined, {
@@ -770,16 +760,6 @@ const Hub = () => {
                         )}
                       </div>
                       
-                      {item.rating && (
-                        <div className="mt-2 flex items-center">
-                          <div className="flex items-center bg-yellow-500/10 px-2 py-1 rounded-md">
-                            <span className="text-yellow-500 mr-1">★</span>
-                            <span className="text-yellow-400 font-medium">{item.rating}</span>
-                            <span className="text-yellow-600 text-xs">/10</span>
-                          </div>
-                        </div>
-                      )}
-                      
                       <div className="flex justify-between items-center mt-2">
                         <p className="text-xs text-gray-500">
                           {new Date(item.timestamp).toLocaleString(undefined, {
@@ -792,14 +772,14 @@ const Hub = () => {
                         
                         <div className="text-xs text-gray-400 flex items-center">
                           <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                            item.action.includes('watched') ? 'bg-green-500' : 
-                            item.action.includes('added') ? 'bg-blue-500' : 
-                            item.action.includes('rated') ? 'bg-yellow-500' : 'bg-purple-500'
+                            item.action.includes('completed') || item.action.includes('watched') ? 'bg-green-500' : 
+                            item.action.includes('started') || item.action.includes('progress') ? 'bg-blue-500' : 
+                            'bg-purple-500'
                           }`}></span>
                           <span>{
-                            item.action.includes('watched') ? 'Watched' : 
-                            item.action.includes('added') ? 'Added' : 
-                            item.action.includes('rated') ? 'Rated' : 'Updated'
+                            item.action.includes('completed') || item.action.includes('watched') ? 'Completed' : 
+                            item.action.includes('started') || item.action.includes('progress') ? 'In Progress' : 
+                            'Not Started'
                           }</span>
                         </div>
                       </div>
