@@ -158,12 +158,20 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
+      // Find the media item to get its list_id
+      const mediaItem = mediaItems.find(item => item.id === mediaId);
+      if (!mediaItem) {
+        throw new Error('Media item not found');
+      }
+      
       const updates = {
         watch_status: newStatus,
-        rating: newStatus !== 'completed' ? null : undefined
+        rating: newStatus !== 'completed' ? null : undefined,
+        last_updated: new Date().toISOString()
       };
       
-      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
+      // Updated API endpoint pattern matching ListDetails.js
+      const response = await fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -184,7 +192,8 @@ const Hub = () => {
                 ...item, 
                 watch_status: newStatus, 
                 rating: newStatus !== 'completed' ? null : item.rating,
-                last_updated: new Date().toISOString()
+                last_updated: updates.last_updated,
+                lastUpdatedDate: new Date(updates.last_updated)
               }
             : item
         );
@@ -215,6 +224,17 @@ const Hub = () => {
         return updatedMedia;
       });
 
+      // If the selected media is the one being updated, update it as well
+      if (selectedMedia && selectedMedia.id === mediaId) {
+        setSelectedMedia(prev => ({
+          ...prev,
+          watch_status: newStatus,
+          rating: newStatus !== 'completed' ? null : prev.rating,
+          last_updated: updates.last_updated,
+          lastUpdatedDate: new Date(updates.last_updated)
+        }));
+      }
+
     } catch (err) {
       console.error('Failed to update status:', err);
       setError(err.message);
@@ -226,13 +246,23 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
+      // Find the media item to get its list_id
+      const mediaItem = mediaItems.find(item => item.id === mediaId);
+      if (!mediaItem) {
+        throw new Error('Media item not found');
+      }
+      
+      // Updated API endpoint pattern matching ListDetails.js
+      const response = await fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ rating: newRating ? Number(newRating) : null })
+        body: JSON.stringify({ 
+          rating: newRating ? Number(newRating) : null,
+          last_updated: new Date().toISOString()
+        })
       });
 
       if (!response.ok) {
@@ -246,7 +276,8 @@ const Hub = () => {
             ? { 
                 ...item, 
                 rating: newRating ? Number(newRating) : null,
-                last_updated: new Date().toISOString()
+                last_updated: new Date().toISOString(),
+                lastUpdatedDate: new Date() // Add for sorting purposes
               }
             : item
         );
@@ -269,6 +300,16 @@ const Hub = () => {
         return updatedItems;
       });
 
+      // If the selected media is the one being updated, update it as well
+      if (selectedMedia && selectedMedia.id === mediaId) {
+        setSelectedMedia(prev => ({
+          ...prev,
+          rating: newRating ? Number(newRating) : null,
+          last_updated: new Date().toISOString(),
+          lastUpdatedDate: new Date()
+        }));
+      }
+
     } catch (err) {
       console.error('Failed to update rating:', err);
       setError(err.message);
@@ -277,6 +318,11 @@ const Hub = () => {
 
   const filteredMedia = mediaItems
     .filter(item => item.watch_status === selectedView)
+    // Use a Set to track unique TMDB IDs and avoid duplicates
+    .filter((item, index, self) => {
+      const firstIndex = self.findIndex(m => m.tmdb_id === item.tmdb_id);
+      return firstIndex === index; // Keep only the first occurrence of each tmdb_id
+    })
     .sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
 
   // Calculate pagination
@@ -319,20 +365,42 @@ const Hub = () => {
   const getTopRatedMedia = () => {
     if (!mediaItems) return [];
     
-    return mediaItems
+    // Create a map to track unique TMDB IDs
+    const uniqueMediaMap = new Map();
+    
+    mediaItems
       .filter(item => item.rating) // Only items with personal ratings
       .sort((a, b) => b.rating - a.rating) // Sort by rating descending
-      .slice(0, 5); // Take top 5
+      .forEach(item => {
+        // Only add to the map if this TMDB ID isn't already there
+        if (!uniqueMediaMap.has(item.tmdb_id)) {
+          uniqueMediaMap.set(item.tmdb_id, item);
+        }
+      });
+    
+    // Convert map values back to array and take top 5
+    return Array.from(uniqueMediaMap.values()).slice(0, 5);
   };
 
   // Get lowest rated media from user's own ratings
   const getLowestRatedMedia = () => {
     if (!mediaItems) return [];
     
-    return mediaItems
+    // Create a map to track unique TMDB IDs
+    const uniqueMediaMap = new Map();
+    
+    mediaItems
       .filter(item => item.rating) // Only items with personal ratings
       .sort((a, b) => a.rating - b.rating) // Sort by rating ascending
-      .slice(0, 5); // Take bottom 5
+      .forEach(item => {
+        // Only add to the map if this TMDB ID isn't already there
+        if (!uniqueMediaMap.has(item.tmdb_id)) {
+          uniqueMediaMap.set(item.tmdb_id, item);
+        }
+      });
+    
+    // Convert map values back to array and take bottom 5
+    return Array.from(uniqueMediaMap.values()).slice(0, 5);
   };
 
   const handleUpdateStatus = async (mediaId, updates) => {
@@ -351,7 +419,8 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
+      // Updated API endpoint pattern matching ListDetails.js
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -387,37 +456,44 @@ const Hub = () => {
       }));
 
       // Update stats if necessary
-      if (updates.watch_status || updates.rating) {
-        const updatedStats = { ...stats };
+      if (updates.watch_status || updates.rating !== undefined) {
+        // Create a shallow copy of the updated media items to calculate new stats
+        const updatedItems = mediaItems.map(item => 
+          item.id === mediaId 
+            ? { 
+                ...item, 
+                ...updates,
+                last_updated: now
+              }
+            : item
+        );
         
-        if (updates.watch_status) {
-          // Decrement old status count
-          if (selectedMedia.watch_status === 'completed') updatedStats.completed--;
-          else if (selectedMedia.watch_status === 'in_progress') updatedStats.inProgress--;
-          else updatedStats.notWatched--;
+        // Calculate new stats
+        const completed = updatedItems.filter(item => item.watch_status === 'completed').length;
+        const inProgress = updatedItems.filter(item => item.watch_status === 'in_progress').length;
+        const notWatched = updatedItems.filter(item => item.watch_status === 'not_watched').length;
+        
+        // Calculate new average rating
+        const ratedItems = updatedItems.filter(item => 
+          item.watch_status === 'completed' && item.rating !== null && item.rating !== undefined
+        );
+        
+        const averageRating = ratedItems.length 
+          ? (ratedItems.reduce((sum, item) => sum + (item.rating || 0), 0) / ratedItems.length).toFixed(1)
+          : 0;
 
-          // Increment new status count
-          if (updates.watch_status === 'completed') updatedStats.completed++;
-          else if (updates.watch_status === 'in_progress') updatedStats.inProgress++;
-          else updatedStats.notWatched++;
-        }
-
-        if (updates.rating !== undefined) {
-          // Recalculate average rating
-          const ratedItems = mediaItems
-            .filter(item => item.id !== mediaId || updates.rating !== null)
-            .map(item => item.id === mediaId ? updates.rating : item.rating)
-            .filter(rating => rating !== null && rating !== undefined);
-          
-          updatedStats.averageRating = ratedItems.length 
-            ? (ratedItems.reduce((a, b) => a + b, 0) / ratedItems.length).toFixed(1)
-            : 0;
-        }
-
-        setStats(updatedStats);
+        // Update stats
+        setStats({
+          totalMedia: updatedItems.length,
+          completed,
+          inProgress,
+          notWatched,
+          averageRating
+        });
       }
     } catch (error) {
       console.error('Error updating media:', error);
+      setError('Failed to update media');
     }
   };
 
@@ -426,7 +502,8 @@ const Hub = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${apiUrl}/api/user/media/${mediaId}`, {
+      // Updated API endpoint pattern matching ListDetails.js
+      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -906,7 +983,7 @@ const Hub = () => {
                   <h4 
                     className="font-semibold line-clamp-1 hover:text-blue-400"
                   >{media.title}</h4>
-                  <p className="text-sm text-gray-400 mb-2">In: {media.list_name}</p>
+                  {/* List name removed */}
                   
                   {/* Stop propagation on select to prevent modal from opening */}
                   <select
@@ -1036,9 +1113,17 @@ const Hub = () => {
                   <p className="font-medium text-sm line-clamp-1">
                     {media.title || media.name}
                   </p>
-                  <p className="text-sm text-gray-400 line-clamp-1">
-                    In: {media.list_name}
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{(media.release_date || media.first_air_date)?.split('-')[0]}</span>
+                    {media.vote_average && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        {media.vote_average?.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded">
                   <span className="text-yellow-500">⭐</span>
@@ -1091,9 +1176,17 @@ const Hub = () => {
                   <p className="font-medium text-sm line-clamp-1">
                     {media.title || media.name}
                   </p>
-                  <p className="text-sm text-gray-400 line-clamp-1">
-                    In: {media.list_name}
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{(media.release_date || media.first_air_date)?.split('-')[0]}</span>
+                    {media.vote_average && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        {media.vote_average?.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 bg-red-500/20 px-2 py-1 rounded">
                   <span className="text-yellow-500">⭐</span>
@@ -1169,6 +1262,7 @@ const Hub = () => {
 
                   {/* Details */}
                   <div className="w-full md:w-2/3 p-6">
+                    {/* === START: Copied Header from ListDetails.js === */}
                     <h2 className="text-2xl font-bold mb-2">
                       {selectedMedia.title || selectedMedia.name}
                     </h2>
@@ -1180,13 +1274,14 @@ const Hub = () => {
                           <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
-                          {selectedMedia.vote_average?.toFixed(1)}
+                          {selectedMedia.vote_average?.toFixed(1)} (TMDB)
                         </span>
                       )}
                       <span className="px-2 py-1 bg-blue-500/20 rounded text-xs font-medium text-blue-300 uppercase">
                         {selectedMedia.media_type}
                       </span>
                     </div>
+                    {/* === END: Copied Header from ListDetails.js === */}
 
                     {/* Overview - Now first */}
                     <div className="mb-5">
@@ -1237,18 +1332,23 @@ const Hub = () => {
                       )}
                     </div>
 
-                    {/* List Information */}
+                    {/* List Information - Now showing all lists containing this media */}
                     <div className="mb-5">
                       <h4 className="text-sm font-semibold text-blue-400 mb-2">List Information</h4>
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-200">{selectedMedia.list_name}</p>
-                        <button
-                          onClick={() => navigate(`/lists/${selectedMedia.list_id}`)}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200"
-                        >
-                          View List
-                        </button>
-                      </div>
+                      {mediaItems
+                        .filter(item => item.tmdb_id === selectedMedia.tmdb_id)
+                        .map(item => (
+                          <div key={item.list_id} className="flex items-center justify-between mb-2 p-2 bg-slate-700/30 rounded">
+                            <p className="text-gray-200">{item.list_name}</p>
+                            <button
+                              onClick={() => navigate(`/lists/${item.list_id}`)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200"
+                            >
+                              Manage List
+                            </button>
+                          </div>
+                        ))
+                      }
                     </div>
 
                     {/* Added/Updated Dates */}
