@@ -155,7 +155,7 @@ const Hub = () => {
 
   const handleStatusUpdate = async (mediaId, newStatus) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const apiUrl = process.env.REACT_APP_API
       const token = localStorage.getItem('token');
       
       // Find the media item to get its list_id
@@ -777,7 +777,9 @@ const Hub = () => {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{media.list_name}</span>
                         {media.media_type && (
-                          <span className="text-xs px-2 py-1 bg-purple-500/20 rounded-full text-purple-300">{media.media_type}</span>
+                          <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-xs font-medium text-blue-300 uppercase">
+                            {media.media_type}
+                          </span>
                         )}
                       </div>
                       
@@ -877,7 +879,9 @@ const Hub = () => {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{item.list_name}</span>
                         {item.media_type && (
-                          <span className="text-xs px-2 py-1 bg-purple-500/20 rounded-full text-purple-300">{item.media_type}</span>
+                          <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-xs font-medium text-blue-300 uppercase">
+                            {item.media_type}
+                          </span>
                         )}
                       </div>
                       
