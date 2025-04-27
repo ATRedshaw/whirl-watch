@@ -274,23 +274,51 @@ def get_user_feed():
         # Get list IDs
         list_ids = [lst.id for lst in user_lists]
         
-        # Get recent activity from these lists (excluding current user's activity)
-        # Limit to 20 most recent items
-        recent_activity = db.session.query(
-            MediaInList, Media, User
+        # Get recent activities by joining with UserMediaRating to see all updates
+        # This shows all activities from users in shared lists, not just who added the media
+        recent_activities = []
+        
+        # First, get all media items in user's shared lists
+        media_in_lists = db.session.query(
+            MediaInList, Media
         ).join(
             Media, Media.id == MediaInList.media_id
-        ).join(
-            User, User.id == MediaInList.added_by_id
         ).filter(
-            MediaInList.list_id.in_(list_ids),
-            MediaInList.added_by_id != current_user_id  # Exclude current user's activity
-        ).order_by(
-            desc(MediaInList.last_updated)
-        ).limit(20).all()
+            MediaInList.list_id.in_(list_ids)
+        ).all()
+        
+        # For each media item, find the most recent rating/activity by other users
+        for media_in_list, media in media_in_lists:
+            # Get ratings for this media by other users who share this list
+            other_users_ratings = db.session.query(
+                UserMediaRating, User
+            ).join(
+                User, User.id == UserMediaRating.user_id
+            ).filter(
+                UserMediaRating.media_id == media.id,
+                UserMediaRating.user_id != current_user_id,  # Exclude current user
+                User.id.in_(  # Include only users who have access to this list
+                    db.session.query(SharedList.user_id).filter(
+                        SharedList.list_id == media_in_list.list_id
+                    ).union(
+                        db.session.query(MediaList.owner_id).filter(
+                            MediaList.id == media_in_list.list_id
+                        )
+                    )
+                )
+            ).order_by(
+                desc(UserMediaRating.updated_at)
+            ).all()
+            
+            for rating, user in other_users_ratings:
+                recent_activities.append((media_in_list, media, user, rating))
+        
+        # Sort by update timestamp (most recent first) and limit to 20 items
+        recent_activities.sort(key=lambda x: x[3].updated_at, reverse=True)
+        recent_activities = recent_activities[:20]
         
         feed_items = []
-        for media_in_list, media, user in recent_activity:
+        for media_in_list, media, user, user_rating in recent_activities:
             # Fetch media details from TMDB
             try:
                 tmdb_api_key = current_app.config["TMDB_API_KEY"]
@@ -315,17 +343,18 @@ def get_user_feed():
                 title = tmdb_data.get("title" if media.media_type == "movie" else "name", "Unknown Title")
                 
                 # Determine action based on watch status from UserMediaRating
-                action = "added"
-                user_rating = UserMediaRating.query.filter_by(
-                    user_id=user.id, 
-                    media_id=media.id
-                ).first()
-                
+                action = "added to their list"
                 if user_rating:
                     if user_rating.watch_status == "completed":
                         action = "completed watching"
                     elif user_rating.watch_status == "in_progress":
                         action = "started watching"
+                    elif user_rating.watch_status == "not_watched":
+                        action = "added to watchlist"
+                    
+                    # Include rating info if available
+                    if user_rating.rating:
+                        action += f" and rated {user_rating.rating}/10"
                 
                 # Get list name
                 list_name = next((lst.name for lst in user_lists if lst.id == media_in_list.list_id), "Unknown List")
@@ -338,12 +367,17 @@ def get_user_feed():
                     "media_title": title,
                     "media_type": media.media_type,
                     "poster_path": tmdb_data.get("poster_path"),
+                    "overview": tmdb_data.get("overview"),
+                    "vote_average": tmdb_data.get("vote_average"),
+                    "release_date": tmdb_data.get("release_date"),
+                    "first_air_date": tmdb_data.get("first_air_date"),
                     "list_id": media_in_list.list_id,
                     "list_name": list_name,
                     "action": action,
                     "watch_status": user_rating.watch_status if user_rating else "not_watched",
                     "rating": user_rating.rating if user_rating else None,
-                    "timestamp": media_in_list.last_updated.isoformat()
+                    "timestamp": user_rating.updated_at.isoformat() if user_rating else media_in_list.last_updated.isoformat(),
+                    "tmdb_id": media.tmdb_id
                 }
                 feed_items.append(item)
                 
