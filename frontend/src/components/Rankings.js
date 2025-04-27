@@ -797,28 +797,47 @@ const Rankings = () => {
                           </div>
                         ) : mediaRatings && mediaRatings.ratings && mediaRatings.ratings.length > 0 ? (
                           <div className="grid grid-cols-1 gap-2">
-                            {mediaRatings.ratings.map((rating, index) => (
-                              <div key={index} className="bg-slate-700/30 p-3 rounded-lg flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-300">{rating.user.username}</span>
-                                  <span className={`px-2 py-0.5 rounded text-xs ${
-                                    rating.watch_status === 'completed' ? 'bg-green-500/30 text-green-300' :
-                                    rating.watch_status === 'in_progress' ? 'bg-yellow-500/30 text-yellow-300' :
-                                    'bg-gray-500/30 text-gray-300'
-                                  }`}>
-                                    {rating.watch_status.replace('_', ' ')}
-                                  </span>
-                                </div>
-                                {rating.rating && (
-                                  <div className="flex items-center gap-1">
-                                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                    </svg>
-                                    <span className="font-medium">{rating.rating}</span>
+                            {mediaRatings.ratings
+                              .sort((a, b) => {
+                                // First sort by rating (highest first)
+                                if (a.rating && b.rating) {
+                                  return b.rating - a.rating;
+                                }
+                                // If one has rating and other doesn't, rated items first
+                                if (a.rating && !b.rating) return -1;
+                                if (!a.rating && b.rating) return 1;
+                                
+                                // If neither has rating, sort by watch status priority
+                                const statusPriority = {
+                                  'completed': 0,
+                                  'in_progress': 1,
+                                  'not_watched': 2
+                                };
+                                
+                                return statusPriority[a.watch_status] - statusPriority[b.watch_status];
+                              })
+                              .map((rating, index) => (
+                                <div key={index} className="bg-slate-700/30 p-3 rounded-lg flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-300">{rating.user.username}</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs ${
+                                      rating.watch_status === 'completed' ? 'bg-green-500/30 text-green-300' :
+                                      rating.watch_status === 'in_progress' ? 'bg-yellow-500/30 text-yellow-300' :
+                                      'bg-gray-500/30 text-gray-300'
+                                    }`}>
+                                      {rating.watch_status.replace('_', ' ')}
+                                    </span>
                                   </div>
-                                )}
-                              </div>
-                            ))}
+                                  {rating.rating && (
+                                    <div className="flex items-center gap-1">
+                                      <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                      </svg>
+                                      <span className="font-medium">{rating.rating}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                           </div>
                         ) : (
                           <p className="text-gray-400 p-3 bg-slate-700/20 rounded-lg">No ratings from list members yet.</p>
