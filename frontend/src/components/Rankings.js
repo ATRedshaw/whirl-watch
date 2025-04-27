@@ -12,8 +12,9 @@ const Rankings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [lists, setLists] = useState([]);
-  const [selectedList, setSelectedList] = useState('all');
-  const [ratingMode, setRatingMode] = useState('personal'); // 'personal' or 'list_average'
+  const [selectedList, setSelectedList] = useState(location.state?.initialList || 'all');
+  const [listName, setListName] = useState(location.state?.listName || '');
+  const [ratingMode, setRatingMode] = useState(location.state?.initialList ? 'list_average' : 'personal');
   const [filters, setFilters] = useState({
     mediaType: 'all'
   });
@@ -167,11 +168,35 @@ const Rankings = () => {
     fetchListData();
   }, [selectedList, ratingMode, fetchListAverages]);
 
+  // Additional useEffect to handle initial navigation from ListDetails
+  useEffect(() => {
+    // When navigating from ListDetails with a specific list
+    if (location.state?.initialList && lists.length > 0) {
+      const listId = location.state.initialList;
+      // Check if the list exists in our lists array
+      const listExists = lists.some(list => list.id === parseInt(listId));
+      if (listExists) {
+        // Make sure we're in list_average mode
+        setRatingMode('list_average');
+        // Select the list
+        setSelectedList(listId);
+        // Update list name if provided
+        if (location.state.listName) {
+          setListName(location.state.listName);
+        }
+      }
+    }
+  }, [lists, location.state]);
+
   // Handle list selection change
   const handleListChange = (listId) => {
     // Set loading immediately to prevent flicker
     setLoading(true);
     setSelectedList(listId);
+    
+    // Find the selected list name
+    const selectedListInfo = lists.find(list => list.id === parseInt(listId));
+    setListName(selectedListInfo ? selectedListInfo.name : '');
   };
 
   // Handle rating mode change
@@ -421,7 +446,11 @@ const Rankings = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <h1 className="text-3xl font-bold">Media Rankings</h1>
+            <h1 className="text-3xl font-bold">
+              {ratingMode === 'list_average' && selectedList !== 'all' && listName 
+                ? `${listName} Rankings` 
+                : 'Media Rankings'}
+            </h1>
           </div>
         </motion.div>
 
@@ -620,7 +649,7 @@ const Rankings = () => {
                       {media.vote_average && (
                         <span className="flex items-center gap-1">
                           <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 01-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                           </svg>
                           {media.vote_average.toFixed(1)} (TMDB)
                         </span>
@@ -848,7 +877,7 @@ const Rankings = () => {
                       </div>
                     )}
 
-                    {/* Only show status and rating controls for personal items */}
+                    {/* Only show status and rating controls for personal media items */}
                     {selectedMedia.watch_status && (
                       <>
                         {/* Status */}
