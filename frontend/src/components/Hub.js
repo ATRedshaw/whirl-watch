@@ -750,7 +750,7 @@ const Hub = () => {
                       {user?.username.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <span className="font-medium text-indigo-400">{user?.username}</span>
+                      <span className="font-medium text-indigo-400">You</span>
                       <span className="text-gray-400 text-sm ml-2">
                         {media.watch_status === 'completed' ? 'completed watching' :
                          media.watch_status === 'in_progress' ? 'started watching' :
