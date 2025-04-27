@@ -15,6 +15,24 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     is_privilege = db.Column(db.Boolean, default=False)
     lists = db.relationship('MediaList', backref='owner', lazy=True)
+    # Add relationship to user media ratings
+    ratings = db.relationship('UserMediaRating', backref='user', lazy=True)
+
+
+# New model for storing unique media items
+class Media(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tmdb_id = db.Column(db.Integer, nullable=False)
+    media_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    list_entries = db.relationship('MediaInList', backref='media', lazy=True)
+    user_ratings = db.relationship('UserMediaRating', backref='media', lazy=True)
+    
+    __table_args__ = (
+        db.UniqueConstraint('tmdb_id', 'media_type', name='uq_media_tmdb_type'),
+    )
 
 
 class MediaList(db.Model):
@@ -29,22 +47,36 @@ class MediaList(db.Model):
     shared_with = db.relationship('SharedList', backref='media_list', lazy=True)
 
 
+# Modified to remove rating from this model
 class MediaInList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     list_id = db.Column(db.Integer, db.ForeignKey('media_list.id'), nullable=False)
-    tmdb_id = db.Column(db.Integer, nullable=False)
-    media_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id'), nullable=False)
     added_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow,
                              onupdate=datetime.utcnow, nullable=False)
-    watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
-    rating = db.Column(db.Integer, nullable=True)
     added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     added_by = db.relationship('User', backref='added_media_items')
 
     __table_args__ = (
-        db.Index('idx_list_media', 'list_id', 'tmdb_id', 'media_type', unique=True),
+        db.UniqueConstraint('list_id', 'media_id', name='uq_list_media'),
+    )
+
+
+# New model for personal user ratings
+class UserMediaRating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id'), nullable=False)
+    watch_status = db.Column(db.String(20), default='not_watched', nullable=False)
+    rating = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, 
+                           onupdate=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'media_id', name='uq_user_media_rating'),
     )
 
 

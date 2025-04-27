@@ -10,6 +10,8 @@ const ListDetails = () => {
   const [error, setError] = useState(null);
   const [mediaToDelete, setMediaToDelete] = useState(null);
   const [selectedMediaInfo, setSelectedMediaInfo] = useState(null);
+  const [mediaRatings, setMediaRatings] = useState(null);
+  const [loadingRatings, setLoadingRatings] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     mediaType: 'all',
@@ -96,14 +98,21 @@ const ListDetails = () => {
           item.id === mediaId 
             ? {
                 ...item,
-                ...updates,
-                rating: updates.watch_status && updates.watch_status !== 'completed' 
-                  ? null 
-                  : updates.rating !== undefined ? updates.rating : item.rating
+                user_rating: {
+                  ...item.user_rating,
+                  watch_status: updates.watch_status || item.user_rating.watch_status,
+                  rating: updates.watch_status && updates.watch_status !== 'completed' 
+                    ? null 
+                    : updates.rating !== undefined ? updates.rating : item.user_rating.rating
+                }
               }
             : item
         )
       }));
+      
+      if (mediaRatings && selectedMediaInfo && selectedMediaInfo.id === mediaId) {
+        fetchMediaRatings(mediaId);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -134,6 +143,40 @@ const ListDetails = () => {
       setError(err.message);
     }
   };
+  
+  const fetchMediaRatings = async (mediaId) => {
+    try {
+      setLoadingRatings(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/api/lists/${id}/media/${mediaId}/ratings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch ratings');
+      }
+      
+      const data = await response.json();
+      setMediaRatings(data);
+    } catch (err) {
+      console.error('Error fetching media ratings:', err);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+  
+  const handleViewMediaDetails = (media) => {
+    setSelectedMediaInfo(media);
+    setMediaRatings(null);
+    if (media.id) {
+      fetchMediaRatings(media.id);
+    }
+  };
 
   const getFilteredAndSortedMedia = () => {
     if (!list?.media_items) return [];
@@ -143,7 +186,7 @@ const ListDetails = () => {
         const matchesSearch = media.title.toLowerCase().includes(filters.search.toLowerCase());
         const matchesMediaType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
         const matchesAddedBy = filters.addedBy === 'all' || media.added_by?.id === parseInt(filters.addedBy);
-        const matchesWatchStatus = filters.watchStatus === 'all' || media.watch_status === filters.watchStatus;
+        const matchesWatchStatus = filters.watchStatus === 'all' || media.user_rating?.watch_status === filters.watchStatus;
         
         return matchesSearch && matchesMediaType && matchesAddedBy && matchesWatchStatus;
       })
@@ -154,9 +197,13 @@ const ListDetails = () => {
           case 'title_desc':
             return b.title.localeCompare(a.title);
           case 'user_rating_desc':
-            return (b.rating || 0) - (a.rating || 0);
+            return (b.user_rating?.rating || 0) - (a.user_rating?.rating || 0);
           case 'user_rating_asc':
-            return (a.rating || 0) - (b.rating || 0);
+            return (a.user_rating?.rating || 0) - (b.user_rating?.rating || 0);
+          case 'avg_rating_desc':
+            return (b.avg_rating || 0) - (a.avg_rating || 0);
+          case 'avg_rating_asc':
+            return (a.avg_rating || 0) - (b.avg_rating || 0);
           case 'overall_rating_desc':
             return (b.vote_average || 0) - (a.vote_average || 0);
           case 'overall_rating_asc':
@@ -359,8 +406,10 @@ const ListDetails = () => {
                 <option value="title_desc">Title (Z-A)</option>
                 <option value="user_rating_desc">Your Rating (High-Low)</option>
                 <option value="user_rating_asc">Your Rating (Low-High)</option>
-                <option value="overall_rating_desc">Overall Rating (High-Low)</option>
-                <option value="overall_rating_asc">Overall Rating (Low-High)</option>
+                <option value="avg_rating_desc">List Avg. Rating (High-Low)</option>
+                <option value="avg_rating_asc">List Avg. Rating (Low-High)</option>
+                <option value="overall_rating_desc">TMDB Rating (High-Low)</option>
+                <option value="overall_rating_asc">TMDB Rating (Low-High)</option>
               </select>
             </div>
 
@@ -419,7 +468,7 @@ const ListDetails = () => {
                   {/* Left side - Poster */}
                   <div 
                     className="relative w-24 h-36 shrink-0 cursor-pointer"
-                    onClick={() => setSelectedMediaInfo(media)}
+                    onClick={() => handleViewMediaDetails(media)}
                   >
                     {media.poster_path ? (
                       <img
@@ -442,7 +491,7 @@ const ListDetails = () => {
                     <div className="flex justify-between items-start gap-2">
                       <div 
                         className="cursor-pointer"
-                        onClick={() => setSelectedMediaInfo(media)}
+                        onClick={() => handleViewMediaDetails(media)}
                       >
                         <h3 className="font-medium text-base line-clamp-1">{media.title}</h3>
                         <p className="text-xs text-gray-400">Added by {media.added_by?.username || 'Unknown'}</p>
@@ -466,9 +515,31 @@ const ListDetails = () => {
                     {/* Info Row */}
                     <div 
                       className="flex items-center gap-2 text-xs text-gray-400 mt-1 mb-2 cursor-pointer"
-                      onClick={() => setSelectedMediaInfo(media)}
+                      onClick={() => handleViewMediaDetails(media)}
                     >
                       <span>{media.release_date?.split('-')[0]}</span>
+                      
+                      {/* User Rating */}
+                      {media.user_rating?.rating && (
+                        <span className="flex items-center gap-1 bg-blue-500/20 px-1 rounded">
+                          <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span className="text-blue-300 font-medium">{media.user_rating.rating}</span>
+                        </span>
+                      )}
+                      
+                      {/* List Avg Rating */}
+                      {media.avg_rating && (
+                        <span className="flex items-center gap-1 bg-purple-500/20 px-1 rounded">
+                          <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span className="text-purple-300">{media.avg_rating.toFixed(1)}</span>
+                        </span>
+                      )}
+                      
+                      {/* TMDB Rating */}
                       {media.vote_average && (
                         <span className="flex items-center gap-1">
                           <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
@@ -481,7 +552,7 @@ const ListDetails = () => {
 
                     {/* Watch Status */}
                     <select
-                      value={media.watch_status}
+                      value={media.user_rating?.watch_status || 'not_watched'}
                       onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
                       className="w-full px-2 py-1 text-sm bg-slate-700 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={!(list.is_owner || list.shared_with_me)}
@@ -499,20 +570,20 @@ const ListDetails = () => {
                         min="1"
                         max="10"
                         step="0.1"
-                        value={media.rating || ''}
+                        value={media.user_rating?.rating || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
                             handleUpdateStatus(media.id, { rating: value ? Number(value) : null });
                           }
                         }}
-                        placeholder="1.0-10.0"
+                        placeholder="Your rating (1-10)"
                         className={`w-full px-2 py-1 text-sm bg-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500
-                          ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                          ${media.user_rating?.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!(list.is_owner || list.shared_with_me) || media.user_rating?.watch_status !== 'completed'}
                         onClick={(e) => e.stopPropagation()}
                       />
-                      {media.watch_status !== 'completed' && (
+                      {media.user_rating?.watch_status !== 'completed' && (
                         <p className="text-xs text-gray-500 mt-1">
                           Complete watching to rate
                         </p>
@@ -526,7 +597,7 @@ const ListDetails = () => {
                   {/* Media Poster with Type Badge and Delete Button */}
                   <div 
                     className="relative w-full aspect-[2/3] cursor-pointer"
-                    onClick={() => setSelectedMediaInfo(media)}
+                    onClick={() => handleViewMediaDetails(media)}
                   >
                     {media.poster_path ? (
                       <img
@@ -564,7 +635,7 @@ const ListDetails = () => {
                   <div className="p-4 flex flex-col flex-grow">
                     <div
                       className="cursor-pointer"
-                      onClick={() => setSelectedMediaInfo(media)}
+                      onClick={() => handleViewMediaDetails(media)}
                     >
                       <h3 className="text-lg font-semibold mb-1 line-clamp-1">
                         {media.title}
@@ -572,24 +643,44 @@ const ListDetails = () => {
                       <p className="text-sm text-gray-400 mb-2">
                         Added by {media.added_by?.username || 'Unknown'}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                      
+                      <div className="flex items-center gap-3 text-sm text-gray-400 mb-3">
                         <span>{media.release_date?.split('-')[0]}</span>
-                        {media.vote_average && (
-                          <span className="flex items-center gap-1">
-                            <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            {media.vote_average.toFixed(1)}
-                          </span>
-                        )}
+                        
+                        {/* Ratings Box */}
+                        <div className="flex gap-1 ml-auto">
+                          {/* Your Rating */}
+                          {media.user_rating?.rating && (
+                            <span className="flex items-center gap-1 bg-blue-500/20 px-2 py-0.5 rounded">
+                              <span className="text-blue-300 font-medium">{media.user_rating.rating}</span>
+                              <span className="text-xs text-blue-400">you</span>
+                            </span>
+                          )}
+                          
+                          {/* List Average */}
+                          {media.avg_rating && (
+                            <span className="flex items-center gap-1 bg-purple-500/20 px-2 py-0.5 rounded">
+                              <span className="text-purple-300 font-medium">{media.avg_rating.toFixed(1)}</span>
+                              <span className="text-xs text-purple-400">avg</span>
+                            </span>
+                          )}
+                          
+                          {/* TMDB Rating */}
+                          {media.vote_average && (
+                            <span className="flex items-center gap-1 bg-yellow-500/20 px-2 py-0.5 rounded">
+                              <span className="text-yellow-300 font-medium">{media.vote_average.toFixed(1)}</span>
+                              <span className="text-xs text-yellow-400">tmdb</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Watch Status - Also update these conditions for consistency */}
+                    {/* Watch Status */}
                     <div className="mb-3">
                       <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
                       <select
-                        value={media.watch_status}
+                        value={media.user_rating?.watch_status || 'not_watched'}
                         onChange={(e) => handleUpdateStatus(media.id, { watch_status: e.target.value })}
                         className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         disabled={!(list.is_owner || list.shared_with_me)}
@@ -601,7 +692,7 @@ const ListDetails = () => {
                       </select>
                     </div>
 
-                    {/* Rating - Update these conditions as well */}
+                    {/* Rating */}
                     <div>
                       <label className="block text-sm text-gray-400 mb-1">Your Rating</label>
                       <input
@@ -609,7 +700,7 @@ const ListDetails = () => {
                         min="1"
                         max="10"
                         step="0.1"
-                        value={media.rating || ''}
+                        value={media.user_rating?.rating || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
@@ -618,11 +709,11 @@ const ListDetails = () => {
                         }}
                         placeholder="1.0-10.0"
                         className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
-                          ${media.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!(list.is_owner || list.shared_with_me) || media.watch_status !== 'completed'}
+                          ${media.user_rating?.watch_status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!(list.is_owner || list.shared_with_me) || media.user_rating?.watch_status !== 'completed'}
                         onClick={(e) => e.stopPropagation()}
                       />
-                      {media.watch_status !== 'completed' && (
+                      {media.user_rating?.watch_status !== 'completed' && (
                         <p className="text-sm text-gray-500 mt-1">
                           Complete watching to rate
                         </p>
@@ -673,6 +764,9 @@ const ListDetails = () => {
               <h3 className="text-xl font-semibold mb-4">Remove from List</h3>
               <p className="text-gray-300 mb-6">
                 Are you sure you want to remove "{mediaToDelete?.title}" from this list?
+                <span className="block mt-2 text-gray-400 text-sm">
+                  Note: Your personal rating will be preserved and will be applied automatically if you add this title to any list again.
+                </span>
               </p>
               <div className="flex gap-3">
                 <button
@@ -701,18 +795,24 @@ const ListDetails = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto"
-            onClick={() => setSelectedMediaInfo(null)}
+            onClick={() => {
+              setSelectedMediaInfo(null);
+              setMediaRatings(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative flex flex-col"
+              className="bg-slate-800 rounded-lg overflow-hidden max-w-3xl w-full my-auto relative flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               {/* Close button */}
               <button 
-                onClick={() => setSelectedMediaInfo(null)}
+                onClick={() => {
+                  setSelectedMediaInfo(null);
+                  setMediaRatings(null);
+                }}
                 className="absolute top-2 right-2 z-10 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white transition-colors"
                 aria-label="Close"
               >
@@ -750,9 +850,9 @@ const ListDetails = () => {
                       {selectedMediaInfo.vote_average && (
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8-2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
-                          {selectedMediaInfo.vote_average?.toFixed(1)}
+                          {selectedMediaInfo.vote_average?.toFixed(1)} (TMDB)
                         </span>
                       )}
                       <span className="px-2 py-1 bg-blue-500/20 rounded text-xs font-medium text-blue-300 uppercase">
@@ -760,57 +860,143 @@ const ListDetails = () => {
                       </span>
                     </div>
 
-                    {/* Overview - Now first */}
-                    <div className="mb-5">
+                    {/* Overview */}
+                    <div className="mb-6">
                       <h4 className="text-sm font-semibold text-blue-400 mb-2">Overview</h4>
                       <p className="text-gray-300 leading-relaxed">
                         {selectedMediaInfo.overview || 'No overview available.'}
                       </p>
                     </div>
 
-                    {/* Status - Now second */}
-                    <div className="mb-5">
-                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Watch Status</h4>
-                      <div className="flex items-center">
-                        <span className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                          selectedMediaInfo.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                          selectedMediaInfo.watch_status === 'in_progress' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {selectedMediaInfo.watch_status?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not Watched'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Rating - Now third (if applicable) */}
-                    {selectedMediaInfo.rating && (
-                      <div className="mb-5">
-                        <h4 className="text-sm font-semibold text-blue-400 mb-2">Your Rating</h4>
-                        <div className="flex items-center">
-                          <span className="text-yellow-500 mr-2">★</span>
-                          <span className="text-lg font-bold">{selectedMediaInfo.rating}</span>
-                          <span className="text-sm text-gray-400 ml-1">/ 10</span>
+                    {/* Your Rating */}
+                    <div className="mb-5 bg-slate-700/50 p-4 rounded-lg">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-3">Your Rating</h4>
+                      
+                      <div className="flex flex-col gap-4">
+                        {/* Watch Status Selector */}
+                        <div>
+                          <label className="block text-sm text-gray-400 mb-2">Watch Status</label>
+                          <select
+                            value={selectedMediaInfo.user_rating?.watch_status || 'not_watched'}
+                            onChange={(e) => handleUpdateStatus(selectedMediaInfo.id, { watch_status: e.target.value })}
+                            className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!(list.is_owner || list.shared_with_me) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            disabled={!(list.is_owner || list.shared_with_me)}
+                          >
+                            <option value="not_watched">Not Watched</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        
+                        {/* Rating Input */}
+                        <div>
+                          <label className="block text-sm text-gray-400 mb-2">
+                            Your Rating {selectedMediaInfo.user_rating?.rating ? `(${selectedMediaInfo.user_rating.rating}/10)` : ''}
+                          </label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              step="0.1"
+                              value={selectedMediaInfo.user_rating?.rating || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                                  handleUpdateStatus(selectedMediaInfo.id, { rating: value ? Number(value) : null });
+                                }
+                              }}
+                              placeholder="1.0-10.0"
+                              className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
+                                ${selectedMediaInfo.user_rating?.watch_status !== 'completed' || !(list.is_owner || list.shared_with_me) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              disabled={!(list.is_owner || list.shared_with_me) || selectedMediaInfo.user_rating?.watch_status !== 'completed'}
+                            />
+                            {selectedMediaInfo.user_rating?.rating && (
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                                  <span 
+                                    key={star} 
+                                    className={`text-xl ${selectedMediaInfo.user_rating.rating >= star ? 'text-yellow-500' : 'text-gray-600'}`}
+                                  >
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {selectedMediaInfo.user_rating?.watch_status !== 'completed' && (
+                            <p className="text-sm text-gray-400 mt-1">
+                              Mark as completed to rate this title
+                            </p>
+                          )}
                         </div>
                       </div>
-                    )}
-
-                    {/* Added By - Now fourth */}
+                    </div>
+                    
+                    {/* All Ratings from List Members */}
                     <div className="mb-5">
-                      <h4 className="text-sm font-semibold text-blue-400 mb-2">Added By</h4>
-                      <p className="text-gray-200">{selectedMediaInfo.added_by?.username || 'Unknown'}</p>
+                      <h4 className="text-sm font-semibold text-blue-400 mb-3">Ratings from List Members</h4>
+                      {loadingRatings ? (
+                        <div className="flex justify-center p-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                        </div>
+                      ) : mediaRatings && mediaRatings.ratings && mediaRatings.ratings.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {mediaRatings.ratings.map((rating, index) => (
+                            <div key={index} className="bg-slate-700/30 p-3 rounded-lg flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-300">{rating.user.username}</span>
+                                <span className={`px-2 py-0.5 rounded text-xs ${
+                                  rating.watch_status === 'completed' ? 'bg-green-500/30 text-green-300' :
+                                  rating.watch_status === 'in_progress' ? 'bg-yellow-500/30 text-yellow-300' :
+                                  'bg-gray-500/30 text-gray-300'
+                                }`}>
+                                  {rating.watch_status.replace('_', ' ')}
+                                </span>
+                              </div>
+                              {rating.rating && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-yellow-400">★</span>
+                                  <span className="font-medium">{rating.rating}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400">No ratings from list members yet.</p>
+                      )}
+                      
+                      {/* Average Rating */}
+                      {selectedMediaInfo.avg_rating && selectedMediaInfo.rating_count > 0 && (
+                        <div className="mt-4 bg-purple-500/20 p-3 rounded-lg flex items-center justify-between">
+                          <span className="text-purple-300">List Average</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg text-purple-300">{selectedMediaInfo.avg_rating.toFixed(1)}</span>
+                            <span className="text-purple-400 text-sm">from {selectedMediaInfo.rating_count} {selectedMediaInfo.rating_count === 1 ? 'rating' : 'ratings'}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Added On - Now fifth */}
-                    {selectedMediaInfo.added_date && (
+                    {/* Added Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <h4 className="text-sm font-semibold text-blue-400 mb-2">Added On</h4>
-                        <p className="text-gray-200">{new Date(selectedMediaInfo.added_date).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}</p>
+                        <h4 className="text-sm font-semibold text-blue-400 mb-2">Added By</h4>
+                        <p className="text-gray-200">{selectedMediaInfo.added_by?.username || 'Unknown'}</p>
                       </div>
-                    )}
+                      
+                      {selectedMediaInfo.added_date && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-400 mb-2">Added On</h4>
+                          <p className="text-gray-200">{new Date(selectedMediaInfo.added_date).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
