@@ -309,7 +309,7 @@ const Hub = () => {
       lastUpdatedDate: new Date(item.last_updated)
     }));
 
-    // Sort by last_updated date and take the first 5
+    // Sort by last_updated date and take exactly 3 items
     return mediaWithDates
       .sort((a, b) => b.lastUpdatedDate - a.lastUpdatedDate)
       .slice(0, 3);
@@ -613,41 +613,91 @@ const Hub = () => {
           transition={{ delay: 0.3 }}
           className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
         >
-          <h3 className="text-xl font-semibold mb-4">Your Recent Updates</h3>
-          <div className="space-y-3">
-            {getRecentlyUpdatedMedia().map(media => (
-              <div
+          <h3 className="text-xl font-semibold mb-4">Your Recent Activity</h3>
+          <div className="space-y-4">
+            {getRecentlyUpdatedMedia().map((media, index) => (
+              <motion.div
                 key={media.id}
-                className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors duration-200"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-gradient-to-r from-slate-700/40 to-slate-700/20 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px] border border-slate-600/50"
                 onClick={() => setSelectedMedia(media)}
               >
-                <div className="flex items-center gap-3">
-                  {media.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w45${media.poster_path}`}
-                      alt={media.title}
-                      className="w-8 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
-                      <span className="text-xs text-gray-400">No img</span>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 bg-indigo-500/30 rounded-full flex items-center justify-center text-indigo-300 font-semibold">
+                      {user?.username.charAt(0).toUpperCase()}
                     </div>
-                  )}
-                  <div>
-                    <p className="font-medium line-clamp-1">{media.title}</p>
-                    <p className="text-sm text-gray-400">In: {media.list_name}</p>
+                    <div>
+                      <span className="font-medium text-indigo-400">{user?.username}</span>
+                      <span className="text-gray-400 text-sm ml-2">
+                        {media.watch_status === 'completed' ? 'completed watching' :
+                         media.watch_status === 'in_progress' ? 'started watching' :
+                         'added to watchlist'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    {media.poster_path ? (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                        alt={media.title}
+                        className="w-12 h-18 object-cover rounded-md shadow-md transform transition-transform duration-300 hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-12 h-18 bg-slate-600 rounded-md shadow-md flex items-center justify-center">
+                        <span className="text-xs text-gray-400">No img</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-white hover:text-indigo-300 transition-colors duration-200">{media.title}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{media.list_name}</span>
+                        {media.media_type && (
+                          <span className="text-xs px-2 py-1 bg-purple-500/20 rounded-full text-purple-300">{media.media_type}</span>
+                        )}
+                      </div>
+                      
+                      {media.rating && (
+                        <div className="mt-2 flex items-center">
+                          <div className="flex items-center bg-yellow-500/10 px-2 py-1 rounded-md">
+                            <span className="text-yellow-500 mr-1">★</span>
+                            <span className="text-yellow-400 font-medium">{media.rating}</span>
+                            <span className="text-yellow-600 text-xs">/10</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-xs text-gray-500">
+                          {new Date(media.last_updated).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        
+                        <div className="text-xs text-gray-400 flex items-center">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                            media.watch_status === 'completed' ? 'bg-green-500' : 
+                            media.watch_status === 'in_progress' ? 'bg-blue-500' : 
+                            'bg-purple-500'
+                          }`}></span>
+                          <span>{
+                            media.watch_status === 'completed' ? 'Completed' : 
+                            media.watch_status === 'in_progress' ? 'In Progress' : 
+                            'Not Started'
+                          }</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  media.watch_status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                  media.watch_status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {media.watch_status === 'completed' ? 'Completed' :
-                   media.watch_status === 'in_progress' ? 'In Progress' :
-                   'Not Started'}
-                </span>
-              </div>
+              </motion.div>
             ))}
             {mediaItems.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
@@ -675,42 +725,88 @@ const Hub = () => {
           transition={{ delay: 0.3 }}
           className="bg-slate-800/50 p-6 rounded-lg border border-slate-700"
         >
-          <h3 className="text-xl font-semibold mb-4">Activity Feed</h3>
-          <div className="space-y-3">
+          <h3 className="text-xl font-semibold mb-4">Recent Collaborator Activity</h3>
+          <div className="space-y-4">
             {feedItems.slice(0, 3).map((item, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="flex items-start p-3 bg-slate-700/30 rounded-lg"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-gradient-to-r from-slate-700/40 to-slate-700/20 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px] border border-slate-600/50"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-blue-400">{item.user_name}</span>
-                    <span className="text-gray-400 text-sm">
-                      {item.action}
-                    </span>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 bg-blue-500/30 rounded-full flex items-center justify-center text-blue-300 font-semibold">
+                      {item.user_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-medium text-blue-400">{item.user_name}</span>
+                      <span className="text-gray-400 text-sm ml-2">
+                        {item.action}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  
+                  <div className="flex gap-4">
                     {item.poster_path ? (
                       <img
-                        src={`https://image.tmdb.org/t/p/w45${item.poster_path}`}
+                        src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
                         alt={item.media_title}
-                        className="w-8 h-12 object-cover rounded"
+                        className="w-12 h-18 object-cover rounded-md shadow-md transform transition-transform duration-300 hover:scale-105"
                       />
                     ) : (
-                      <div className="w-8 h-12 bg-slate-600 rounded flex items-center justify-center">
+                      <div className="w-12 h-18 bg-slate-600 rounded-md shadow-md flex items-center justify-center">
                         <span className="text-xs text-gray-400">No img</span>
                       </div>
                     )}
-                    <div>
-                      <p className="font-medium line-clamp-1">{item.media_title}</p>
-                      <p className="text-sm text-gray-400">In: {item.list_name}</p>
+                    
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-white hover:text-blue-300 transition-colors duration-200">{item.media_title}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{item.list_name}</span>
+                        {item.media_type && (
+                          <span className="text-xs px-2 py-1 bg-purple-500/20 rounded-full text-purple-300">{item.media_type}</span>
+                        )}
+                      </div>
+                      
+                      {item.rating && (
+                        <div className="mt-2 flex items-center">
+                          <div className="flex items-center bg-yellow-500/10 px-2 py-1 rounded-md">
+                            <span className="text-yellow-500 mr-1">★</span>
+                            <span className="text-yellow-400 font-medium">{item.rating}</span>
+                            <span className="text-yellow-600 text-xs">/10</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-xs text-gray-500">
+                          {new Date(item.timestamp).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        
+                        <div className="text-xs text-gray-400 flex items-center">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                            item.action.includes('watched') ? 'bg-green-500' : 
+                            item.action.includes('added') ? 'bg-blue-500' : 
+                            item.action.includes('rated') ? 'bg-yellow-500' : 'bg-purple-500'
+                          }`}></span>
+                          <span>{
+                            item.action.includes('watched') ? 'Watched' : 
+                            item.action.includes('added') ? 'Added' : 
+                            item.action.includes('rated') ? 'Rated' : 'Updated'
+                          }</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {new Date(item.timestamp).toLocaleString()}
-                  </p>
                 </div>
-              </div>
+              </motion.div>
             ))}
             {feedItems.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
@@ -1201,25 +1297,25 @@ const Hub = () => {
                     {!showDeleteConfirm ? (
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 mt-2"
+                        className="w-full bg-red-500/20 text-red-500 hover:bg-red-500/30 px-4 py-2 rounded-lg mt-4 transition-colors duration-200"
                       >
                         Remove from List
                       </button>
                     ) : (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-sm text-red-400 mb-2">
-                          Are you sure you want to remove this from '{selectedMedia.list_name}'?
+                      <div className="border border-red-500/50 rounded-lg p-4 mt-4 bg-red-500/10">
+                        <p className="text-center text-sm text-red-400 mb-3">
+                          Are you sure you want to remove this from your list?
                         </p>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleDeleteMedia(selectedMedia.id)}
-                            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200"
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                           >
-                            Yes, Remove
+                            Confirm Delete
                           </button>
                           <button
                             onClick={() => setShowDeleteConfirm(false)}
-                            className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition-colors duration-200"
+                            className="flex-1 bg-slate-600 hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors duration-200"
                           >
                             Cancel
                           </button>
