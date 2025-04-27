@@ -72,6 +72,8 @@ const ListDetails = () => {
 
   const handleUpdateStatus = async (mediaId, updates) => {
     try {
+      // If changing watch status to anything other than completed,
+      // explicitly set rating to null in the updates object
       if (updates.watch_status && updates.watch_status !== 'completed') {
         updates.rating = null;
       }
@@ -92,6 +94,41 @@ const ListDetails = () => {
         throw new Error(data.error);
       }
 
+      // Get the updated media to get the new average rating
+      let updatedAvgRating = null;
+      let ratingCount = 0;
+      
+      // Always refetch ratings when watch status or rating changes
+      try {
+        // Make a request to get the updated ratings
+        const ratingsResponse = await fetch(`${apiUrl}/api/lists/${id}/media/${mediaId}/ratings`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (ratingsResponse.ok) {
+          const ratingsData = await ratingsResponse.json();
+          
+          // Calculate new average from the ratings
+          const validRatings = ratingsData.ratings.filter(r => r.rating !== null);
+          if (validRatings.length > 0) {
+            const sum = validRatings.reduce((total, r) => total + r.rating, 0);
+            updatedAvgRating = sum / validRatings.length;
+            ratingCount = validRatings.length;
+          }
+          
+          // Update the media ratings state if viewing this media
+          if (selectedMediaInfo && selectedMediaInfo.id === mediaId) {
+            setMediaRatings(ratingsData);
+          }
+        }
+      } catch (error) {
+        console.error("Error updating average rating:", error);
+      }
+
+      // Update the media item in the list
       setList(prevList => ({
         ...prevList,
         media_items: prevList.media_items.map(item =>
@@ -101,18 +138,37 @@ const ListDetails = () => {
                 user_rating: {
                   ...item.user_rating,
                   watch_status: updates.watch_status || item.user_rating.watch_status,
+                  // If changing to anything but completed, explicitly set rating to null
                   rating: updates.watch_status && updates.watch_status !== 'completed' 
                     ? null 
                     : updates.rating !== undefined ? updates.rating : item.user_rating.rating
-                }
+                },
+                // Update average rating if we got a new one
+                avg_rating: updatedAvgRating !== null ? updatedAvgRating : item.avg_rating,
+                rating_count: updatedAvgRating !== null ? ratingCount : item.rating_count
               }
             : item
         )
       }));
       
-      if (mediaRatings && selectedMediaInfo && selectedMediaInfo.id === mediaId) {
-        fetchMediaRatings(mediaId);
+      // Also update the selectedMediaInfo if this is the currently selected item
+      if (selectedMediaInfo && selectedMediaInfo.id === mediaId) {
+        setSelectedMediaInfo(prevSelected => ({
+          ...prevSelected,
+          user_rating: {
+            ...prevSelected.user_rating,
+            watch_status: updates.watch_status || prevSelected.user_rating?.watch_status,
+            // If changing to anything but completed, explicitly set rating to null
+            rating: updates.watch_status && updates.watch_status !== 'completed'
+              ? null
+              : updates.rating !== undefined ? updates.rating : prevSelected.user_rating?.rating
+          },
+          // Update average rating if we got a new one
+          avg_rating: updatedAvgRating !== null ? updatedAvgRating : prevSelected.avg_rating,
+          rating_count: updatedAvgRating !== null ? ratingCount : prevSelected.rating_count
+        }));
       }
+      
     } catch (err) {
       setError(err.message);
     }
@@ -850,7 +906,7 @@ const ListDetails = () => {
                       {selectedMediaInfo.vote_average && (
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8-2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                           {selectedMediaInfo.vote_average?.toFixed(1)} (TMDB)
                         </span>
@@ -893,37 +949,23 @@ const ListDetails = () => {
                           <label className="block text-sm text-gray-400 mb-2">
                             Your Rating {selectedMediaInfo.user_rating?.rating ? `(${selectedMediaInfo.user_rating.rating}/10)` : ''}
                           </label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              step="0.1"
-                              value={selectedMediaInfo.user_rating?.rating || ''}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                                  handleUpdateStatus(selectedMediaInfo.id, { rating: value ? Number(value) : null });
-                                }
-                              }}
-                              placeholder="1.0-10.0"
-                              className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
-                                ${selectedMediaInfo.user_rating?.watch_status !== 'completed' || !(list.is_owner || list.shared_with_me) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                              disabled={!(list.is_owner || list.shared_with_me) || selectedMediaInfo.user_rating?.watch_status !== 'completed'}
-                            />
-                            {selectedMediaInfo.user_rating?.rating && (
-                              <div className="flex">
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                                  <span 
-                                    key={star} 
-                                    className={`text-xl ${selectedMediaInfo.user_rating.rating >= star ? 'text-yellow-500' : 'text-gray-600'}`}
-                                  >
-                                    ★
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            value={selectedMediaInfo.user_rating?.rating || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                                handleUpdateStatus(selectedMediaInfo.id, { rating: value ? Number(value) : null });
+                              }
+                            }}
+                            placeholder="1.0-10.0"
+                            className={`w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500
+                              ${selectedMediaInfo.user_rating?.watch_status !== 'completed' || !(list.is_owner || list.shared_with_me) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            disabled={!(list.is_owner || list.shared_with_me) || selectedMediaInfo.user_rating?.watch_status !== 'completed'}
+                          />
                           {selectedMediaInfo.user_rating?.watch_status !== 'completed' && (
                             <p className="text-sm text-gray-400 mt-1">
                               Mark as completed to rate this title

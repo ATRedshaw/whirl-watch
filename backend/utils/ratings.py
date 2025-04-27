@@ -37,10 +37,15 @@ def update_user_rating(user_id, media_id, watch_status=None, rating=None):
     """Update a user's rating for a specific media item"""
     user_rating = get_or_create_user_rating(user_id, media_id)
     
+    # If watch status is changing to anything other than 'completed',
+    # automatically set rating to None
     if watch_status is not None:
         user_rating.watch_status = watch_status
+        if watch_status != 'completed':
+            user_rating.rating = None
     
-    if rating is not None:
+    # Only apply rating if explicitly provided and watch_status is 'completed'
+    if rating is not None and (user_rating.watch_status == 'completed'):
         user_rating.rating = rating
     
     user_rating.updated_at = datetime.utcnow()
