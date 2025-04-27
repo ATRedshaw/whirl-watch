@@ -4,7 +4,7 @@ Utility functions for handling media ratings
 from datetime import datetime
 from sqlalchemy import func
 from extensions import db
-from models import Media, UserMediaRating, MediaInList
+from models import Media, UserMediaRating, MediaInList, SharedList, MediaList
 
 def get_or_create_media(tmdb_id, media_type):
     """Get existing media or create if it doesn't exist"""
@@ -145,3 +145,42 @@ def get_all_ratings_for_media_in_list(list_id, media_id):
         }
         for rating, username in ratings
     ]
+
+def clean_orphaned_ratings(user_id, media_id):
+    """
+    Delete a user's rating for a media item if it's no longer in any of their lists.
+    Returns True if deleted, False if kept.
+    """
+    # Check if the media exists in any list the user has access to
+    # First, check user's owned lists
+    owned_list_with_media = db.session.query(MediaInList).join(
+        MediaList, MediaList.id == MediaInList.list_id
+    ).filter(
+        MediaList.owner_id == user_id,
+        MediaInList.media_id == media_id
+    ).first()
+    
+    if owned_list_with_media:
+        return False  # Media is in user's owned list, keep the rating
+    
+    # Then check shared lists
+    shared_list_with_media = db.session.query(MediaInList).join(
+        SharedList, SharedList.list_id == MediaInList.list_id
+    ).filter(
+        SharedList.user_id == user_id,
+        MediaInList.media_id == media_id
+    ).first()
+    
+    if shared_list_with_media:
+        return False  # Media is in a shared list, keep the rating
+    
+    # If media isn't in any of the user's lists, delete the rating
+    user_rating = UserMediaRating.query.filter_by(
+        user_id=user_id, media_id=media_id
+    ).first()
+    
+    if user_rating:
+        db.session.delete(user_rating)
+        return True  # Rating was deleted
+    
+    return False  # No rating found to delete

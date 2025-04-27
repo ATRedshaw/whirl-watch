@@ -28,6 +28,7 @@ from utils.ratings import (
     get_average_rating,
     get_user_ratings_for_list,
     get_all_ratings_for_media_in_list,
+    clean_orphaned_ratings,
 )
 from config import MAX_USERS_PER_LIST, MAX_LISTS_PER_USER
 
@@ -240,16 +241,29 @@ def remove_user_from_list(list_id, user_id):
         if lst.owner_id != current_user_id:
             raise Forbidden("Not authorized to remove users from this list")
 
+        # Get all media in this list for later cleanup
+        media_in_list = MediaInList.query.filter_by(list_id=list_id).all()
+        media_ids = [item.media_id for item in media_in_list]
+        
         # Delete media added by this user from the list
-        # Note: We don't delete the ratings, just the list associations
         MediaInList.query.filter_by(list_id=list_id, added_by_id=user_id).delete()
         
         shared_access = SharedList.query.filter_by(list_id=list_id, user_id=user_id).first_or_404()
         db.session.delete(shared_access)
         db.session.commit()
+        
+        # Now clean up orphaned ratings for the removed user
+        cleaned_ratings = []
+        for media_id in media_ids:
+            if clean_orphaned_ratings(user_id, media_id):
+                cleaned_ratings.append(media_id)
+        
+        if cleaned_ratings:
+            db.session.commit()
 
         return jsonify({
-            "message": "User removed successfully. All media items added by this user have been removed from the list."
+            "message": "User removed successfully. All media items added by this user have been removed from the list.",
+            "ratings_cleaned": len(cleaned_ratings)
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -266,16 +280,32 @@ def leave_list(list_id):
         if lst.owner_id == current_user_id:
             raise BadRequest("Cannot leave a list you own")
 
+        # Get all media in this list for later cleanup
+        media_in_list = MediaInList.query.filter_by(list_id=list_id).all()
+        media_ids = [item.media_id for item in media_in_list]
+        
         # Remove media items added by the user
-        # Note: We don't delete the ratings, just the list associations
         MediaInList.query.filter_by(list_id=list_id, added_by_id=current_user_id).delete()
         
+        # Remove the user from the shared list
         shared_access = SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first_or_404()
         db.session.delete(shared_access)
+        
+        # Commit these changes first
         db.session.commit()
+        
+        # Now clean up orphaned ratings
+        cleaned_ratings = []
+        for media_id in media_ids:
+            if clean_orphaned_ratings(current_user_id, media_id):
+                cleaned_ratings.append(media_id)
+        
+        if cleaned_ratings:
+            db.session.commit()
 
         return jsonify({
-            "message": "Successfully left the list. All media items you added have been removed."
+            "message": "Successfully left the list. All media items you added have been removed.",
+            "ratings_cleaned": len(cleaned_ratings)
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -402,12 +432,35 @@ def delete_list(list_id):
         if lst.owner_id != current_user_id:
             raise Forbidden("Not authorized to delete this list")
 
-        # Delete all media in list entries (but not the Media or UserMediaRating records)
+        # Get all users with access to this list
+        owner_id = lst.owner_id
+        shared_user_ids = [su.user_id for su in SharedList.query.filter_by(list_id=list_id).all()]
+        all_user_ids = [owner_id] + shared_user_ids
+        
+        # Get all media in this list for later cleanup
+        media_in_list = MediaInList.query.filter_by(list_id=list_id).all()
+        media_ids = [item.media_id for item in media_in_list]
+        
+        # Delete all related list entries
         MediaInList.query.filter_by(list_id=list_id).delete()
         SharedList.query.filter_by(list_id=list_id).delete()
         db.session.delete(lst)
         db.session.commit()
-        return jsonify({"message": "List deleted successfully"}), 200
+        
+        # Now clean up orphaned ratings for all users
+        cleaned_ratings = 0
+        for user_id in all_user_ids:
+            for media_id in media_ids:
+                if clean_orphaned_ratings(user_id, media_id):
+                    cleaned_ratings += 1
+        
+        if cleaned_ratings > 0:
+            db.session.commit()
+            
+        return jsonify({
+            "message": "List deleted successfully",
+            "ratings_cleaned": cleaned_ratings
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -538,20 +591,43 @@ def _delete_media_internal(list_id, media_id=None, tmdb_id=None):
         if lst.owner_id != current_user_id and not SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first():
             raise Forbidden("Not authorized to modify this list")
 
+        # Store media ID for later cleanup
+        actual_media_id = None
+        
         if media_id:
             # Find the media list entry by its ID
             media_list_entry = MediaInList.query.filter_by(list_id=list_id, id=media_id).first_or_404()
+            actual_media_id = media_list_entry.media_id
             db.session.delete(media_list_entry)
         else:
             # Find the Media record by TMDB ID
             media = Media.query.filter_by(tmdb_id=tmdb_id).first_or_404()
+            actual_media_id = media.id
             # Then find the MediaInList entry
             media_list_entry = MediaInList.query.filter_by(list_id=list_id, media_id=media.id).first_or_404()
             db.session.delete(media_list_entry)
 
         lst.last_updated = datetime.utcnow()
         db.session.commit()
-        return jsonify({"message": "Media removed successfully"}), 200
+        
+        # Get all users who had access to this list
+        owner_id = lst.owner_id
+        shared_user_ids = [su.user_id for su in SharedList.query.filter_by(list_id=list_id).all()]
+        all_user_ids = [owner_id] + shared_user_ids
+        
+        # Clean up orphaned ratings for all users
+        cleaned_count = 0
+        for user_id in all_user_ids:
+            if clean_orphaned_ratings(user_id, actual_media_id):
+                cleaned_count += 1
+        
+        if cleaned_count > 0:
+            db.session.commit()
+            
+        return jsonify({
+            "message": "Media removed successfully", 
+            "ratings_cleaned": cleaned_count
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
