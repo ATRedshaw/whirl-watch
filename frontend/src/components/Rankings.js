@@ -20,6 +20,8 @@ const Rankings = () => {
   });
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [mediaRatings, setMediaRatings] = useState(null);
+  const [loadingRatings, setLoadingRatings] = useState(false);
 
   // Reset to page 1 when filters or rating mode changes
   useEffect(() => {
@@ -296,8 +298,75 @@ const Rankings = () => {
       // If clicking a list average item, try to find personal copy first
       const personalCopy = mediaItems.find(item => item.tmdb_id === media.tmdb_id);
       setSelectedMedia(personalCopy || media);
+      
+      // If in list average mode, fetch individual user ratings
+      if (selectedList !== 'all' && media.id) {
+        fetchMediaRatings(media.id);
+      } else if (selectedList !== 'all') {
+        // Find the media item in the list
+        fetchMediaByTmdbId(media.tmdb_id, selectedList);
+      }
     } else {
       setSelectedMedia(media);
+    }
+  };
+  
+  // Function to fetch individual user ratings for a media item
+  const fetchMediaRatings = async (mediaId) => {
+    try {
+      setLoadingRatings(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/api/lists/${selectedList}/media/${mediaId}/ratings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch ratings');
+      }
+      
+      const data = await response.json();
+      setMediaRatings(data);
+    } catch (err) {
+      console.error('Error fetching media ratings:', err);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+  
+  // Function to fetch media by TMDB ID when we don't have the media ID yet
+  const fetchMediaByTmdbId = async (tmdbId, listId) => {
+    try {
+      setLoadingRatings(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      // First get the list details to find the media ID
+      const response = await fetch(`${apiUrl}/api/lists/${listId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch list details');
+      }
+      
+      const listData = await response.json();
+      const mediaItem = listData.media_items?.find(item => item.tmdb_id === tmdbId);
+      
+      if (mediaItem && mediaItem.id) {
+        // Now that we have the media ID, fetch the ratings
+        fetchMediaRatings(mediaItem.id);
+      }
+    } catch (err) {
+      console.error('Error fetching media by TMDB ID:', err);
+      setLoadingRatings(false);
     }
   };
 
@@ -480,27 +549,21 @@ const Rankings = () => {
             className="text-center py-12 bg-slate-800/50 rounded-lg border border-slate-700"
           >
             <div className="text-gray-400">
-              <svg 
-                className="w-16 h-16 mx-auto mb-4 opacity-50" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" 
-                />
-              </svg>
-              <h3 className="text-xl font-semibold mb-2">No Rated Media</h3>
-              <p className="text-gray-500 mb-4">
-                {ratingMode === 'personal' 
-                  ? "Rate some movies or TV shows to see them here!" 
-                  : selectedList === 'all'
-                    ? "Please select a list to view average ratings"
-                    : "No average ratings available for this list."}
-              </p>
+                <svg 
+                  className="w-16 h-16 mx-auto mb-4 opacity-50" 
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                <h3 className="text-xl font-semibold mb-2">No Rated Media</h3>
+                <p className="text-gray-500 mb-4">
+                  {ratingMode === 'personal' 
+                    ? "Rate some movies or TV shows to see them here!" 
+                    : selectedList === 'all'
+                      ? "Please select a list to view average ratings"
+                      : "No average ratings available for this list."}
+                </p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -574,7 +637,9 @@ const Rankings = () => {
                   <div className={`flex items-center gap-1 px-3 py-1 rounded ${
                     activeTab === 'highest' ? 'bg-green-500/20' : 'bg-red-500/20'
                   }`}>
-                    <span className="text-yellow-500">⭐</span>
+                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
                     <span className={`font-medium ${
                       activeTab === 'highest' ? 'text-green-400' : 'text-red-400'
                     }`}>
@@ -726,10 +791,51 @@ const Rankings = () => {
                       <div className="mb-5">
                         <h4 className="text-sm font-semibold text-blue-400 mb-2">List Average Rating</h4>
                         <div className="flex items-center gap-2">
-                          <span className="text-yellow-500">⭐</span>
+                          <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
                           <span className="text-xl font-medium text-white">{selectedMedia.average_rating.toFixed(1)}</span>
                           <span className="text-sm text-gray-400">from {selectedMedia.rating_count || 0} ratings</span>
                         </div>
+                      </div>
+                    )}
+                    
+                    {/* User Ratings (for list averages) */}
+                    {ratingMode === 'list_average' && selectedList !== 'all' && (
+                      <div className="mb-5">
+                        <h4 className="text-sm font-semibold text-blue-400 mb-2">User Ratings</h4>
+                        {loadingRatings ? (
+                          <div className="flex justify-center p-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                          </div>
+                        ) : mediaRatings && mediaRatings.ratings && mediaRatings.ratings.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            {mediaRatings.ratings.map((rating, index) => (
+                              <div key={index} className="bg-slate-700/30 p-3 rounded-lg flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-300">{rating.user.username}</span>
+                                  <span className={`px-2 py-0.5 rounded text-xs ${
+                                    rating.watch_status === 'completed' ? 'bg-green-500/30 text-green-300' :
+                                    rating.watch_status === 'in_progress' ? 'bg-yellow-500/30 text-yellow-300' :
+                                    'bg-gray-500/30 text-gray-300'
+                                  }`}>
+                                    {rating.watch_status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                {rating.rating && (
+                                  <div className="flex items-center gap-1">
+                                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span className="font-medium">{rating.rating}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 p-3 bg-slate-700/20 rounded-lg">No ratings from list members yet.</p>
+                        )}
                       </div>
                     )}
 
