@@ -360,7 +360,38 @@ const ListDetails = () => {
             </button>
             <h1 className="text-3xl font-bold">{list.name}</h1>
             <button
-              onClick={() => navigate('/rankings', { state: { initialList: list.id, listName: list.name } })}
+              onClick={() => {
+                // Pre-process and format all the data needed by Rankings to prevent any loading flicker
+                const ratedMedia = list.media_items
+                  .filter(item => item.avg_rating !== null && item.rating_count > 0)
+                  .map(item => ({
+                    ...item,
+                    average_rating: item.avg_rating,
+                    list_id: parseInt(id),
+                    list_name: list.name,
+                    // Include all fields that Rankings will need
+                    title: item.title,
+                    media_type: item.media_type,
+                    poster_path: item.poster_path,
+                    release_date: item.release_date,
+                    first_air_date: item.first_air_date,
+                    vote_average: item.vote_average,
+                    overview: item.overview,
+                    tmdb_id: item.tmdb_id,
+                    rating_count: item.rating_count
+                  }));
+                
+                // Pass complete data to ensure zero loading flicker
+                navigate('/rankings', { 
+                  state: { 
+                    initialList: id, 
+                    listName: list.name,
+                    initialRatingMode: 'list_average',
+                    mediaItems: ratedMedia,
+                    skipInitialFetch: true
+                  } 
+                });
+              }}
               className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
