@@ -196,6 +196,11 @@ const Rankings = () => {
   // Update useEffect for list selection change
   useEffect(() => {
     const fetchListData = async () => {
+      // Skip fetching if this is a user-initiated change (handled directly in handlers)
+      if (initialStateRef.current.isUserModeChange) {
+        return;
+      }
+      
       // Only fetch list data if we're in list_average mode and a list is selected
       // Skip if we're still handling the initial navigation with preloaded data
       if (ratingMode === 'list_average' && selectedList !== 'all' && !initialStateRef.current.hasPreloadedData) {
@@ -256,9 +261,8 @@ const Rankings = () => {
     // Set loading to provide feedback
     setLoading(true);
     
-    // Update the list selection state
-    setListName(newListName);
-    setSelectedList(listId);
+    // Set a flag to prevent the useEffect from triggering another load
+    initialStateRef.current.isUserModeChange = true;
     
     // Direct data fetching approach instead of relying on the useEffect chain
     const fetchSelectedListData = async () => {
@@ -285,15 +289,28 @@ const Rankings = () => {
             list_name: newListName
           }));
           
+          // Batch state updates after fetch completes to reduce renders
           setMediaItems(processedRatings);
+          setListName(newListName);
+          setSelectedList(listId);
         } else {
+          // Batch state updates
           setMediaItems([]);
+          setListName(newListName);
+          setSelectedList(listId);
         }
       } catch (err) {
         console.error(`Error fetching list averages:`, err);
         setError(err.message);
+        // Still update these states even on error
+        setListName(newListName);
+        setSelectedList(listId);
       } finally {
         setLoading(false);
+        // Reset the flag after a short delay to prevent race conditions
+        setTimeout(() => {
+          initialStateRef.current.isUserModeChange = false;
+        }, 100);
       }
     };
     
