@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,6 +22,11 @@ const Rankings = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [mediaRatings, setMediaRatings] = useState(null);
   const [loadingRatings, setLoadingRatings] = useState(false);
+  
+  // Use this ref to track if we're handling the initial navigation from ListDetails
+  const initialListLoadRef = useRef(!!location.state?.initialList);
+  // Track if we're handling mode changes internally vs. automatic ones
+  const isHandlingModeChange = useRef(false);
 
   // Reset to page 1 when filters or rating mode changes
   useEffect(() => {
@@ -35,7 +40,11 @@ const Rankings = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
+        // Only set loading true if we're not already in a special state flow
+        if (!initialListLoadRef.current) {
+          setLoading(true);
+        }
+        
         const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
         const token = localStorage.getItem('token');
 
@@ -60,11 +69,9 @@ const Rankings = () => {
         let allMedia = userMediaData.media_items || [];
 
         // Filter only rated media for personal ratings and create a unique set by TMDB ID
-        // This prevents duplicates if the same media appears in multiple lists
         const uniqueMediaMap = new Map();
         allMedia.forEach(item => {
           if (item.rating !== null && item.rating !== undefined) {
-            // If we already have this media, keep the one with the higher rating
             if (uniqueMediaMap.has(item.tmdb_id)) {
               const existing = uniqueMediaMap.get(item.tmdb_id);
               if (item.rating > existing.rating) {
@@ -76,7 +83,11 @@ const Rankings = () => {
           }
         });
         const uniqueRatedMedia = Array.from(uniqueMediaMap.values());
-        setMediaItems(uniqueRatedMedia);
+        
+        // Only update media items if we're in personal mode
+        if (ratingMode === 'personal') {
+          setMediaItems(uniqueRatedMedia);
+        }
 
         // Fetch lists for average ratings section
         const listsResponse = await fetch(`${apiUrl}/api/lists`, {
@@ -96,14 +107,24 @@ const Rankings = () => {
 
         // If in list average mode, and a list is selected, fetch the average ratings
         if (ratingMode === 'list_average' && selectedList !== 'all') {
-          await fetchListAverages(selectedList);
+          // Don't await here, the other useEffect will handle this
+          // Only fetch list ratings here if we're not coming from ListDetails
+          if (!initialListLoadRef.current) {
+            await fetchListAverages(selectedList);
+          }
         }
 
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err.message);
       } finally {
-        setLoading(false);
+        // Only set loading false if we're not in the special navigation case
+        if (!initialListLoadRef.current) {
+          setLoading(false);
+        }
+        
+        // We've completed the initial load, so reset the ref
+        isHandlingModeChange.current = false;
       }
     };
 
@@ -114,7 +135,12 @@ const Rankings = () => {
   // Define fetchListAverages with useCallback to avoid dependency issues
   const fetchListAverages = useCallback(async (listId) => {
     try {
-      setLoading(true);
+      // Don't set loading here if we're already handling the initial list navigation
+      // This prevents unnecessary loading state changes
+      if (!initialListLoadRef.current) {
+        setLoading(true);
+      }
+      
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
@@ -150,41 +176,116 @@ const Rankings = () => {
       setError(err.message);
     } finally {
       setLoading(false);
+      // Mark the initial load as complete if this was triggered during navigation
+      if (initialListLoadRef.current) {
+        initialListLoadRef.current = false;
+      }
     }
   }, [lists]);
 
   // Update useEffect for list selection change
   useEffect(() => {
     const fetchListData = async () => {
+      // Only fetch list data if we're in list_average mode and a list is selected
       if (ratingMode === 'list_average' && selectedList !== 'all') {
-        // Set loading state immediately to prevent flicker
-        setLoading(true);
-        // Clear media items to prevent showing stale data
-        setMediaItems([]);
-        await fetchListAverages(selectedList);
+        // Don't set loading if we're handling the initial navigation and lists haven't been loaded yet
+        if (!(initialListLoadRef.current && lists.length === 0)) {
+          setLoading(true);
+          // Clear media items to prevent showing stale data
+          setMediaItems([]);
+          await fetchListAverages(selectedList);
+        }
       }
     };
     
     fetchListData();
-  }, [selectedList, ratingMode, fetchListAverages]);
+  }, [selectedList, ratingMode, fetchListAverages, lists.length]);
 
-  // Additional useEffect to handle initial navigation from ListDetails
+  // Dedicated useEffect to handle initial navigation from ListDetails
   useEffect(() => {
     // When navigating from ListDetails with a specific list
-    if (location.state?.initialList && lists.length > 0) {
+    if (location.state?.initialList && lists.length > 0 && initialListLoadRef.current) {
       const listId = location.state.initialList;
       // Check if the list exists in our lists array
       const listExists = lists.some(list => list.id === parseInt(listId));
+      
       if (listExists) {
-        // Make sure we're in list_average mode
-        setRatingMode('list_average');
-        // Select the list
-        setSelectedList(listId);
-        // Update list name if provided
-        if (location.state.listName) {
-          setListName(location.state.listName);
-        }
+        // We're going to handle this specially to avoid multiple loading states
+        // Set loading true here and keep it until we're done
+        setLoading(true);
+        
+        // Batch our state updates to minimize re-renders by using a timeout
+        // This ensures React processes all state updates in a single batch
+        setTimeout(() => {
+          // First update ratings mode
+          setRatingMode('list_average');
+          
+          // Update list name if provided
+          if (location.state.listName) {
+            setListName(location.state.listName);
+          }
+          
+          // Update selected list
+          setSelectedList(listId);
+          
+          // Directly fetch data without relying on the useEffect chain
+          const fetchInitialListData = async () => {
+            try {
+              const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+              const token = localStorage.getItem('token');
+              
+              const avgRatingsResponse = await fetch(`${apiUrl}/api/lists/${listId}/average_ratings`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json'
+                }
+              });
+              
+              if (!avgRatingsResponse.ok) {
+                throw new Error(`Failed to fetch average ratings for list ${listId}`);
+              }
+              
+              const avgRatingsData = await avgRatingsResponse.json();
+              if (avgRatingsData.average_ratings && avgRatingsData.average_ratings.length > 0) {
+                // Update the list information in each media item
+                const selectedListInfo = lists.find(list => list.id === parseInt(listId));
+                const listName = selectedListInfo ? selectedListInfo.name : 'Unknown List';
+                
+                const processedRatings = avgRatingsData.average_ratings.map(item => ({
+                  ...item,
+                  list_id: parseInt(listId),
+                  list_name: listName
+                }));
+                
+                setMediaItems(processedRatings);
+              } else {
+                setMediaItems([]);
+              }
+              
+              // Now that everything is loaded, set initialListLoadRef to false
+              initialListLoadRef.current = false;
+              // Finally set loading to false only once all data is ready
+              setLoading(false);
+            } catch (err) {
+              console.error('Error fetching initial list data:', err);
+              setError(err.message);
+              initialListLoadRef.current = false;
+              setLoading(false);
+            }
+          };
+          
+          fetchInitialListData();
+        }, 0);
+      } else {
+        // If the list doesn't exist, mark the initial load as complete
+        initialListLoadRef.current = false;
+        // Make sure loading is false
+        setLoading(false);
       }
+    } else if (initialListLoadRef.current && lists.length > 0) {
+      // If we've loaded lists but didn't find our initialList, mark the process as complete
+      initialListLoadRef.current = false;
+      setLoading(false);
     }
   }, [lists, location.state]);
 
@@ -192,11 +293,55 @@ const Rankings = () => {
   const handleListChange = (listId) => {
     // Set loading immediately to prevent flicker
     setLoading(true);
-    setSelectedList(listId);
     
     // Find the selected list name
     const selectedListInfo = lists.find(list => list.id === parseInt(listId));
-    setListName(selectedListInfo ? selectedListInfo.name : '');
+    const newListName = selectedListInfo ? selectedListInfo.name : '';
+    
+    // Batch updates using setTimeout to ensure a single render cycle
+    setTimeout(() => {
+      setListName(newListName);
+      setSelectedList(listId);
+      
+      // Direct data fetching approach instead of relying on the useEffect chain
+      const fetchSelectedListData = async () => {
+        try {
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+          const token = localStorage.getItem('token');
+          
+          const avgRatingsResponse = await fetch(`${apiUrl}/api/lists/${listId}/average_ratings`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (!avgRatingsResponse.ok) {
+            throw new Error(`Failed to fetch average ratings for list ${listId}`);
+          }
+          
+          const avgRatingsData = await avgRatingsResponse.json();
+          if (avgRatingsData.average_ratings && avgRatingsData.average_ratings.length > 0) {
+            const processedRatings = avgRatingsData.average_ratings.map(item => ({
+              ...item,
+              list_id: parseInt(listId),
+              list_name: newListName
+            }));
+            
+            setMediaItems(processedRatings);
+          } else {
+            setMediaItems([]);
+          }
+        } catch (err) {
+          console.error(`Error fetching list averages:`, err);
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchSelectedListData();
+    }, 0);
   };
 
   // Handle rating mode change
