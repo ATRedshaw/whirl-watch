@@ -333,12 +333,31 @@ const Rankings = () => {
   // Handle rating mode change
   const handleRatingModeChange = async (mode) => {
     initialStateRef.current.isUserModeChange = true;
-    setLoading(true);
-    setRatingMode(mode);
-    setSelectedList('all'); // Reset list selection
     
-    // Directly fetch data when changing to personal mode instead of relying on the useEffect
-    if (mode === 'personal') {
+    // Set loading first for both modes
+    setLoading(true);
+    
+    // When switching to list_average, clear media items immediately to prevent flickering
+    if (mode === 'list_average') {
+      // Clear the media items first to prevent showing stale content
+      setMediaItems([]);
+      setRatingMode(mode);
+      setSelectedList('all');
+      
+      // Keep the loading state active while lists are shown
+      setTimeout(() => {
+        setLoading(false);
+        // Reset the user mode change flag after a short delay
+        setTimeout(() => {
+          initialStateRef.current.isUserModeChange = false;
+        }, 100);
+      }, 100);
+    } else if (mode === 'personal') {
+      // For personal mode, keep current flow but ensure loading is set first
+      setRatingMode(mode);
+      setSelectedList('all'); // Reset list selection
+      
+      // Directly fetch data when changing to personal mode instead of relying on the useEffect
       try {
         const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
         const token = localStorage.getItem('token');
@@ -390,14 +409,6 @@ const Rankings = () => {
           initialStateRef.current.isUserModeChange = false;
         }, 100);
       }
-    } else if (mode === 'list_average') {
-      // Reset the media items array to avoid showing stale data
-      setMediaItems([]);
-      setLoading(false);
-      // Reset the user mode change flag after a short delay
-      setTimeout(() => {
-        initialStateRef.current.isUserModeChange = false;
-      }, 100);
     }
   };
 
@@ -835,7 +846,7 @@ const Rankings = () => {
                       {media.vote_average && (
                         <span className="flex items-center gap-1">
                           <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 01-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 01-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 01.951-.69l1.07-3.292z"></path>
                           </svg>
                           {media.vote_average.toFixed(1)} (TMDB)
                         </span>
