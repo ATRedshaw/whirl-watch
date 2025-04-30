@@ -146,7 +146,8 @@ const Roulette = () => {
       // Check if this media matches the watch status filter for selected users
       let matchesWatchStatusFilter = true;
       
-      if (watchStatusFilter.users.length > 0) {
+      // If the mode is 'all_statuses', skip the watch status check entirely
+      if (watchStatusFilter.users.length > 0 && watchStatusFilter.mode !== 'all_statuses') {
         // Different filtering logic based on mode
         if (watchStatusFilter.mode === 'any') {
           // ANY: At least one selected user must have the specified status
@@ -409,12 +410,14 @@ const Roulette = () => {
                 <div className="mt-3 p-3 bg-slate-800/80 rounded-lg border border-slate-700">
                   <p className="text-sm text-gray-300">
                     <span className="font-medium text-blue-400">
-                      {watchStatusFilter.mode === 'none' 
+                      {watchStatusFilter.mode === 'all_statuses'
+                        ? 'Showing all media regardless of watch status'
+                        : watchStatusFilter.mode === 'none' 
                         ? 'Showing media not watched by any selected user'
                         : watchStatusFilter.mode === 'all'
                         ? `Showing media where all selected users have status: ${watchStatusFilter.status.replace('_', ' ')}`
                         : `Showing media where any selected user has status: ${watchStatusFilter.status.replace('_', ' ')}`
-                      }
+                    }
                     </span>
                   </p>
                 </div>
@@ -634,6 +637,35 @@ const Roulette = () => {
                     </label>
                     <div className="space-y-3">
                       <button
+                        onClick={() => setTempFilterSettings(prev => ({
+                          ...prev, 
+                          mode: 'all_statuses',
+                          users: listUsers.map(user => user.id) // Auto-select all users when selecting All Watch Statuses
+                        }))}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 flex items-center ${
+                          tempFilterSettings.mode === 'all_statuses'
+                            ? 'bg-blue-500/30 border border-blue-500'
+                            : 'bg-slate-700/50 hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="mr-3">
+                          <div className={`w-5 h-5 rounded-full border ${
+                            tempFilterSettings.mode === 'all_statuses' 
+                              ? 'border-blue-500 flex items-center justify-center' 
+                              : 'border-gray-400'
+                          }`}>
+                            {tempFilterSettings.mode === 'all_statuses' && (
+                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-medium">All Watch Statuses</div>
+                          <div className="text-sm text-gray-400">Show all media regardless of watch status</div>
+                        </div>
+                      </button>
+
+                      <button
                         onClick={() => setTempFilterSettings(prev => ({...prev, mode: 'any'}))}
                         className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 flex items-center ${
                           tempFilterSettings.mode === 'any'
@@ -686,7 +718,7 @@ const Roulette = () => {
                   </div>
 
                   {/* Watch Status Selection - Only visible for "all" and "any" modes */}
-                  {tempFilterSettings.mode !== 'none' && (
+                  {tempFilterSettings.mode !== 'none' && tempFilterSettings.mode !== 'all_statuses' && (
                     <div className="mb-6">
                       <label className="block text-sm font-semibold text-blue-400 mb-2">
                         Watch Status:
@@ -703,80 +735,96 @@ const Roulette = () => {
                     </div>
                   )}
 
-                  {/* User Selection */}
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="text-sm font-semibold text-blue-400">
-                        Select Users:
-                      </label>
-                      <div className="flex space-x-2">
-                        {listUsers.length > 0 && (
-                          <button
-                            onClick={() => setTempFilterSettings(prev => ({...prev, users: listUsers.map(user => user.id)}))}
-                            className="text-xs px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors duration-200"
-                          >
-                            Select All
-                          </button>
-                        )}
-                        {tempFilterSettings.users.length > 0 && (
-                          <button
-                            onClick={() => setTempFilterSettings(prev => ({...prev, users: []}))}
-                            className="text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors duration-200"
-                          >
-                            Clear All
-                          </button>
+                  {/* User Selection - Hide when 'all_statuses' mode is selected */}
+                  {tempFilterSettings.mode !== 'all_statuses' ? (
+                    <div className="mb-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-semibold text-blue-400">
+                          Select Users:
+                        </label>
+                        <div className="flex space-x-2">
+                          {listUsers.length > 0 && (
+                            <button
+                              onClick={() => setTempFilterSettings(prev => ({...prev, users: listUsers.map(user => user.id)}))}
+                              className="text-xs px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors duration-200"
+                            >
+                              Select All
+                            </button>
+                          )}
+                          {tempFilterSettings.users.length > 0 && (
+                            <button
+                              onClick={() => setTempFilterSettings(prev => ({...prev, users: []}))}
+                              className="text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors duration-200"
+                            >
+                              Clear All
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                        {listUsers.length > 0 ? (
+                          <div className="space-y-2">
+                            {listUsers.map(user => (
+                              <div 
+                                key={user.id}
+                                onClick={() => {
+                                  setTempFilterSettings(prev => {
+                                    const isSelected = prev.users.includes(user.id);
+                                    return {
+                                      ...prev,
+                                      users: isSelected
+                                        ? prev.users.filter(id => id !== user.id)
+                                        : [...prev.users, user.id]
+                                    };
+                                  });
+                                }}
+                                className={`p-2 rounded flex items-center cursor-pointer transition-colors duration-200 ${
+                                  tempFilterSettings.users.includes(user.id)
+                                    ? 'bg-blue-500/30'
+                                    : 'hover:bg-slate-700'
+                                }`}
+                              >
+                                <div className={`w-5 h-5 mr-3 rounded border flex items-center justify-center ${
+                                  tempFilterSettings.users.includes(user.id)
+                                    ? 'bg-blue-500 border-blue-500'
+                                    : 'border-gray-400'
+                                }`}>
+                                  {tempFilterSettings.users.includes(user.id) && (
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>{user.username}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 text-center py-3">No users available</p>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {tempFilterSettings.users.length === 0 
+                          ? "No users selected" 
+                          : `${tempFilterSettings.users.length} user${tempFilterSettings.users.length > 1 ? 's' : ''} selected`}
+                      </p>
                     </div>
-                    <div className="bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto">
-                      {listUsers.length > 0 ? (
-                        <div className="space-y-2">
-                          {listUsers.map(user => (
-                            <div 
-                              key={user.id}
-                              onClick={() => {
-                                setTempFilterSettings(prev => {
-                                  const isSelected = prev.users.includes(user.id);
-                                  return {
-                                    ...prev,
-                                    users: isSelected
-                                      ? prev.users.filter(id => id !== user.id)
-                                      : [...prev.users, user.id]
-                                  };
-                                });
-                              }}
-                              className={`p-2 rounded flex items-center cursor-pointer transition-colors duration-200 ${
-                                tempFilterSettings.users.includes(user.id)
-                                  ? 'bg-blue-500/30'
-                                  : 'hover:bg-slate-700'
-                              }`}
-                            >
-                              <div className={`w-5 h-5 mr-3 rounded border flex items-center justify-center ${
-                                tempFilterSettings.users.includes(user.id)
-                                  ? 'bg-blue-500 border-blue-500'
-                                  : 'border-gray-400'
-                              }`}>
-                                {tempFilterSettings.users.includes(user.id) && (
-                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
-                                  </svg>
-                                )}
-                              </div>
-                              <span>{user.username}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 text-center py-3">No users available</p>
-                      )}
+                  ) : (
+                    <div className="mb-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-semibold text-blue-400">
+                          User Selection:
+                        </label>
+                      </div>
+                      <div className="p-3 bg-slate-700/20 rounded-lg">
+                        <p className="text-gray-400 text-center py-1">All users automatically selected</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {`${listUsers.length} user${listUsers.length > 1 ? 's' : ''} selected`}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {tempFilterSettings.users.length === 0 
-                        ? "No users selected" 
-                        : `${tempFilterSettings.users.length} user${tempFilterSettings.users.length > 1 ? 's' : ''} selected`}
-                    </p>
-                  </div>
-
+                  )}
+                  
                   {/* Filter Preview */}
                   {tempFilterSettings.users.length > 0 && (
                     <div className="p-3 bg-slate-800 border border-slate-700 rounded-lg mb-6">
@@ -795,7 +843,9 @@ const Roulette = () => {
                           let userListText = '';
                           
                           // Return the appropriate message based on filter mode
-                          if (tempFilterSettings.mode === 'none') {
+                          if (tempFilterSettings.mode === 'all_statuses') {
+                            return `Show all media regardless of watch status`;
+                          } else if (tempFilterSettings.mode === 'none') {
                             // For "none" mode, use commas and "and"
                             if (selectedUsernames.length === 1) {
                               userListText = selectedUsernames[0];
