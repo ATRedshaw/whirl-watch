@@ -709,14 +709,24 @@ const Roulette = () => {
                       <label className="text-sm font-semibold text-blue-400">
                         Select Users:
                       </label>
-                      {tempFilterSettings.users.length > 0 && (
-                        <button
-                          onClick={() => setTempFilterSettings(prev => ({...prev, users: []}))}
-                          className="text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors duration-200"
-                        >
-                          Clear All
-                        </button>
-                      )}
+                      <div className="flex space-x-2">
+                        {listUsers.length > 0 && (
+                          <button
+                            onClick={() => setTempFilterSettings(prev => ({...prev, users: listUsers.map(user => user.id)}))}
+                            className="text-xs px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors duration-200"
+                          >
+                            Select All
+                          </button>
+                        )}
+                        {tempFilterSettings.users.length > 0 && (
+                          <button
+                            onClick={() => setTempFilterSettings(prev => ({...prev, users: []}))}
+                            className="text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors duration-200"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto">
                       {listUsers.length > 0 ? (
@@ -772,12 +782,62 @@ const Roulette = () => {
                     <div className="p-3 bg-slate-800 border border-slate-700 rounded-lg mb-6">
                       <h4 className="text-sm font-semibold text-blue-400 mb-1">Filter Preview:</h4>
                       <p className="text-sm text-gray-300">
-                        {tempFilterSettings.mode === 'none' 
-                          ? 'Show media not watched by any selected user'
-                          : tempFilterSettings.mode === 'all'
-                          ? `Show media where all selected users have status: ${tempFilterSettings.status.replace('_', ' ')}`
-                          : `Show media where any selected user has status: ${tempFilterSettings.status.replace('_', ' ')}`
-                        }
+                        {(() => {
+                          // Get the selected users' usernames
+                          const selectedUsernames = tempFilterSettings.users
+                            .map(id => listUsers.find(user => user.id === id)?.username)
+                            .filter(Boolean);
+                          
+                          // Format status for display
+                          const statusDisplay = tempFilterSettings.status.replace('_', ' ');
+                          
+                          // Construct user list with proper grammar
+                          let userListText = '';
+                          
+                          // Return the appropriate message based on filter mode
+                          if (tempFilterSettings.mode === 'none') {
+                            // For "none" mode, use commas and "and"
+                            if (selectedUsernames.length === 1) {
+                              userListText = selectedUsernames[0];
+                            } else if (selectedUsernames.length === 2) {
+                              userListText = `${selectedUsernames[0]} and ${selectedUsernames[1]}`;
+                            } else if (selectedUsernames.length > 2) {
+                              const lastUsername = selectedUsernames.pop();
+                              userListText = `${selectedUsernames.join(', ')}, and ${lastUsername}`;
+                              // Restore the array
+                              selectedUsernames.push(lastUsername);
+                            }
+                            return `Show media not watched by ${userListText}`;
+                          } else if (tempFilterSettings.mode === 'all') {
+                            // For "all" mode, use commas and "and"
+                            if (selectedUsernames.length === 1) {
+                              userListText = selectedUsernames[0];
+                            } else if (selectedUsernames.length === 2) {
+                              userListText = `${selectedUsernames[0]} and ${selectedUsernames[1]}`;
+                            } else if (selectedUsernames.length > 2) {
+                              const lastUsername = selectedUsernames.pop();
+                              userListText = `${selectedUsernames.join(', ')}, and ${lastUsername}`;
+                              // Restore the array
+                              selectedUsernames.push(lastUsername);
+                            }
+                            const verb = selectedUsernames.length === 1 ? 'has' : 'have';
+                            return `Show media where ${userListText} ${verb} status "${statusDisplay}"`;
+                          } else { // 'any' mode - use "or" instead of "and"
+                            if (selectedUsernames.length === 1) {
+                              userListText = selectedUsernames[0];
+                              return `Show media where ${userListText} has status "${statusDisplay}"`;
+                            } else if (selectedUsernames.length === 2) {
+                              return `Show media where either ${selectedUsernames[0]} or ${selectedUsernames[1]} has status "${statusDisplay}"`;
+                            } else {
+                              // For "any" mode with 3+ users, use "or" between items
+                              const lastUsername = selectedUsernames.pop();
+                              userListText = `${selectedUsernames.join(', ')}, or ${lastUsername}`;
+                              // Restore the array
+                              selectedUsernames.push(lastUsername);
+                              return `Show media where either ${userListText} has status "${statusDisplay}"`;
+                            }
+                          }
+                        })()}
                       </p>
                     </div>
                   )}
