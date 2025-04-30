@@ -19,13 +19,32 @@ const Roulette = () => {
   // Filters similar to ListDetails
   const [filters, setFilters] = useState({
     mediaType: 'all',
-    watchStatus: 'not_watched',
     minRating: 0,
     addedBy: 'all'
   });
 
   // Add a new state for tracking the complete loading state
   const [isLoadingComplete, setIsLoadingComplete] = useState(false);
+
+  // State for multi-user selection
+  const [listUsers, setListUsers] = useState([]);
+
+  // State for watch status filter
+  const [watchStatusFilter, setWatchStatusFilter] = useState({
+    mode: 'any',
+    status: 'not_watched',
+    users: []
+  });
+
+  // Add state for controlling the filter modal
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // Add state for storing temporary filter settings in the modal
+  const [tempFilterSettings, setTempFilterSettings] = useState({
+    mode: 'any',
+    status: 'not_watched',
+    users: []
+  });
 
   // Fetch user's lists on component mount
   useEffect(() => {
@@ -58,6 +77,7 @@ const Roulette = () => {
       setSelectedList(null);
       setSelectedListDetails(null);
       setIsLoadingComplete(true);
+      setListUsers([]);
       return;
     }
 
@@ -67,16 +87,45 @@ const Roulette = () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/api/lists/${listId}`, {
+      
+      // Use our new roulette endpoint to get media with user ratings
+      const rouletteResponse = await fetch(`${apiUrl}/api/lists/${listId}/roulette`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      
+      const rouletteData = await rouletteResponse.json();
+      if (!rouletteResponse.ok) throw new Error(rouletteData.error);
+      
+      // Set list users from the response
+      if (rouletteData.users && rouletteData.users.length > 0) {
+        setListUsers(rouletteData.users);
+        
+        // Set all users as selected by default in the watch status filter
+        const allUserIds = rouletteData.users.map(user => user.id);
+        setWatchStatusFilter(prev => ({
+          ...prev,
+          users: allUserIds
+        }));
+        
+        // Also update the temporary filter settings
+        setTempFilterSettings(prev => ({
+          ...prev,
+          users: allUserIds
+        }));
+      }
       
       setSelectedList(selectedList);
-      setSelectedListDetails(data);
+      
+      // Create an object with the format expected by the component
+      const formattedListDetails = {
+        id: selectedList.id,
+        name: selectedList.name,
+        media_items: rouletteData.media_items || []
+      };
+      
+      setSelectedListDetails(formattedListDetails);
       setFilters(prev => ({ ...prev, addedBy: 'all' }));
     } catch (err) {
       setError(err.message);
@@ -89,12 +138,47 @@ const Roulette = () => {
     if (!selectedListDetails?.media_items) return [];
     
     return selectedListDetails.media_items.filter(media => {
+      // Basic filters
       const matchesType = filters.mediaType === 'all' || media.media_type === filters.mediaType;
-      const matchesStatus = filters.watchStatus === 'all' || media.watch_status === filters.watchStatus;
       const matchesRating = !filters.minRating || media.vote_average >= filters.minRating;
       const matchesUser = filters.addedBy === 'all' || media.added_by?.id === parseInt(filters.addedBy);
       
-      return matchesType && matchesStatus && matchesRating && matchesUser;
+      // Check if this media matches the watch status filter for selected users
+      let matchesWatchStatusFilter = true;
+      
+      if (watchStatusFilter.users.length > 0) {
+        // Different filtering logic based on mode
+        if (watchStatusFilter.mode === 'any') {
+          // ANY: At least one selected user must have the specified status
+          matchesWatchStatusFilter = watchStatusFilter.users.some(userId => {
+            // Get the user's rating for this media from the user_ratings object
+            const userRating = media.user_ratings[userId];
+            
+            // If looking for 'not_watched' and there's no rating for this user, that counts as a match
+            if (watchStatusFilter.status === 'not_watched' && (!userRating || userRating.watch_status === 'not_watched')) {
+              return true;
+            }
+            
+            return userRating && userRating.watch_status === watchStatusFilter.status;
+          });
+        } 
+        else if (watchStatusFilter.mode === 'all') {
+          // ALL: All selected users must have the specified status
+          matchesWatchStatusFilter = watchStatusFilter.users.every(userId => {
+            // Get the user's rating for this media from the user_ratings object
+            const userRating = media.user_ratings[userId];
+            
+            // If looking for 'not_watched' and there's no rating for this user, that counts as a match
+            if (watchStatusFilter.status === 'not_watched' && (!userRating || userRating.watch_status === 'not_watched')) {
+              return true;
+            }
+            
+            return userRating && userRating.watch_status === watchStatusFilter.status;
+          });
+        }
+      }
+      
+      return matchesType && matchesRating && matchesUser && matchesWatchStatusFilter;
     });
   };
 
@@ -224,9 +308,9 @@ const Roulette = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* List Selection - First column, emphasized */}
-            <div className="sm:col-span-2 lg:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* List Selection - Full width */}
+            <div className="sm:col-span-3 mb-4">
               <label className="block text-sm font-semibold text-blue-400 mb-1">
                 Choose List *
               </label>
@@ -253,21 +337,6 @@ const Roulette = () => {
                 <option value="all">All Types</option>
                 <option value="movie">Movies</option>
                 <option value="tv">TV Shows</option>
-              </select>
-            </div>
-
-            {/* Watch Status Filter */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Watch Status</label>
-              <select
-                value={filters.watchStatus}
-                onChange={(e) => setFilters(prev => ({ ...prev, watchStatus: e.target.value }))}
-                className="w-full px-3 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Statuses</option>
-                <option value="not_watched">Not Watched</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
               </select>
             </div>
 
@@ -311,6 +380,47 @@ const Roulette = () => {
               </select>
             </div>
           </div>
+
+          {/* User filter button - replaces the existing complex UI */}
+          {selectedList && listUsers.length > 0 && (
+            <div className="mt-4 border-t border-slate-700 pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-sm font-semibold text-blue-400">User Filter:</span>
+                  {watchStatusFilter.users.length > 0 && (
+                    <span className="ml-2 text-sm text-gray-300">
+                      {watchStatusFilter.users.length} {watchStatusFilter.users.length === 1 ? 'user' : 'users'} selected
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setTempFilterSettings({...watchStatusFilter});
+                    setShowFilterModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200"
+                >
+                  Configure User Filters
+                </button>
+              </div>
+              
+              {/* Summary of active filter */}
+              {watchStatusFilter.users.length > 0 && (
+                <div className="mt-3 p-3 bg-slate-800/80 rounded-lg border border-slate-700">
+                  <p className="text-sm text-gray-300">
+                    <span className="font-medium text-blue-400">
+                      {watchStatusFilter.mode === 'none' 
+                        ? 'Showing media not watched by any selected user'
+                        : watchStatusFilter.mode === 'all'
+                        ? `Showing media where all selected users have status: ${watchStatusFilter.status.replace('_', ' ')}`
+                        : `Showing media where any selected user has status: ${watchStatusFilter.status.replace('_', ' ')}`
+                      }
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Show loading state */}
@@ -480,6 +590,220 @@ const Roulette = () => {
                     </div>
                   </div>
                 )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* User Filter Modal */}
+        <AnimatePresence>
+          {showFilterModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowFilterModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.95 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-slate-800 rounded-lg max-w-md w-full max-h-[90vh] flex flex-col"
+              >
+                {/* Header */}
+                <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">User Filter Settings</h3>
+                  <button 
+                    onClick={() => setShowFilterModal(false)}
+                    className="p-2 rounded-full hover:bg-slate-700 transition-colors duration-200"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="p-4 overflow-y-auto flex-1">
+                  {/* Filter Mode Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-blue-400 mb-3">
+                      Filter Mode:
+                    </label>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => setTempFilterSettings(prev => ({...prev, mode: 'any'}))}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 flex items-center ${
+                          tempFilterSettings.mode === 'any'
+                            ? 'bg-blue-500/30 border border-blue-500'
+                            : 'bg-slate-700/50 hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="mr-3">
+                          <div className={`w-5 h-5 rounded-full border ${
+                            tempFilterSettings.mode === 'any' 
+                              ? 'border-blue-500 flex items-center justify-center' 
+                              : 'border-gray-400'
+                          }`}>
+                            {tempFilterSettings.mode === 'any' && (
+                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-medium">Any user has status</div>
+                          <div className="text-sm text-gray-400">Show media where at least one selected user has the specified status</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => setTempFilterSettings(prev => ({...prev, mode: 'all'}))}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 flex items-center ${
+                          tempFilterSettings.mode === 'all'
+                            ? 'bg-blue-500/30 border border-blue-500'
+                            : 'bg-slate-700/50 hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="mr-3">
+                          <div className={`w-5 h-5 rounded-full border ${
+                            tempFilterSettings.mode === 'all' 
+                              ? 'border-blue-500 flex items-center justify-center' 
+                              : 'border-gray-400'
+                          }`}>
+                            {tempFilterSettings.mode === 'all' && (
+                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-medium">All users have status</div>
+                          <div className="text-sm text-gray-400">Show media where all selected users have the specified status</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Watch Status Selection - Only visible for "all" and "any" modes */}
+                  {tempFilterSettings.mode !== 'none' && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-blue-400 mb-2">
+                        Watch Status:
+                      </label>
+                      <select
+                        value={tempFilterSettings.status}
+                        onChange={(e) => setTempFilterSettings(prev => ({...prev, status: e.target.value}))}
+                        className="w-full px-4 py-2 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="not_watched">Not Watched</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* User Selection */}
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm font-semibold text-blue-400">
+                        Select Users:
+                      </label>
+                      {tempFilterSettings.users.length > 0 && (
+                        <button
+                          onClick={() => setTempFilterSettings(prev => ({...prev, users: []}))}
+                          className="text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors duration-200"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {listUsers.length > 0 ? (
+                        <div className="space-y-2">
+                          {listUsers.map(user => (
+                            <div 
+                              key={user.id}
+                              onClick={() => {
+                                setTempFilterSettings(prev => {
+                                  const isSelected = prev.users.includes(user.id);
+                                  return {
+                                    ...prev,
+                                    users: isSelected
+                                      ? prev.users.filter(id => id !== user.id)
+                                      : [...prev.users, user.id]
+                                  };
+                                });
+                              }}
+                              className={`p-2 rounded flex items-center cursor-pointer transition-colors duration-200 ${
+                                tempFilterSettings.users.includes(user.id)
+                                  ? 'bg-blue-500/30'
+                                  : 'hover:bg-slate-700'
+                              }`}
+                            >
+                              <div className={`w-5 h-5 mr-3 rounded border flex items-center justify-center ${
+                                tempFilterSettings.users.includes(user.id)
+                                  ? 'bg-blue-500 border-blue-500'
+                                  : 'border-gray-400'
+                              }`}>
+                                {tempFilterSettings.users.includes(user.id) && (
+                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
+                                  </svg>
+                                )}
+                              </div>
+                              <span>{user.username}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-center py-3">No users available</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {tempFilterSettings.users.length === 0 
+                        ? "No users selected" 
+                        : `${tempFilterSettings.users.length} user${tempFilterSettings.users.length > 1 ? 's' : ''} selected`}
+                    </p>
+                  </div>
+
+                  {/* Filter Preview */}
+                  {tempFilterSettings.users.length > 0 && (
+                    <div className="p-3 bg-slate-800 border border-slate-700 rounded-lg mb-6">
+                      <h4 className="text-sm font-semibold text-blue-400 mb-1">Filter Preview:</h4>
+                      <p className="text-sm text-gray-300">
+                        {tempFilterSettings.mode === 'none' 
+                          ? 'Show media not watched by any selected user'
+                          : tempFilterSettings.mode === 'all'
+                          ? `Show media where all selected users have status: ${tempFilterSettings.status.replace('_', ' ')}`
+                          : `Show media where any selected user has status: ${tempFilterSettings.status.replace('_', ' ')}`
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer with buttons */}
+                <div className="p-4 border-t border-slate-700">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Apply filter settings
+                        setWatchStatusFilter({...tempFilterSettings});
+                        setShowFilterModal(false);
+                      }}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                    >
+                      Apply Filters
+                    </button>
+                    <button
+                      onClick={() => setShowFilterModal(false)}
+                      className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}

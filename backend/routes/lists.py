@@ -812,3 +812,115 @@ def get_list_average_ratings(list_id):
         return jsonify({"average_ratings": average_ratings}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ------------------------ Roulette Media ------------------------ #
+@lists_bp.route("/lists/<int:list_id>/roulette", methods=["GET"])
+@jwt_required()
+def get_roulette_media(list_id):
+    """Get filtered media for the roulette feature with all users' watch statuses included"""
+    try:
+        current_user_id = get_jwt_identity()
+        lst = MediaList.query.get_or_404(list_id)
+        
+        # Check user has access to the list
+        is_shared = SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first() is not None
+        if lst.owner_id != current_user_id and not is_shared:
+            raise Forbidden("Not authorized to view this list")
+        
+        # Get all users with access to the list
+        list_owner = User.query.get(lst.owner_id)
+        shared_users = User.query.join(SharedList).filter(SharedList.list_id == list_id).all()
+        all_users = [list_owner] + shared_users
+        
+        # Get all media items in this list
+        media_in_list = (
+            MediaInList.query.filter_by(list_id=list_id)
+            .join(Media, Media.id == MediaInList.media_id)
+            .all()
+        )
+        
+        # Get all media IDs for batch fetching ratings
+        media_ids = [item.media_id for item in media_in_list]
+        
+        # Batch fetch all ratings for these media items from users with access to the list
+        user_ids = [user.id for user in all_users]
+        ratings = (UserMediaRating.query
+                  .filter(UserMediaRating.media_id.in_(media_ids))
+                  .filter(UserMediaRating.user_id.in_(user_ids))
+                  .all())
+        
+        # Create a dictionary to quickly access ratings by media_id and user_id
+        ratings_map = {}
+        for rating in ratings:
+            if rating.media_id not in ratings_map:
+                ratings_map[rating.media_id] = {}
+            ratings_map[rating.media_id][rating.user_id] = {
+                'watch_status': rating.watch_status,
+                'rating': rating.rating
+            }
+        
+        results = []
+        for media_in_list_item in media_in_list:
+            try:
+                # Get the Media record
+                media = Media.query.get(media_in_list_item.media_id)
+                
+                # Get TMDB details
+                tmdb_resp = requests.get(
+                    f"https://api.themoviedb.org/3/{media.media_type}/{media.tmdb_id}",
+                    params={"api_key": current_app.config["TMDB_API_KEY"], "language": "en-US"},
+                    timeout=5,
+                )
+                tmdb_data = tmdb_resp.json()
+                
+                # Include user ratings for this media item
+                user_ratings = {}
+                for user in all_users:
+                    user_id = user.id
+                    rating_data = ratings_map.get(media.id, {}).get(user_id, {
+                        'watch_status': 'not_watched',
+                        'rating': None
+                    })
+                    user_ratings[str(user_id)] = {
+                        'user_id': user_id,
+                        'username': user.username,
+                        'watch_status': rating_data['watch_status'],
+                        'rating': rating_data['rating']
+                    }
+                
+                # Build the response item with all data needed for frontend filtering
+                item = {
+                    'id': media_in_list_item.id,
+                    'media_id': media.id,
+                    'tmdb_id': media.tmdb_id,
+                    'media_type': media.media_type,
+                    'title': tmdb_data.get('title') or tmdb_data.get('name', 'Unknown Title'),
+                    'poster_path': tmdb_data.get('poster_path'),
+                    'backdrop_path': tmdb_data.get('backdrop_path'),
+                    'overview': tmdb_data.get('overview'),
+                    'release_date': tmdb_data.get('release_date') or tmdb_data.get('first_air_date'),
+                    'vote_average': tmdb_data.get('vote_average', 0),
+                    'added_by': {
+                        'id': media_in_list_item.added_by_id,
+                        'username': User.query.get(media_in_list_item.added_by_id).username
+                    },
+                    'user_ratings': user_ratings
+                }
+                results.append(item)
+                
+            except Exception as fetch_error:
+                current_app.logger.error(f"Error fetching TMDB data: {str(fetch_error)}")
+                continue
+        
+        return jsonify({
+            'media_items': results,
+            'users': [
+                {'id': user.id, 'username': user.username}
+                for user in all_users
+            ]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching roulette media: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
