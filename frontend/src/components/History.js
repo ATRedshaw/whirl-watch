@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const History = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mediaItems, setMediaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -465,29 +467,20 @@ const History = () => {
                     {/* Title and List Name */}
                     <div className="mb-2">
                       <h3 className="font-medium text-base line-clamp-1">{media.title || media.name}</h3>
-                      <p className="text-sm text-gray-400">From: {media.listName}</p>
-                      <p className="text-xs text-gray-500">Added by: {media.added_by?.username || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500">Added by: {user?.username || 'Unknown'}</p>
                     </div>
 
                     {/* Dates */}
                     <div className="space-y-1 mb-2">
                       <p className="text-xs text-gray-500">
-                        Added: {new Date(media.added_date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        Added: {media.last_updated ? new Date(media.last_updated).toLocaleDateString('en-US', {
+                          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        }) : 'Unknown date'}
                       </p>
                       <p className="text-xs text-gray-500">
-                        Last Updated: {new Date(media.last_updated).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        Last Updated: {media.last_updated ? new Date(media.last_updated).toLocaleDateString('en-US', {
+                          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        }) : 'Unknown date'}
                       </p>
                     </div>
 
