@@ -148,6 +148,105 @@ const Hub = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isStatusDropdownOpen]);
 
+  // Function to fetch updated feed data
+  const fetchFeedData = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+
+      // Fetch self feed (things I've done)
+      const selfFeedResponse = await fetch(`${apiUrl}/api/feed/self`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (selfFeedResponse.ok) {
+        const selfFeedData = await selfFeedResponse.json();
+        setSelfFeedItems(selfFeedData.feed_items || []);
+      }
+
+      // Fetch collaborator feed (things my teammates did)
+      const collaboratorFeedResponse = await fetch(`${apiUrl}/api/feed/collaborators`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (collaboratorFeedResponse.ok) {
+        const collaboratorFeedData = await collaboratorFeedResponse.json();
+        setCollaboratorFeedItems(collaboratorFeedData.feed_items || []);
+      }
+    } catch (err) {
+      console.error('Error fetching feed data:', err);
+    }
+  };
+
+  // Function to refresh all media and update stats
+  const refreshMediaAndStats = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      // Fetch fresh media data
+      const userMediaResponse = await fetch(`${apiUrl}/api/user/media`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!userMediaResponse.ok) {
+        throw new Error('Failed to fetch user media');
+      }
+
+      const userMediaData = await userMediaResponse.json();
+      const updatedMedia = userMediaData.media_items || [];
+      
+      // Update media items state
+      setMediaItems(updatedMedia);
+      
+      // Recalculate all stats with fresh data
+      const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
+      const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
+      const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
+      
+      // Calculate average rating from completed items with ratings
+      const ratedItems = updatedMedia.filter(item => 
+        item.watch_status === 'completed' && item.rating != null
+      );
+      
+      const averageRating = ratedItems.length > 0
+        ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
+        : 0;
+
+      // Update stats with fresh data
+      setStats({
+        totalMedia: updatedMedia.length,
+        completed,
+        inProgress,
+        notWatched,
+        averageRating
+      });
+
+      // Also refresh the feed data
+      await fetchFeedData();
+
+      // If there's a selected media, update it with fresh data
+      if (selectedMedia) {
+        const updatedSelectedMedia = updatedMedia.find(item => item.id === selectedMedia.id);
+        if (updatedSelectedMedia) {
+          setSelectedMedia(updatedSelectedMedia);
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+    }
+  };
+
   const chartData = {
     labels: ['Completed', 'In Progress', 'Not Started'],
     datasets: [{
@@ -168,7 +267,7 @@ const Hub = () => {
 
   const handleStatusUpdate = async (mediaId, newStatus) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
       // Find the media item to get its list_id
@@ -179,11 +278,10 @@ const Hub = () => {
       
       const updates = {
         watch_status: newStatus,
-        rating: newStatus !== 'completed' ? null : undefined,
+        rating: newStatus !== 'completed' ? null : mediaItem.rating,
         last_updated: new Date().toISOString()
       };
       
-      // Updated API endpoint pattern matching ListDetails.js
       const response = await fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
@@ -194,63 +292,19 @@ const Hub = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update status');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
       }
 
-      // Update local state
-      setMediaItems(prev => {
-        const updatedMedia = prev.map(item => 
-          item.id === mediaId 
-            ? { 
-                ...item, 
-                watch_status: newStatus, 
-                rating: newStatus !== 'completed' ? null : item.rating,
-                last_updated: updates.last_updated,
-                lastUpdatedDate: new Date(updates.last_updated)
-              }
-            : item
-        );
-
-        // Calculate stats
-        const completed = updatedMedia.filter(item => item.watch_status === 'completed').length;
-        const inProgress = updatedMedia.filter(item => item.watch_status === 'in_progress').length;
-        const notWatched = updatedMedia.filter(item => item.watch_status === 'not_watched').length;
-
-        // Recalculate average rating
-        const ratedItems = updatedMedia.filter(item => 
-          item.watch_status === 'completed' && item.rating !== null
-        );
-        
-        const averageRating = ratedItems.length 
-          ? (ratedItems.reduce((sum, item) => sum + item.rating, 0) / ratedItems.length).toFixed(1)
-          : 0;
-
-        // Update stats
-        setStats(prev => ({
-          ...prev,
-          completed,
-          inProgress,
-          notWatched,
-          averageRating
-        }));
-
-        return updatedMedia;
-      });
-
-      // If the selected media is the one being updated, update it as well
-      if (selectedMedia && selectedMedia.id === mediaId) {
-        setSelectedMedia(prev => ({
-          ...prev,
-          watch_status: newStatus,
-          rating: newStatus !== 'completed' ? null : prev.rating,
-          last_updated: updates.last_updated,
-          lastUpdatedDate: new Date(updates.last_updated)
-        }));
-      }
+      // Refresh all data to ensure the entire UI updates
+      await refreshMediaAndStats();
 
     } catch (err) {
       console.error('Failed to update status:', err);
       setError(err.message);
+      
+      // Clear error after 3 seconds for better UX
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -404,6 +458,7 @@ const Hub = () => {
     }
   };
 
+// eslint-disable-next-line no-unused-vars
   const getRecentlyUpdatedMedia = () => {
     // Create a copy with added dates as Date objects for proper sorting
     const mediaWithDates = mediaItems.map(item => ({
