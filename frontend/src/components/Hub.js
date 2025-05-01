@@ -13,7 +13,6 @@ import {
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
-import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 // Register ChartJS components
 ChartJS.register(
@@ -30,7 +29,8 @@ const Hub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [mediaItems, setMediaItems] = useState([]);
-  const [feedItems, setFeedItems] = useState([]);
+  const [selfFeedItems, setSelfFeedItems] = useState([]);
+  const [collaboratorFeedItems, setCollaboratorFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -78,17 +78,30 @@ const Hub = () => {
         const userMediaData = await userMediaResponse.json();
         setMediaItems(userMediaData.media_items || []);
 
-        // Fetch feed
-        const feedResponse = await fetch(`${apiUrl}/api/user/feed`, {
+        // Fetch self feed (things I've done)
+        const selfFeedResponse = await fetch(`${apiUrl}/api/feed/self`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
           }
         });
 
-        if (feedResponse.ok) {
-          const feedData = await feedResponse.json();
-          setFeedItems(feedData.feed_items || []);
+        if (selfFeedResponse.ok) {
+          const selfFeedData = await selfFeedResponse.json();
+          setSelfFeedItems(selfFeedData.feed_items || []);
+        }
+
+        // Fetch collaborator feed (things my teammates did)
+        const collaboratorFeedResponse = await fetch(`${apiUrl}/api/feed/collaborators`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (collaboratorFeedResponse.ok) {
+          const collaboratorFeedData = await collaboratorFeedResponse.json();
+          setCollaboratorFeedItems(collaboratorFeedData.feed_items || []);
         }
 
         // Calculate stats from user media data
@@ -735,14 +748,17 @@ const Hub = () => {
         >
           <h3 className="text-xl font-semibold mb-4">Your Recent Activity</h3>
           <div className="space-y-4">
-            {getRecentlyUpdatedMedia().map((media, index) => (
+            {selfFeedItems.slice(0, 3).map((item, index) => (
               <motion.div
-                key={media.id}
+                key={index}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 className="bg-gradient-to-r from-slate-700/40 to-slate-700/20 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px] border border-slate-600/50"
-                onClick={() => setSelectedMedia(media)}
+                onClick={() => {
+                  const userMedia = findUserMediaForCollaboratorItem(item);
+                  setSelectedMedia(userMedia || item);
+                }}
               >
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -752,18 +768,16 @@ const Hub = () => {
                     <div>
                       <span className="font-medium text-indigo-400">You</span>
                       <span className="text-gray-400 text-sm ml-2">
-                        {media.watch_status === 'completed' ? 'completed watching' :
-                         media.watch_status === 'in_progress' ? 'started watching' :
-                         'added to watchlist'}
+                        {item.action}
                       </span>
                     </div>
                   </div>
                   
                   <div className="flex gap-4">
-                    {media.poster_path ? (
+                    {item.poster_path ? (
                       <img
-                        src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
-                        alt={media.title}
+                        src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
+                        alt={item.media_title}
                         className="w-12 h-18 object-cover rounded-md shadow-md transform transition-transform duration-300 hover:scale-105"
                       />
                     ) : (
@@ -773,19 +787,19 @@ const Hub = () => {
                     )}
                     
                     <div className="flex-1">
-                      <h4 className="font-semibold text-white hover:text-indigo-300 transition-colors duration-200">{media.title}</h4>
+                      <h4 className="font-semibold text-white hover:text-indigo-300 transition-colors duration-200">{item.media_title}</h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{media.list_name}</span>
-                        {media.media_type && (
+                        <span className="text-xs px-2 py-1 bg-indigo-500/20 rounded-full text-indigo-300">{item.list_name}</span>
+                        {item.media_type && (
                           <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-xs font-medium text-blue-300 uppercase">
-                            {media.media_type}
+                            {item.media_type}
                           </span>
                         )}
                       </div>
                       
                       <div className="flex justify-between items-center mt-2">
                         <p className="text-xs text-gray-500">
-                          {new Date(media.last_updated).toLocaleString(undefined, {
+                          {new Date(item.timestamp).toLocaleString(undefined, {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
@@ -795,13 +809,13 @@ const Hub = () => {
                         
                         <div className="text-xs text-gray-400 flex items-center">
                           <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                            media.watch_status === 'completed' ? 'bg-green-500' : 
-                            media.watch_status === 'in_progress' ? 'bg-blue-500' : 
+                            item.watch_status === 'completed' ? 'bg-green-500' : 
+                            item.watch_status === 'in_progress' ? 'bg-blue-500' : 
                             'bg-purple-500'
                           }`}></span>
                           <span>{
-                            media.watch_status === 'completed' ? 'Completed' : 
-                            media.watch_status === 'in_progress' ? 'In Progress' : 
+                            item.watch_status === 'completed' ? 'Completed' : 
+                            item.watch_status === 'in_progress' ? 'In Progress' : 
                             'Not Started'
                           }</span>
                         </div>
@@ -811,7 +825,7 @@ const Hub = () => {
                 </div>
               </motion.div>
             ))}
-            {mediaItems.length === 0 && (
+            {selfFeedItems.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                 <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -839,7 +853,7 @@ const Hub = () => {
         >
           <h3 className="text-xl font-semibold mb-4">Recent Activity in Shared Lists</h3>
           <div className="space-y-4">
-            {feedItems.slice(0, 3).map((item, index) => (
+            {collaboratorFeedItems.slice(0, 3).map((item, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 10 }}
@@ -913,7 +927,7 @@ const Hub = () => {
                 </div>
               </motion.div>
             ))}
-            {feedItems.length === 0 && (
+            {collaboratorFeedItems.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                 <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -1493,5 +1507,11 @@ const Hub = () => {
     </div>
   );
 };
+
+const ChevronDownIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
 
 export default Hub;
