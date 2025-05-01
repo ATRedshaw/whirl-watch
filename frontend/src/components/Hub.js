@@ -749,6 +749,14 @@ const Hub = () => {
         return updatedItems;
       });
 
+      // Remove from feed items as well to prevent showing deleted media in activity
+      setSelfFeedItems(prevItems => prevItems.filter(item => 
+        !(item.media_id === mediaId || (item.tmdb_id === selectedMedia.tmdb_id && item.list_id === selectedMedia.list_id))
+      ));
+      
+      // Also refresh feed data from the server to ensure complete synchronization
+      fetchFeedData();
+
       setSelectedMedia(null);
       setShowDeleteConfirm(false);
 
