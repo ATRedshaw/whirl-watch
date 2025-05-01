@@ -24,7 +24,7 @@ def api_documentation():
     KEEP THIS UP-TO-DATE whenever a new blueprint or route is added.
     """
     return jsonify({
-        "version": "1.1",
+        "version": "1.2",
         "description": "WhirlWatch · collaborative movie / TV tracking API",
         "endpoints": {
             # ───────────────────────── AUTH ───────────────────────── #
@@ -43,7 +43,9 @@ def api_documentation():
                             "id":   "integer",
                             "username": "string",
                             "email":    "string",
-                            "requires_verification": "boolean"
+                            "requires_verification": "boolean",
+                            "is_admin": "boolean",
+                            "is_privilege": "boolean"
                         }
                     },
                     "rate_limit": "3 / hour"
@@ -61,7 +63,9 @@ def api_documentation():
                         "user": {
                             "id": "integer",
                             "username": "string",
-                            "email": "string"
+                            "email": "string",
+                            "is_admin": "boolean",
+                            "is_privilege": "boolean"
                         }
                     },
                     "rate_limit": "10 / hour"
@@ -83,7 +87,9 @@ def api_documentation():
                         "user": {
                             "id": "integer",
                             "username": "string",
-                            "email": "string"
+                            "email": "string",
+                            "is_admin": "boolean",
+                            "is_privilege": "boolean"
                         }
                     },
                     "rate_limit": "none"
@@ -106,7 +112,9 @@ def api_documentation():
                         "user": {
                             "id": "integer",
                             "username": "string",
-                            "email": "string"
+                            "email": "string",
+                            "is_admin": "boolean",
+                            "is_privilege": "boolean"
                         }
                     },
                     "rate_limit": "5 / 15 min"
@@ -175,6 +183,88 @@ def api_documentation():
                         "PUT": "10 / hour",
                         "DELETE": "3 / hour"
                     }
+                },
+                "/api/user/media": {
+                    "method": "GET",
+                    "description": "Get all media items from all lists a user has access to",
+                    "authentication": "JWT bearer token required",
+                    "response": {
+                        "media_items": [
+                            {
+                                "id": "integer",
+                                "title": "string",
+                                "media_type": "movie | tv",
+                                "poster_path": "string",
+                                "backdrop_path": "string",
+                                "tmdb_id": "integer",
+                                "overview": "string",
+                                "watch_status": "not_watched | in_progress | completed",
+                                "rating": "number | null",
+                                "last_updated": "datetime",
+                                "list_id": "integer",
+                                "list_name": "string",
+                                "release_date": "string",
+                                "first_air_date": "string",
+                                "vote_average": "number"
+                            }
+                        ]
+                    }
+                },
+                "/api/user/media/<int:media_id>": {
+                    "methods": ["PUT", "DELETE"],
+                    "description": "Update media watch status/rating or remove from list",
+                    "authentication": "JWT bearer token required",
+                    "PUT_body": {
+                        "watch_status": "string · optional · not_watched | in_progress | completed",
+                        "rating": "number · optional · 1-10 | null"
+                    }
+                },
+                "/api/feed/self": {
+                    "method": "GET",
+                    "description": "User's personal activity feed showing their own activity",
+                    "authentication": "JWT bearer token required",
+                    "response": {
+                        "feed_items": [
+                            {
+                                "id": "integer",
+                                "user_id": "integer",
+                                "media_id": "integer",
+                                "media_title": "string",
+                                "media_type": "movie | tv",
+                                "poster_path": "string",
+                                "action": "string",
+                                "watch_status": "not_watched | in_progress | completed",
+                                "rating": "number | null",
+                                "timestamp": "datetime",
+                                "list_id": "integer",
+                                "list_name": "string"
+                            }
+                        ]
+                    }
+                },
+                "/api/feed/collaborators": {
+                    "method": "GET",
+                    "description": "Activity feed showing what other users in shared lists have done",
+                    "authentication": "JWT bearer token required",
+                    "response": {
+                        "feed_items": [
+                            {
+                                "id": "integer",
+                                "user_id": "integer",
+                                "user_name": "string",
+                                "media_id": "integer",
+                                "media_title": "string",
+                                "media_type": "movie | tv",
+                                "poster_path": "string",
+                                "action": "string",
+                                "watch_status": "not_watched | in_progress | completed",
+                                "rating": "number | null",
+                                "timestamp": "datetime",
+                                "list_id": "integer",
+                                "list_name": "string"
+                            }
+                        ]
+                    }
                 }
             },
 
@@ -204,7 +294,7 @@ def api_documentation():
                 },
                 "/api/lists/<list_id>/share": {
                     "method": "POST",
-                    "description": "Owner retrieves the list’s 8-character share code.",
+                    "description": "Owner retrieves the list's 8-character share code.",
                     "authentication": "JWT bearer token required"
                 },
                 "/api/lists/join": {
@@ -256,6 +346,22 @@ def api_documentation():
                     "PUT_body": {
                         "watch_status": "string · optional",
                         "rating":       "integer · optional · 1-10"
+                    }
+                },
+                "/api/lists/<list_id>/media/<media_id>/ratings": {
+                    "method": "GET",
+                    "description": "Get all ratings for a media item from users with access to this list.",
+                    "authentication": "JWT bearer token required",
+                    "response": {
+                        "media_id": "integer",
+                        "list_id": "integer",
+                        "ratings": [
+                            {
+                                "user": { "id": "integer", "username": "string" },
+                                "watch_status": "not_watched | in_progress | completed",
+                                "rating": "number | null"
+                            }
+                        ]
                     }
                 },
                 "/api/lists/<list_id>/media/tmdb/<tmdb_id>": {
