@@ -33,6 +33,9 @@ const Hub = () => {
   const [collaboratorFeedItems, setCollaboratorFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unratedCompletedMedia, setUnratedCompletedMedia] = useState([]);
+  const [showUnratedBanner, setShowUnratedBanner] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
   const [stats, setStats] = useState({
     totalMedia: 0,
     completed: 0,
@@ -77,6 +80,13 @@ const Hub = () => {
 
         const userMediaData = await userMediaResponse.json();
         setMediaItems(userMediaData.media_items || []);
+        
+        // Find completed media items without ratings
+        const unratedCompleted = (userMediaData.media_items || []).filter(
+          item => item.watch_status === 'completed' && (item.rating === null || item.rating === undefined)
+        );
+        setUnratedCompletedMedia(unratedCompleted);
+        setShowUnratedBanner(unratedCompleted.length > 0);
 
         // Fetch self feed (things I've done)
         const selfFeedResponse = await fetch(`${apiUrl}/api/feed/self`, {
@@ -423,6 +433,19 @@ const Hub = () => {
         }));
 
         return updatedItems;
+      });
+
+      // Update unratedCompletedMedia state as well for the rating modal
+      setUnratedCompletedMedia(prev => {
+        return prev.map(item => 
+          item.id === mediaId 
+            ? { 
+                ...item, 
+                rating: newRating ? Number(newRating) : null,
+                last_updated: new Date().toISOString()
+              }
+            : item
+        );
       });
 
       // If the selected media is the one being updated, update it as well
@@ -787,6 +810,51 @@ const Hub = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-black text-white p-4 sm:p-8">
+      {/* Unrated Media Banner */}
+      <AnimatePresence>
+        {showUnratedBanner && unratedCompletedMedia.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/50 rounded-lg p-4 mb-6 shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-500/20 p-2 rounded-full">
+                  <svg className="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-indigo-300">Rate Your Completed Media</h3>
+                  <p className="text-indigo-200/80 text-sm">
+                    You have {unratedCompletedMedia.length} completed {unratedCompletedMedia.length === 1 ? 'item' : 'items'} without ratings
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setShowRatingModal(true)}
+                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors duration-200 text-white text-sm"
+                >
+                  Rate Now
+                </button>
+                <button 
+                  onClick={() => setShowUnratedBanner(false)}
+                  className="p-2 hover:bg-slate-700/50 rounded-full transition-colors duration-200"
+                  aria-label="Dismiss"
+                >
+                  <svg className="w-5 h-5 text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Welcome Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -1653,6 +1721,135 @@ const Hub = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Unrated Media Rating Modal */}
+      <AnimatePresence>
+        {showRatingModal && unratedCompletedMedia.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setShowRatingModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-800 rounded-lg overflow-hidden max-w-2xl w-full my-auto relative"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600/50 to-purple-600/50 p-4 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-white">Rate Your Completed Media</h3>
+                <button
+                  onClick={() => setShowRatingModal(false)}
+                  className="p-1 hover:bg-slate-700/50 rounded-full transition-colors duration-200"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                <p className="text-gray-300 mb-4">
+                  You have {unratedCompletedMedia.length} completed {unratedCompletedMedia.length === 1 ? 'item' : 'items'} that {unratedCompletedMedia.length === 1 ? 'hasn\'t' : 'haven\'t'} been rated yet!
+                </p>
+
+                {/* Media List for Rating */}
+                <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
+                  {unratedCompletedMedia.map((media, index) => (
+                    <div key={media.id} className="bg-slate-700/40 rounded-lg p-4 border border-slate-600/50 flex gap-4">
+                      {/* Poster */}
+                      <div className="flex-shrink-0">
+                        {media.poster_path ? (
+                          <img
+                            src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
+                            alt={media.title}
+                            className="w-16 rounded-md"
+                          />
+                        ) : (
+                          <div className="w-16 h-24 bg-slate-600 rounded-md flex items-center justify-center">
+                            <span className="text-xs text-gray-400">No image</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Details & Rating Input */}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold text-white">{media.title}</h4>
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                              <span className={`px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 uppercase`}>
+                                {media.media_type}
+                              </span>
+                              {(media.release_date || media.first_air_date) && (
+                                <span>{(media.release_date || media.first_air_date).split('-')[0]}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            <span className="inline-block w-2 h-2 rounded-full mr-1 bg-green-500"></span>
+                            Completed
+                          </div>
+                        </div>
+                        
+                        {/* Rating Input */}
+                        <div className="mt-3">
+                          <label className="text-sm text-gray-300 block mb-2">Your Rating</label>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-500">⭐</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                step="0.1"
+                                value={media.rating || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
+                                    handleRatingUpdate(media.id, value);
+                                  }
+                                }}
+                                placeholder="Rating..."
+                                className="bg-slate-800 rounded-md px-8 py-2 w-full border border-slate-600 focus:border-blue-500 focus:ring focus:ring-blue-500/20 transition-all text-white"
+                              />
+                              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">/10</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-6 flex justify-between">
+                  <button
+                    onClick={() => setShowRatingModal(false)}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowRatingModal(false);
+                      refreshMediaAndStats();
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200"
+                  >
+                    Done Rating
+                  </button>
                 </div>
               </div>
             </motion.div>
