@@ -36,6 +36,7 @@ const Hub = () => {
   const [unratedCompletedMedia, setUnratedCompletedMedia] = useState([]);
   const [showUnratedBanner, setShowUnratedBanner] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [tempRatings, setTempRatings] = useState({});
   const [stats, setStats] = useState({
     totalMedia: 0,
     completed: 0,
@@ -54,6 +55,30 @@ const Hub = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedView]);
+
+  // Dynamic update of unrated completed media when mediaItems changes
+  useEffect(() => {
+    if (mediaItems.length > 0) {
+      // Only update the banner content if it's currently showing
+      // This prevents the banner from appearing mid-session if new unrated items are added
+      if (showUnratedBanner) {
+        // Don't update the unratedCompletedMedia if the rating modal is open
+        // This prevents items from disappearing while the user is actively rating them
+        if (!showRatingModal) {
+          const unratedCompleted = mediaItems.filter(
+            item => item.watch_status === 'completed' && (item.rating === null || item.rating === undefined)
+          );
+          
+          setUnratedCompletedMedia(unratedCompleted);
+          
+          // If there are no more unrated items, hide the banner
+          if (unratedCompleted.length === 0) {
+            setShowUnratedBanner(false);
+          }
+        }
+      }
+    }
+  }, [mediaItems, showUnratedBanner, showRatingModal]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1832,11 +1857,15 @@ const Hub = () => {
                                 min="1"
                                 max="10"
                                 step="0.1"
-                                value={media.rating || ''}
+                                value={tempRatings[media.id] !== undefined ? tempRatings[media.id] : (media.rating || '')}
                                 onChange={(e) => {
                                   const value = e.target.value;
                                   if (value === '' || (Number(value) >= 1 && Number(value) <= 10)) {
-                                    handleRatingUpdate(media.id, value);
+                                    // Store the rating in temporary state instead of submitting immediately
+                                    setTempRatings(prev => ({
+                                      ...prev,
+                                      [media.id]: value ? Number(value) : null
+                                    }));
                                   }
                                 }}
                                 placeholder="Rating..."
@@ -1861,13 +1890,48 @@ const Hub = () => {
                   </button>
                   <button
                     onClick={() => {
+                      // Process all temp ratings before closing the modal
+                      if (Object.keys(tempRatings).length > 0) {
+                        Object.entries(tempRatings).forEach(([mediaId, rating]) => {
+                          // Find the list_id from the unratedCompletedMedia array instead of from mediaItems
+                          const mediaItem = unratedCompletedMedia.find(item => item.id.toString() === mediaId);
+                          if (mediaItem && mediaItem.list_id) {
+                            // Update directly via API instead of using handleRatingUpdate
+                            const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+                            const token = localStorage.getItem('token');
+                            
+                            fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({ 
+                                rating: rating ? Number(rating) : null,
+                                last_updated: new Date().toISOString()
+                              })
+                            }).then(() => {
+                              console.log(`Successfully updated rating for media ${mediaId}`);
+                            }).catch(err => {
+                              console.error(`Failed to update rating for media ${mediaId}:`, err);
+                            });
+                          }
+                        });
+                      }
+                      
+                      // Close modal and hide banner
                       setShowRatingModal(false);
                       setShowUnratedBanner(false);
-                      refreshMediaAndStats();
+                      setTempRatings({});
+                      
+                      // Refresh all data after a brief delay to allow updates to complete
+                      setTimeout(() => {
+                        refreshMediaAndStats();
+                      }, 500);
                     }}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200"
                   >
-                    Done Rating
+                    Submit Ratings
                   </button>
                 </div>
               </div>
