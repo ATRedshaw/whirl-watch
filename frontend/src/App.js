@@ -19,7 +19,6 @@ import JoinList from './components/JoinList';
 import Roulette from './components/Roulette';
 import Rankings from './components/Rankings';
 import Profile from './components/Profile';
-import History from './components/History';
 import ResetPassword from './components/ResetPassword';
 import VerifyEmail from './components/VerifyEmail';
 import Footer from './components/Footer';
@@ -145,14 +144,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route 
-                path="/history"
-                element={
-                  <ProtectedRoute>
-                    <History />
                   </ProtectedRoute>
                 }
               />

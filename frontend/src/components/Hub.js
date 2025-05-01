@@ -995,12 +995,6 @@ const Hub = () => {
               </div>
             )}
           </div>
-          <button 
-            onClick={() => navigate('/history')}
-            className="w-full text-center mt-4 text-sm text-gray-400 hover:text-white transition-colors duration-200"
-          >
-            View full history →
-          </button>
         </motion.div>
 
         {/* Feed (Recent updates in user's lists) */}
