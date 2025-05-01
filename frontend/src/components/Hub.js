@@ -168,7 +168,7 @@ const Hub = () => {
 
   const handleStatusUpdate = async (mediaId, newStatus) => {
     try {
-      const apiUrl = process.env.REACT_APP_API
+      const apiUrl = process.env.REACT_APP_API_URL
       const token = localStorage.getItem('token');
       
       // Find the media item to get its list_id
