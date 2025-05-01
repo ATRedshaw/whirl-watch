@@ -516,7 +516,13 @@ const Hub = () => {
 
   const handleUpdateStatus = async (mediaId, updates) => {
     try {
-      if (!selectedMedia) return;
+      if (!selectedMedia && !mediaId) return;
+      
+      // Get the media item
+      const mediaItem = mediaItems.find(item => item.id === mediaId);
+      if (!mediaItem) {
+        throw new Error('Media item not found');
+      }
 
       // If changing to non-completed status, clear rating
       if (updates.watch_status && updates.watch_status !== 'completed') {
@@ -527,84 +533,114 @@ const Hub = () => {
       const now = new Date().toISOString();
       updates.last_updated = now;
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const token = localStorage.getItem('token');
-      
-      // Updated API endpoint pattern matching ListDetails.js
-      const response = await fetch(`${apiUrl}/api/lists/${selectedMedia.list_id}/media/${mediaId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update media');
-      }
-
-      // Update local state
+      // Update local state IMMEDIATELY for instant UI feedback before API call
+      // 1. Update media items
       setMediaItems(prevItems => 
         prevItems.map(item => 
           item.id === mediaId 
             ? { 
                 ...item, 
                 ...updates,
-                last_updated: now, // Include the timestamp in local state
-                lastUpdatedDate: new Date(now) // Add for sorting purposes
+                last_updated: now,
+                lastUpdatedDate: new Date(now)
               }
             : item
         )
       );
 
-      // Update selected media state
-      setSelectedMedia(prev => ({
-        ...prev,
-        ...updates,
-        last_updated: now,
-        lastUpdatedDate: new Date(now)
-      }));
-
-      // Update stats if necessary
-      if (updates.watch_status || updates.rating !== undefined) {
-        // Create a shallow copy of the updated media items to calculate new stats
-        const updatedItems = mediaItems.map(item => 
-          item.id === mediaId 
-            ? { 
-                ...item, 
-                ...updates,
-                last_updated: now
-              }
-            : item
-        );
-        
-        // Calculate new stats
-        const completed = updatedItems.filter(item => item.watch_status === 'completed').length;
-        const inProgress = updatedItems.filter(item => item.watch_status === 'in_progress').length;
-        const notWatched = updatedItems.filter(item => item.watch_status === 'not_watched').length;
-        
-        // Calculate new average rating
-        const ratedItems = updatedItems.filter(item => 
-          item.watch_status === 'completed' && item.rating !== null && item.rating !== undefined
-        );
-        
-        const averageRating = ratedItems.length 
-          ? (ratedItems.reduce((sum, item) => sum + (item.rating || 0), 0) / ratedItems.length).toFixed(1)
-          : 0;
-
-        // Update stats
-        setStats({
-          totalMedia: updatedItems.length,
-          completed,
-          inProgress,
-          notWatched,
-          averageRating
-        });
+      // 2. Update selected media if it matches
+      if (selectedMedia && selectedMedia.id === mediaId) {
+        setSelectedMedia(prev => ({
+          ...prev,
+          ...updates,
+          last_updated: now,
+          lastUpdatedDate: new Date(now)
+        }));
       }
-    } catch (error) {
-      console.error('Error updating media:', error);
-      setError('Failed to update media');
+
+      // 3. Update stats immediately based on the new state
+      const updatedItems = mediaItems.map(item => 
+        item.id === mediaId 
+          ? { 
+              ...item, 
+              ...updates,
+              last_updated: now
+            }
+          : item
+      );
+      
+      // Calculate new stats
+      const completed = updatedItems.filter(item => 
+        updates.watch_status && item.id === mediaId 
+          ? updates.watch_status === 'completed' 
+          : item.watch_status === 'completed'
+      ).length;
+      
+      const inProgress = updatedItems.filter(item => 
+        updates.watch_status && item.id === mediaId 
+          ? updates.watch_status === 'in_progress' 
+          : item.watch_status === 'in_progress'
+      ).length;
+      
+      const notWatched = updatedItems.filter(item => 
+        updates.watch_status && item.id === mediaId 
+          ? updates.watch_status === 'not_watched' 
+          : item.watch_status === 'not_watched'
+      ).length;
+      
+      // Calculate new average rating
+      const ratedItems = updatedItems.filter(item => {
+        if (item.id === mediaId && updates.rating !== undefined) {
+          return updates.watch_status === 'completed' && updates.rating !== null && updates.rating !== undefined;
+        }
+        return item.watch_status === 'completed' && item.rating !== null && item.rating !== undefined;
+      });
+      
+      const averageRating = ratedItems.length 
+        ? (ratedItems.reduce((sum, item) => {
+            if (item.id === mediaId && updates.rating !== undefined) {
+              return sum + (updates.rating || 0);
+            }
+            return sum + (item.rating || 0);
+          }, 0) / ratedItems.length).toFixed(1)
+        : 0;
+
+      // Update stats
+      setStats({
+        totalMedia: updatedItems.length,
+        completed,
+        inProgress,
+        notWatched,
+        averageRating
+      });
+
+      // Make the API call in the background
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+
+      // Refresh feed data after successful API call
+      fetchFeedData();
+
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      setError(err.message);
+      
+      // Clear error after 3 seconds for better UX
+      setTimeout(() => setError(null), 3000);
     }
   };
 
