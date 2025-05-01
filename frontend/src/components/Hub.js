@@ -281,7 +281,62 @@ const Hub = () => {
         rating: newStatus !== 'completed' ? null : mediaItem.rating,
         last_updated: new Date().toISOString()
       };
+
+      // Store original status for comparison
+      const originalStatus = mediaItem.watch_status;
       
+      // Update local state IMMEDIATELY for instant UI feedback before API call
+      // This ensures the item disappears from the current view if the status changes
+      setMediaItems(prevItems => {
+        return prevItems.map(item => 
+          item.id === mediaId 
+            ? { 
+                ...item, 
+                ...updates,
+                last_updated: updates.last_updated,
+                lastUpdatedDate: new Date(updates.last_updated)
+              }
+            : item
+        );
+      });
+      
+      // Close the media details modal if the status changed to something that doesn't match the current filter
+      if (selectedMedia && selectedMedia.id === mediaId && originalStatus !== newStatus && selectedView === originalStatus) {
+        setSelectedMedia(null);
+      }
+
+      // Update stats immediately
+      const statsCopy = { ...stats };
+      
+      // Decrement count for original status
+      if (originalStatus === 'completed') statsCopy.completed -= 1;
+      if (originalStatus === 'in_progress') statsCopy.inProgress -= 1;
+      if (originalStatus === 'not_watched') statsCopy.notWatched -= 1;
+      
+      // Increment count for new status
+      if (newStatus === 'completed') statsCopy.completed += 1;
+      if (newStatus === 'in_progress') statsCopy.inProgress += 1;
+      if (newStatus === 'not_watched') statsCopy.notWatched += 1;
+
+      // Recalculate average rating if needed
+      if (originalStatus === 'completed' || newStatus === 'completed') {
+        const ratedItems = mediaItems
+          .filter(item => {
+            if (item.id === mediaId) {
+              return newStatus === 'completed' && item.rating;
+            }
+            return item.watch_status === 'completed' && item.rating;
+          });
+          
+        statsCopy.averageRating = ratedItems.length 
+          ? (ratedItems.reduce((sum, item) => sum + (item.rating || 0), 0) / ratedItems.length).toFixed(1)
+          : 0;
+      }
+      
+      // Update stats state
+      setStats(statsCopy);
+      
+      // Make the API call in the background
       const response = await fetch(`${apiUrl}/api/lists/${mediaItem.list_id}/media/${mediaId}`, {
         method: 'PUT',
         headers: {
@@ -296,8 +351,8 @@ const Hub = () => {
         throw new Error(errorData.error || 'Failed to update status');
       }
 
-      // Refresh all data to ensure the entire UI updates
-      await refreshMediaAndStats();
+      // Refresh feed data after successful API call
+      fetchFeedData();
 
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -305,6 +360,9 @@ const Hub = () => {
       
       // Clear error after 3 seconds for better UX
       setTimeout(() => setError(null), 3000);
+      
+      // Refresh all data to restore state in case of error
+      refreshMediaAndStats();
     }
   };
 
