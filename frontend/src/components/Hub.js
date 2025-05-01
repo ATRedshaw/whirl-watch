@@ -817,7 +817,8 @@ const Hub = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/50 rounded-lg p-4 mb-6 shadow-lg"
+            onClick={() => setShowRatingModal(true)}
+            className="bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/50 rounded-lg p-4 mb-6 shadow-lg cursor-pointer hover:bg-indigo-500/20 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -835,13 +836,19 @@ const Hub = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => setShowRatingModal(true)}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors duration-200 text-white text-sm"
+                  className="hidden sm:block whitespace-nowrap px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors duration-200 text-white text-sm font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRatingModal(true);
+                  }}
                 >
                   Rate Now
                 </button>
                 <button 
-                  onClick={() => setShowUnratedBanner(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowUnratedBanner(false);
+                  }}
                   className="p-2 hover:bg-slate-700/50 rounded-full transition-colors duration-200"
                   aria-label="Dismiss"
                 >
@@ -850,6 +857,17 @@ const Hub = () => {
                   </svg>
                 </button>
               </div>
+            </div>
+            <div className="sm:hidden flex justify-center mt-3">
+              <button 
+                className="w-full py-2 px-4 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors duration-200 text-white text-sm font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRatingModal(true);
+                }}
+              >
+                Rate Now
+              </button>
             </div>
           </motion.div>
         )}
@@ -1844,6 +1862,7 @@ const Hub = () => {
                   <button
                     onClick={() => {
                       setShowRatingModal(false);
+                      setShowUnratedBanner(false);
                       refreshMediaAndStats();
                     }}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200"
