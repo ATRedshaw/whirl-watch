@@ -917,7 +917,9 @@ const Hub = () => {
                     <div>
                       <span className="font-medium text-indigo-400">You</span>
                       <span className="text-gray-400 text-sm ml-2">
-                        {item.action}
+                        {item.action.includes('added') 
+                          ? `added to: ${item.list_name}` 
+                          : item.action}
                       </span>
                     </div>
                   </div>
@@ -1019,7 +1021,9 @@ const Hub = () => {
                     <div>
                       <span className="font-medium text-blue-400">{item.user_name}</span>
                       <span className="text-gray-400 text-sm ml-2">
-                        {item.action}
+                        {item.action.includes('added') 
+                          ? `added to: ${item.list_name}` 
+                          : item.action}
                       </span>
                     </div>
                   </div>
