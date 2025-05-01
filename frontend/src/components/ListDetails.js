@@ -890,7 +890,7 @@ const ListDetails = () => {
               <p className="text-gray-300 mb-6">
                 Are you sure you want to remove "{mediaToDelete?.title}" from this list?
                 <span className="block mt-2 text-gray-400 text-sm">
-                  Note: Your personal rating will be preserved and will be applied automatically if you add this title to any list again.
+                  Note: If this item exists in other lists, your rating stays; if not, it’s removed and you’ll need to rate again when re-adding.
                 </span>
               </p>
               <div className="flex gap-3">
