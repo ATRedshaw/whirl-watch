@@ -86,18 +86,38 @@ const Hub = () => {
           return;
         }
 
-        // Fetch user's media
-        const userMediaResponse = await fetch(`${apiUrl}/api/user/media`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
+        // Make all API calls in parallel for faster loading
+        const [userMediaResponse, selfFeedResponse, collaboratorFeedResponse] = await Promise.all([
+          // Fetch user's media
+          fetch(`${apiUrl}/api/user/media`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }),
+          
+          // Fetch self feed (things I've done)
+          fetch(`${apiUrl}/api/feed/self`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }),
+          
+          // Fetch collaborator feed (things my teammates did)
+          fetch(`${apiUrl}/api/feed/collaborators`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          })
+        ]);
 
         if (!userMediaResponse.ok) {
           throw new Error('Failed to fetch user media');
         }
 
+        // Process user media data
         const userMediaData = await userMediaResponse.json();
         setMediaItems(userMediaData.media_items || []);
         
@@ -108,27 +128,13 @@ const Hub = () => {
         setUnratedCompletedMedia(unratedCompleted);
         setShowUnratedBanner(unratedCompleted.length > 0);
 
-        // Fetch self feed (things I've done)
-        const selfFeedResponse = await fetch(`${apiUrl}/api/feed/self`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
-
+        // Process self feed data
         if (selfFeedResponse.ok) {
           const selfFeedData = await selfFeedResponse.json();
           setSelfFeedItems(selfFeedData.feed_items || []);
         }
 
-        // Fetch collaborator feed (things my teammates did)
-        const collaboratorFeedResponse = await fetch(`${apiUrl}/api/feed/collaborators`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
-
+        // Process collaborator feed data
         if (collaboratorFeedResponse.ok) {
           const collaboratorFeedData = await collaboratorFeedResponse.json();
           setCollaboratorFeedItems(collaboratorFeedData.feed_items || []);
