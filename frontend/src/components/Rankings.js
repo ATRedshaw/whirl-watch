@@ -35,7 +35,9 @@ const Rankings = () => {
     // Track if initial data has been loaded
     initialDataLoaded: false,
     // Track the source of any mode changes (user action vs. initialization)
-    isUserModeChange: false
+    isUserModeChange: false,
+    // Track if we're currently fetching list data to prevent duplicate requests
+    isFetchingListData: false
   });
   
   // Handle back button navigation
@@ -60,6 +62,11 @@ const Rankings = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Skip if we're already fetching list data or a user-initiated change is happening
+      if (initialStateRef.current.isFetchingListData || initialStateRef.current.isUserModeChange) {
+        return;
+      }
+      
       try {
         // Skip fetching completely if we have preloaded data from ListDetails
         if (initialStateRef.current.hasPreloadedData) {
@@ -93,6 +100,7 @@ const Rankings = () => {
         
         // Normal fetch flow when no preloaded data
         setLoading(true);
+        initialStateRef.current.isFetchingListData = true;
         
         const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
         const token = localStorage.getItem('token');
@@ -159,7 +167,7 @@ const Rankings = () => {
           setMediaItems(uniqueRatedMedia);
           setLoading(false);
         } else if (ratingMode === 'list_average' && selectedList !== 'all') {
-          // Fetch list averages - but don't set loading false yet
+          // Only fetch list averages if not done by the useEffect for selectedList
           try {
             const avgRatingsResponse = await fetch(`${apiUrl}/api/lists/${selectedList}/average_ratings`, {
               headers: {
@@ -200,6 +208,11 @@ const Rankings = () => {
         console.error('Error fetching data:', err);
         setError(err.message);
         setLoading(false);
+      } finally {
+        // Reset the fetching flag after a short delay
+        setTimeout(() => {
+          initialStateRef.current.isFetchingListData = false;
+        }, 200);
       }
     };
 
@@ -210,18 +223,18 @@ const Rankings = () => {
   useEffect(() => {
     const fetchListData = async () => {
       // Skip fetching if this is a user-initiated change (handled directly in handlers)
-      if (initialStateRef.current.isUserModeChange) {
+      if (initialStateRef.current.isUserModeChange || initialStateRef.current.isFetchingListData) {
         return;
       }
       
       // Only fetch list data if we're in list_average mode and a list is selected
       // Skip if we're still handling the initial navigation with preloaded data
       if (ratingMode === 'list_average' && selectedList !== 'all' && !initialStateRef.current.hasPreloadedData) {
+        initialStateRef.current.isFetchingListData = true;
         setLoading(true);
         // Clear media items to prevent showing stale data
         setMediaItems([]);
         
-        // Fetch the list data directly here instead of calling fetchListAverages
         try {
           const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
           const token = localStorage.getItem('token');
@@ -258,6 +271,9 @@ const Rankings = () => {
           setError(err.message);
         } finally {
           setLoading(false);
+          setTimeout(() => {
+            initialStateRef.current.isFetchingListData = false;
+          }, 200);
         }
       }
     };
@@ -267,6 +283,11 @@ const Rankings = () => {
 
   // Handle list selection change
   const handleListChange = (listId) => {
+    // If we're already fetching data for this list or it's the same list, don't fetch again
+    if (initialStateRef.current.isFetchingListData || selectedList === listId) {
+      return;
+    }
+    
     // Find the selected list name
     const selectedListInfo = lists.find(list => list.id === parseInt(listId));
     const newListName = selectedListInfo ? selectedListInfo.name : '';
@@ -274,8 +295,9 @@ const Rankings = () => {
     // Set loading to provide feedback
     setLoading(true);
     
-    // Set a flag to prevent the useEffect from triggering another load
+    // Set both flags to prevent duplicate fetches
     initialStateRef.current.isUserModeChange = true;
+    initialStateRef.current.isFetchingListData = true;
     
     // Direct data fetching approach instead of relying on the useEffect chain
     const fetchSelectedListData = async () => {
@@ -320,10 +342,11 @@ const Rankings = () => {
         setSelectedList(listId);
       } finally {
         setLoading(false);
-        // Reset the flag after a short delay to prevent race conditions
+        // Reset the flags after a short delay to prevent race conditions
         setTimeout(() => {
           initialStateRef.current.isUserModeChange = false;
-        }, 100);
+          initialStateRef.current.isFetchingListData = false;
+        }, 200);
       }
     };
     
@@ -1023,7 +1046,7 @@ const Rankings = () => {
                         <h4 className="text-sm font-semibold text-blue-400 mb-2">List Average Rating</h4>
                         <div className="flex items-center gap-2">
                           <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 01.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 01-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 01.951-.69l1.07-3.292z"></path>
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 01-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 01-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 01.951-.69l1.07-3.292z"></path>
                           </svg>
                           <span className="text-xl font-medium text-white">{selectedMedia.average_rating.toFixed(1)}</span>
                           <span className="text-sm text-gray-400">from {selectedMedia.rating_count || 0} ratings</span>
