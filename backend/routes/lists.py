@@ -924,3 +924,51 @@ def get_roulette_media(list_id):
     except Exception as e:
         current_app.logger.error(f"Error fetching roulette media: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+
+# ------------------------- Get media by TMDB ID ---------------------- #
+@lists_bp.route("/lists/<int:list_id>/media", methods=["GET"])
+@jwt_required()
+def get_media_by_tmdb_id(list_id):
+    """Get a media item from a list by its TMDB ID - used for optimizing ratings lookup"""
+    try:
+        current_user_id = get_jwt_identity()
+        tmdb_id = request.args.get('tmdb_id')
+        
+        if not tmdb_id:
+            raise BadRequest("tmdb_id parameter is required")
+            
+        # Verify user has access to this list
+        lst = MediaList.query.get_or_404(list_id)
+        is_owner = lst.owner_id == current_user_id
+        is_shared = SharedList.query.filter_by(list_id=list_id, user_id=current_user_id).first() is not None
+        
+        if not (is_owner or is_shared):
+            raise Forbidden("You do not have access to this list")
+        
+        # Find the media in the list
+        media_item = db.session.query(
+            MediaInList, Media
+        ).join(
+            Media, MediaInList.media_id == Media.id
+        ).filter(
+            MediaInList.list_id == list_id,
+            Media.tmdb_id == tmdb_id
+        ).first()
+        
+        if not media_item:
+            raise NotFound(f"Media with TMDB ID {tmdb_id} not found in this list")
+        
+        media_in_list, media = media_item
+        
+        return jsonify({
+            "media_item": {
+                "id": media_in_list.id,
+                "media_id": media.id,
+                "tmdb_id": media.tmdb_id,
+                "media_type": media.media_type
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

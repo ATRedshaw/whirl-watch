@@ -582,27 +582,42 @@ const Rankings = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('token');
       
-      // First get the list details to find the media ID
-      const response = await fetch(`${apiUrl}/api/lists/${listId}`, {
+      // First query the optimized endpoint to get the media ID from TMDB ID
+      const mediaLookupResponse = await fetch(`${apiUrl}/api/lists/${listId}/media?tmdb_id=${tmdbId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch list details');
+      if (!mediaLookupResponse.ok) {
+        throw new Error('Failed to find media in list');
       }
       
-      const listData = await response.json();
-      const mediaItem = listData.media_items?.find(item => item.tmdb_id === tmdbId);
+      const mediaData = await mediaLookupResponse.json();
       
-      if (mediaItem && mediaItem.id) {
-        // Now that we have the media ID, fetch the ratings
-        fetchMediaRatings(mediaItem.id);
+      if (!mediaData.media_item || !mediaData.media_item.id) {
+        throw new Error('Media not found in list');
       }
+      
+      // Now that we have the media ID, fetch the ratings
+      const ratingsResponse = await fetch(`${apiUrl}/api/lists/${listId}/media/${mediaData.media_item.id}/ratings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!ratingsResponse.ok) {
+        throw new Error('Failed to fetch media ratings');
+      }
+      
+      const ratingsData = await ratingsResponse.json();
+      setMediaRatings(ratingsData);
     } catch (err) {
-      console.error('Error fetching media by TMDB ID:', err);
+      console.error('Error fetching media ratings by TMDB ID:', err);
+      setLoadingRatings(false);
+    } finally {
       setLoadingRatings(false);
     }
   };
