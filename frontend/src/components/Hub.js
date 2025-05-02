@@ -59,26 +59,21 @@ const Hub = () => {
   // Dynamic update of unrated completed media when mediaItems changes
   useEffect(() => {
     if (mediaItems.length > 0) {
-      // Only update the banner content if it's currently showing
-      // This prevents the banner from appearing mid-session if new unrated items are added
-      if (showUnratedBanner) {
-        // Don't update the unratedCompletedMedia if the rating modal is open
-        // This prevents items from disappearing while the user is actively rating them
-        if (!showRatingModal) {
-          const unratedCompleted = mediaItems.filter(
-            item => item.watch_status === 'completed' && (item.rating === null || item.rating === undefined)
-          );
-          
-          setUnratedCompletedMedia(unratedCompleted);
-          
-          // If there are no more unrated items, hide the banner
-          if (unratedCompleted.length === 0) {
-            setShowUnratedBanner(false);
-          }
-        }
+      // Find completed media items without ratings
+      const unratedCompleted = mediaItems.filter(
+        item => item.watch_status === 'completed' && (item.rating === null || item.rating === undefined)
+      );
+      
+      // Always update unrated media items even if modal is open
+      // This ensures newly completed items show up in the modal immediately
+      setUnratedCompletedMedia(unratedCompleted);
+      
+      // Only update the visibility of the banner when modal is closed
+      if (!showRatingModal) {
+        setShowUnratedBanner(unratedCompleted.length > 0);
       }
     }
-  }, [mediaItems, showUnratedBanner, showRatingModal]);
+  }, [mediaItems, showRatingModal]);
 
   useEffect(() => {
     const fetchData = async () => {
