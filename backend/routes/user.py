@@ -70,6 +70,8 @@ def delete_profile():
         MediaInList.query.filter_by(added_by_id=current_user_id).delete()
         SharedList.query.filter_by(user_id=current_user_id).delete()
         VerificationCode.query.filter_by(user_id=current_user_id).delete()
+        # Also delete all user ratings
+        UserMediaRating.query.filter_by(user_id=current_user_id).delete()
         from models import MediaList  # local import avoids circular issue
         MediaList.query.filter_by(owner_id=current_user_id).delete()
 
