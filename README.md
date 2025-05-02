@@ -55,3 +55,4 @@ This refactoring has yielded significant benefits in terms of code organisation 
 ### Wrapping Up: Reflecting on the Development Journey
 
 Whirlwatch was born out of a personal frustration, but the process of building it provided valuable insights into various aspects of web development. From architecting the backend with Python to crafting a modern frontend with React, and even exploring the potential of LLMs, the journey was a rewarding one. The evolution in how I approach structuring Flask applications, particularly the move towards separating endpoints by route, stands out as a key lesson learned, shaping my development practices for future projects.
+
