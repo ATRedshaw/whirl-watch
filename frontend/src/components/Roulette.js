@@ -7,7 +7,6 @@ const Roulette = () => {
   const [lists, setLists] = useState([]);
   const [selectedList, setSelectedList] = useState(null);
   const [selectedListDetails, setSelectedListDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -63,7 +62,6 @@ const Roulette = () => {
       } catch (err) {
         setError(err.message);
       } finally {
-        setLoading(false);
         setIsLoadingComplete(true);
       }
     };
@@ -425,14 +423,6 @@ const Roulette = () => {
             </div>
           )}
         </motion.div>
-
-        {/* Show loading state */}
-        {loading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-gray-400 mt-4">Loading...</p>
-          </div>
-        )}
 
         {/* Show error state */}
         {error && (
