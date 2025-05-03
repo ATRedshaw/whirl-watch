@@ -34,6 +34,10 @@ def register():
             if field not in data:
                 raise BadRequest(f"Missing required field: {field}")
 
+        # Validate username length
+        if len(data["username"]) > 15:
+            raise BadRequest("Username must be 15 characters or less")
+
         # Unique username / email checks
         if User.query.filter_by(username=data["username"]).first():
             raise BadRequest("Username already exists")

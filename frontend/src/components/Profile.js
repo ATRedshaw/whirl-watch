@@ -212,12 +212,12 @@ const Profile = () => {
                   type="text"
                   value={profileData.username}
                   onChange={(e) => {
-                    const newUsername = e.target.value.slice(0, 30);
+                    const newUsername = e.target.value.slice(0, 15);
                     if (newUsername === '' || validateUsername(newUsername)) {
                       setProfileData(prev => ({ ...prev, username: newUsername }));
                     }
                   }}
-                  maxLength={30}
+                  maxLength={15}
                   autoComplete="username"
                   className="w-full px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
                 />

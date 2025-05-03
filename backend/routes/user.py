@@ -24,6 +24,10 @@ def update_profile():
         data = request.get_json() or {}
 
         if "username" in data:
+            # Validate username length
+            if len(data["username"]) > 15:
+                raise BadRequest("Username must be 15 characters or less")
+                
             if User.query.filter(User.id != current_user_id,
                                  User.username == data["username"]).first():
                 raise BadRequest("Username already exists")

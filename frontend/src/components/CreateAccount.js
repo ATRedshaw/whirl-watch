@@ -31,7 +31,7 @@ const CreateAccount = () => {
     const { name, value } = e.target;
     
     if (name === 'username') {
-      if (value.length > 30) return;
+      if (value.length > 15) return;
       if (value !== '' && !validateUsername(value)) return;
     }
 
@@ -59,8 +59,8 @@ const CreateAccount = () => {
       return;
     }
 
-    if (formData.username.length > 30) {
-      setError('Username must be 30 characters or less');
+    if (formData.username.length > 15) {
+      setError('Username must be 15 characters or less');
       setIsLoading(false);
       return;
     }
