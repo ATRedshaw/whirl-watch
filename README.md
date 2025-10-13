@@ -35,14 +35,11 @@ Whirlwatch incorporates several features designed to streamline the decision-mak
 *   **Rating System:**  Implementing features for users to rate shows and view the overall ratings provided by other users.
 *   **Progress Tracking:**  Visualising the status of media in lists, categorised as "Not Started," "In Progress," and "Watched."
 *   **Personal Rating Overview:**  Providing users with a view of all the media they have personally rated.
+*   **LLM Powered Media Recommendations:** Users can provide free-text inputs and adapt filters to produce media suggestions, powered via the Groq API.
 
 ###  The Roulette Wheel:  A Random Selection Mechanism
 
 A central feature, directly addressing the initial problem of indecision, is the **Roulette Wheel**. This component allows users to filter by lists, statuses, and media types and then randomly selects an item to watch. This provides a fun and efficient way to overcome choice paralysis.
-
-###  Future Considerations: Exploring LLMs for Recommendations
-
-Towards the latter stages of development, I experimented with the potential of using Large Language Models (LLMs) via platforms like Groq and Cerebras to provide media recommendations. While not currently integrated, this exploration highlights a potential direction for future enhancements, offering personalised suggestions based on user preferences.
 
 ### Lessons Learned: Structuring Flask Endpoints for Scalability
 
