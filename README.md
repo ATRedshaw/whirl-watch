@@ -1,55 +1,51 @@
-## Solving the Streaming Struggle: Whirlwatch
+# WhirlWatch
 
-Let's be honest, we've all been there. You settle in for a cosy evening with your significant other, popcorn at the ready, only to be met with the dreaded question: "So, what shall we watch?" What follows is often a frustrating back-and-forth, scrolling endlessly through streaming services, debating genres, and ultimately wasting precious relaxation time. This was the spark that ignited the creation of **Whirlwatch**!
+WhirlWatch is a collaborative platform designed for film and television enthusiasts. It allows users to create, share, and manage watchlists, track their viewing progress, and rate media. The project was built to offer a more interactive and personalised way for friends and groups to discover and decide what to watch next, moving beyond simple static lists.
 
-After countless evenings lost to the "what to watch" vortex, my girlfriend and I decided enough was enough. We needed a better way to manage our shared viewing preferences and make those all-important decisions without the usual hassle. The result? [Whirlwatch](https://whirlwatch.onrender.com/), a media tracker designed to streamline viewing choices and get to the good stuff faster.
+## Project Components
 
-###  Building a Solution: Focusing on the Backend Architecture
+WhirlWatch is structured with a clear separation between its backend API and a modern frontend application.
 
-Whirlwatch goes beyond being a simple list app. Drawing inspiration from previous projects (though taking a decidedly different technical route than my [Premier Predictor app](https://atredshaw.github.io/posts/from-code-to-kickoff/)), my aim was to build a robust and feature-rich platform. While Premier Predictor utilised a hybrid Flask backend with Firebase BaaS, Whirlwatch leans into a dedicated Python backend, leveraging the capabilities of the TMDB API for comprehensive movie and show data.
+### Backend
 
-This architectural shift allowed for a deeper focus on core backend functionalities. Key development considerations included:
+The backend is a Flask API, handling all data persistence, user authentication and external service integrations. It's built with a modular design, using Flask Blueprints to organise different functional areas.
 
-*   **Secure User Authentication:**  Implementing email verification during sign-up was a priority to ensure legitimate users. A straightforward email-based password reset flow was also developed to handle forgotten passwords.
-*   **Robust Session Management and Token Refresh:**  Ensuring a seamless user experience meant implementing secure session management with token refresh mechanisms to maintain user sessions without constant re-authentication.
-*   **Comprehensive Account Management:**  Providing users with full control over their accounts was a key requirement.
-*   **Implementing Rate Limiting:**  To maintain application stability and prevent abuse, rate limiting was integrated into the backend.
+*   **Authentication & User Management**: Core user functionalities are managed here, including account registration, secure login with JWT (JSON Web Tokens), email verification and password reset flows. Rate limiting is implemented across these endpoints to prevent abuse.
+*   **List Management**: This is where the collaborative magic happens. Users can create their own media lists, invite others to join via unique share codes, and manage who has access. The system tracks media items within these lists, allowing for individual user ratings and watch statuses, while also calculating average ratings across all list members.
+*   **Media Integration**: The API acts as a proxy for The Movie Database (TMDB) API, enabling comprehensive search capabilities for films and TV series, and fetching detailed metadata for individual titles. This ensures the application always has up-to-date information on a vast library of media.
+*   **Personalised Suggestions**: A key feature is the integration of a Large Language Model (LLM) to provide custom media recommendations. Users can submit natural language queries, and the LLM processes these to generate tailored suggestions, enhancing media discovery beyond traditional genre-based filtering.
+*   **User Profiles & Activity Feeds**: Users can manage their profiles and view activity feeds. These feeds offer insights into their own viewing habits and ratings, as well as a collaborative feed showing what other members in their shared lists have been watching and rating.
+*   **Admin Functionality**: A dedicated set of endpoints provides administrative capabilities, such as managing user privileges, ensuring the platform can be effectively moderated.
+*   **API Documentation**: A self-documenting `/api` endpoint provides a machine-readable overview of all available routes, their methods, expected parameters, and authentication requirements, making it straightforward for the frontend (or any client) to interact with the API.
 
-###  Crafting the Frontend: A Modern React Experience
+### Frontend
 
-On the frontend, the choice was React, styled using Tailwind CSS. This combination offered the flexibility and efficiency needed to build a dynamic and responsive user interface. Some key aspects of the frontend development included:
+The frontend is a dynamic and responsive React application, providing an intuitive user interface for interacting with the WhirlWatch backend.
 
-*   **Route Protection:** Implementing both public and private routes was crucial to secure sensitive areas of the application, ensuring only logged-in users could access them.
-*   **Dynamic UI Updates:**  Focus was placed on creating a fluid user experience with dynamic updates and clear loading states to provide feedback during interactions.
-*   **Responsive Design:**  Utilising Tailwind CSS facilitated the development of a modern and responsive UI that adapts well to different screen sizes.
+*   **Modern User Interface**: Built with React, the application offers a smooth and engaging experience. Styling is handled using Tailwind CSS, ensuring a consistent and modern aesthetic across the platform.
+*   **Client-Side Routing**: Utilising `react-router-dom`, the application manages navigation efficiently. It includes protected routes, ensuring that sensitive areas like user dashboards and list management pages are only accessible to authenticated users, while public-only routes guide users through registration and login.
+*   **Comprehensive Feature Set**: The frontend exposes all the rich functionality of the backend. Users can:
+    *   Register and log in securely.
+    *   Browse and search for movies and TV shows.
+    *   Create, view, and manage their personal and shared media lists.
+    *   Join existing lists using share codes.
+    *   Update watch statuses and provide personal ratings for media items.
+    *   Explore collaborative rankings and use a "roulette" feature for group viewing decisions.
+    *   Generate personalised media suggestions using the LLM integration.
+    *   Manage their profile and view activity feeds.
+    *   Administrators have access to a dedicated admin panel.
+*   **Global State Management**: React Context API is employed for efficient global state management, particularly for authentication, ensuring user session information is readily available throughout the application.
 
-###  Key Functionality:  Developing the Core Features
+## Tech Stack
 
-Whirlwatch incorporates several features designed to streamline the decision-making process for choosing what to watch:
+*   **Backend**: Python, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-Limiter, Requests, LLM (for suggestions).
+*   **Frontend**: React.js, React Router, Tailwind CSS.
+*   **Database**: SQLAlchemy (ORM), typically SQLite for development, with support for PostgreSQL/MySQL in production.
+*   **External APIs**: The Movie Database (TMDB) API.
 
-*   **Media Search:** Integrating with the TMDB API allows users to easily search for movies and TV shows.
-*   **List Creation and Management:**  Users can create and manage their own curated watchlists.
-*   **Adding Media to Lists:**  A simple and intuitive process for adding searched media to user lists.
-*   **List Filtering and Searching:**  Functionality to search and filter within lists, enabling users to quickly find specific titles or narrow down choices based on criteria like status or media type.
-*   **List Sharing and Collaboration:**  Developing the ability to share lists with friends and join friends' lists to facilitate collaborative viewing decisions.
-*   **Rating System:**  Implementing features for users to rate shows and view the overall ratings provided by other users.
-*   **Progress Tracking:**  Visualising the status of media in lists, categorised as "Not Started," "In Progress," and "Watched."
-*   **Personal Rating Overview:**  Providing users with a view of all the media they have personally rated.
-*   **LLM Powered Media Recommendations:** Users can provide free-text inputs and adapt filters to produce media suggestions, powered via the Groq API.
+## Future Ideas
 
-###  The Roulette Wheel:  A Random Selection Mechanism
-
-A central feature, directly addressing the initial problem of indecision, is the **Roulette Wheel**. This component allows users to filter by lists, statuses, and media types and then randomly selects an item to watch. This provides a fun and efficient way to overcome choice paralysis.
-
-### Lessons Learned: Structuring Flask Endpoints for Scalability
-
-One of the key takeaways from this project, and something I've actively explored in subsequent developments, revolves around the structure of Flask endpoints. Initially, all the endpoints were housed within a single large file. As the project grew, this monolithic structure became increasingly challenging to navigate and maintain.
-
-Recognising this, I've since adopted a more modular approach, splitting Flask endpoints into multiple separate files based on their associated routes. For example, user authentication endpoints would reside in one file, media management endpoints in another, and so on.
-
-This refactoring has yielded significant benefits in terms of code organisation and manageability. It becomes far easier to locate and modify specific endpoint logic when it's grouped logically by its function or the resource it operates on. This approach promotes cleaner code, reduces the cognitive load when working on different parts of the application, and ultimately contributes to a more scalable and maintainable codebase. This is a pattern I've found particularly effective in more recent projects, leading to a more streamlined and efficient development workflow.
-
-### Wrapping Up: Reflecting on the Development Journey
-
-Whirlwatch was born out of a personal frustration, but the process of building it provided valuable insights into various aspects of web development. From architecting the backend with Python to crafting a modern frontend with React, and even exploring the potential of LLMs, the journey was a rewarding one. The evolution in how I approach structuring Flask applications, particularly the move towards separating endpoints by route, stands out as a key lesson learned, shaping my development practices for future projects.
-
+*   **Enhanced LLM Integration**: Further refine the LLM's ability to understand nuanced queries and provide even more contextually relevant suggestions.
+*   **Notifications**: Implement real-time notifications for list updates, new shared media, or collaborator activity.
+*   **Advanced Filtering**: Introduce more sophisticated filtering and sorting options for media within lists and search results.
+*   **User-Generated Content**: Allow users to add custom media entries not found on TMDB.
